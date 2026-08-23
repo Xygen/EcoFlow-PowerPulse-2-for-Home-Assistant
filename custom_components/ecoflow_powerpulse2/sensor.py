@@ -50,4 +50,7 @@ class PowerPulse2Sensor(PowerPulse2Entity, SensorEntity):
 
     @property
     def native_value(self):
-        return self.coordinator.data.get(self.serial, {}).get(self.entity_description.key)
+        value = self.coordinator.data.get(self.serial, {}).get(self.entity_description.key)
+        if self.entity_description.value_fn is not None:
+            return self.entity_description.value_fn(value)
+        return value

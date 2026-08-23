@@ -2,14 +2,23 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
+from typing import Any
 
 from homeassistant.components.sensor import (
     SensorDeviceClass,
     SensorEntityDescription,
     SensorStateClass,
 )
-from homeassistant.const import UnitOfElectricCurrent, UnitOfElectricPotential, UnitOfPower, UnitOfTime
+from homeassistant.const import (
+    UnitOfElectricCurrent,
+    UnitOfElectricPotential,
+    UnitOfEnergy,
+    UnitOfPower,
+)
+
+from .presentation import as_timestamp, format_duration
 
 DOMAIN = "ecoflow_powerpulse2"
 CONF_EMAIL = "email"
@@ -37,6 +46,7 @@ class PowerPulse2SensorDescription(SensorEntityDescription):
     """PowerPulse sensor metadata."""
 
     diagnostic: bool = False
+    value_fn: Callable[[Any], Any] | None = None
 
 
 SENSORS = (
@@ -64,6 +74,18 @@ SENSORS = (
         ],
     ),
     PowerPulse2SensorDescription(
+        key="work_mode",
+        translation_key="work_mode",
+        device_class=SensorDeviceClass.ENUM,
+        options=["unknown", "fast", "solar", "custom", "smart"],
+    ),
+    PowerPulse2SensorDescription(
+        key="ready_by_timestamp",
+        translation_key="ready_by",
+        device_class=SensorDeviceClass.TIMESTAMP,
+        value_fn=as_timestamp,
+    ),
+    PowerPulse2SensorDescription(
         key="phase_voltage_v",
         translation_key="phase_voltage",
         native_unit_of_measurement=UnitOfElectricPotential.VOLT,
@@ -84,9 +106,15 @@ SENSORS = (
     PowerPulse2SensorDescription(
         key="session_duration_s",
         translation_key="session_duration",
-        native_unit_of_measurement=UnitOfTime.SECONDS,
-        device_class=SensorDeviceClass.DURATION,
-        state_class=SensorStateClass.MEASUREMENT,
+        value_fn=format_duration,
+        diagnostic=True,
+        entity_registry_enabled_default=False,
+    ),
+    PowerPulse2SensorDescription(
+        key="smart_charge_target_wh",
+        translation_key="smart_charge_target",
+        native_unit_of_measurement=UnitOfEnergy.WATT_HOUR,
+        device_class=SensorDeviceClass.ENERGY,
         diagnostic=True,
         entity_registry_enabled_default=False,
     ),
@@ -117,6 +145,42 @@ SENSORS = (
     PowerPulse2SensorDescription(
         key="suspend_reason_raw",
         translation_key="suspend_reason_raw",
+        diagnostic=True,
+        entity_registry_enabled_default=False,
+    ),
+    PowerPulse2SensorDescription(
+        key="output_current_max_raw",
+        translation_key="output_current_max_raw",
+        diagnostic=True,
+        entity_registry_enabled_default=False,
+    ),
+    PowerPulse2SensorDescription(
+        key="user_current_set_raw",
+        translation_key="user_current_set_raw",
+        diagnostic=True,
+        entity_registry_enabled_default=False,
+    ),
+    PowerPulse2SensorDescription(
+        key="solar_current_min_raw",
+        translation_key="solar_current_min_raw",
+        diagnostic=True,
+        entity_registry_enabled_default=False,
+    ),
+    PowerPulse2SensorDescription(
+        key="switch_bits_raw",
+        translation_key="switch_bits_raw",
+        diagnostic=True,
+        entity_registry_enabled_default=False,
+    ),
+    PowerPulse2SensorDescription(
+        key="phase_specified_raw",
+        translation_key="phase_specified_raw",
+        diagnostic=True,
+        entity_registry_enabled_default=False,
+    ),
+    PowerPulse2SensorDescription(
+        key="vehicle_consumption_raw",
+        translation_key="vehicle_consumption_raw",
         diagnostic=True,
         entity_registry_enabled_default=False,
     ),

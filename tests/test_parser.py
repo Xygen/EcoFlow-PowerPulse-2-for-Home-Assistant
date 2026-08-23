@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from struct import pack
 
 from custom_components.ecoflow_powerpulse2.ecoflow.proto_encoding import (
@@ -131,6 +132,73 @@ def test_nested_json_aliases() -> None:
         {"data": {"params": {"chargePower": 7341, "systemState": 4}}}
     )
     assert result == {"charging_power_w": 7341, "charging_status": "paused"}
+
+
+def test_nested_powerpulse_provider_report() -> None:
+    report = {
+        "devInfo": {"devSn": "C376TEST"},
+        "pileChargingParamReport": {
+            "chargingPwr": 0,
+            "chargingStatus": 1,
+            "paramSet": {
+                "workMode": 4,
+                "currentOuputMax": 160,
+                "userCurrentSet": 60,
+                "solarCurrentMin": 60,
+                "switchBits": 9,
+                "phaseSpecified": 0,
+                "smartMode": {
+                    "timeToUseCar": 1_787_528_301,
+                    "chargeTarget": 30_000,
+                },
+            },
+        },
+        "vehicleInfo": {"currentVehicleComsumption": 175},
+    }
+    payload = {
+        "data": {
+            "quota": {
+                "main_device_workMode": 99,
+                "device_EDEV_PARAM_REPORT": {"C376TEST": json.dumps(report)},
+            }
+        }
+    }
+
+    result = parse_powerpulse2_payload(payload)
+
+    assert result["charging_status"] == "unplugged"
+    assert result["charging_power_w"] == 0
+    assert result["work_mode"] == "smart"
+    assert result["ready_by_timestamp"] == 1_787_528_301
+    assert result["smart_charge_target_wh"] == 30_000
+    assert result["output_current_max_raw"] == 160
+    assert result["user_current_set_raw"] == 60
+    assert result["solar_current_min_raw"] == 60
+    assert result["switch_bits_raw"] == 9
+    assert result["phase_specified_raw"] == 0
+    assert result["vehicle_consumption_raw"] == 175
+
+
+def test_powerpulse_provider_report_distance_target() -> None:
+    result = parse_powerpulse2_payload(
+        {
+            "pileChargingParamReport": {
+                "paramSet": {
+                    "workMode": 4,
+                    "smartMode": {
+                        "timeToUseCar": 1_787_528_301,
+                        "chargeTarget": 0,
+                    },
+                }
+            }
+        }
+    )
+
+    assert result == {
+        "ready_by_timestamp": 1_787_528_301,
+        "smart_charge_target_wh": 0,
+        "work_mode": "smart",
+    }
 
 
 def test_unrelated_protobuf_is_not_a_heartbeat() -> None:

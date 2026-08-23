@@ -52,3 +52,44 @@ Conclusion:
 - dev4 routes envelopes by command type and adds passive discovery filters;
   the `2/34` field meanings remain intentionally undecoded until paired
   captures establish them.
+
+## 2026-08-23: Operating modes and Smart targets
+
+The official app was used to save one setting at a time while both the
+provider snapshot and privacy-redacted MQTT diagnostics were observed. No car
+was connected. The charger was restored to Solar Mode at the end.
+
+Confirmed provider values:
+
+- `workMode=1`: Fast charging
+- `workMode=2`: Solar Mode
+- `workMode=3`: Custom
+- `workMode=4`: Smart Mode
+- Smart energy target `30 kWh`: `chargeTarget=30000`
+- Smart ready-by `01:38 (+1)`: `timeToUseCar=1787528301`, a Unix timestamp for
+  `2026-08-23T23:38:21Z` / `2026-08-24 01:38:21` Europe/Berlin
+- Smart distance target `200 km`: `chargeTarget=0`; the kilometre target is
+  stored in another provider field that the reference integration does not
+  currently expose as an entity
+- Returning to Solar Mode reset `timeToUseCar` to `0`
+
+Further current-setting observations:
+
+- Custom Mode was saved at both 6 A and 11 A. The heartbeat-derived
+  `charge_current_set_raw` remained `60`, while `current_limit_raw` remained
+  `160`. Therefore the former cannot yet be labelled as the Custom slider.
+- Solar continuous charging at 6 A and Custom charging at 6/11 A each produced
+  a `2/34` parameter report. After XOR decoding, all captured `2/34` parameter
+  bodies were byte-for-byte identical, including the reports produced while
+  restoring the original settings.
+- No official-app SET or SET-reply frame was observed on the exact or wildcard
+  subscriptions during any mode, target, or current change. These writes may
+  use the provider HTTP API or a route unavailable to the integration's MQTT
+  credentials.
+
+Conclusion:
+
+- The provider values above are safe to expose read-only.
+- Do not infer mode/current write payloads from the identical `2/34` report.
+  Mode switching, Smart targets, continuous charging, and current controls
+  remain blocked until a real request and acknowledgement are captured.

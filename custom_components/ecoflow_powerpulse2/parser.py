@@ -19,6 +19,13 @@ _STATE_MAP = {
     8: "updating",
 }
 
+_WORK_MODE_MAP = {
+    1: "fast",
+    2: "solar",
+    3: "custom",
+    4: "smart",
+}
+
 _JSON_FIELD_MAP = {
     "chargePower": "charging_power_w",
     "chargingPower": "charging_power_w",
@@ -60,6 +67,7 @@ def _parse_json(value: dict[str, Any]) -> dict[str, Any]:
             raw = item.get(source)
             if isinstance(raw, (int, float)) and math.isfinite(float(raw)):
                 result[target] = raw
+    _parse_powerpulse_json(value, result)
     _finish(result)
     return result
 
@@ -72,6 +80,81 @@ def _iter_dicts(value: Any):
     elif isinstance(value, list):
         for nested in value:
             yield from _iter_dicts(nested)
+    elif isinstance(value, str) and value.lstrip().startswith("{"):
+        try:
+            nested = json.loads(value)
+        except json.JSONDecodeError:
+            return
+        yield from _iter_dicts(nested)
+
+
+def _parse_powerpulse_json(value: dict[str, Any], result: dict[str, Any]) -> None:
+    """Extract fields only from a PowerPulse parameter report.
+
+    A PowerOcean provider response can contain several products with fields
+    named ``workMode``. Restricting these aliases to
+    ``pileChargingParamReport`` prevents an inverter mode from becoming the
+    charger mode.
+    """
+    for item in _iter_dicts(value):
+        report = item.get("pileChargingParamReport")
+        if not isinstance(report, dict):
+            continue
+
+        params = report.get("paramSet")
+        if not isinstance(params, dict):
+            params = {}
+        smart = params.get("smartMode")
+        if not isinstance(smart, dict):
+            smart = {}
+
+        _copy_finite(report, "chargingPwr", "charging_power_w", result)
+        _copy_finite(report, "chargingStatus", "system_state_raw", result)
+        _copy_finite(params, "workMode", "work_mode_raw", result)
+        _copy_finite(smart, "timeToUseCar", "ready_by_timestamp", result)
+        _copy_finite(smart, "chargeTarget", "smart_charge_target_wh", result)
+
+        for source, target in (
+            ("currentOuputMax", "output_current_max_raw"),
+            ("userCurrentSet", "user_current_set_raw"),
+            ("solarCurrentMin", "solar_current_min_raw"),
+            ("switchBits", "switch_bits_raw"),
+            ("phaseSpecified", "phase_specified_raw"),
+        ):
+            _copy_from_first((params, report), source, target, result)
+
+        vehicle = item.get("vehicleInfo")
+        if isinstance(vehicle, dict):
+            _copy_finite(
+                vehicle,
+                "currentVehicleComsumption",
+                "vehicle_consumption_raw",
+                result,
+            )
+
+
+def _copy_from_first(
+    sources: tuple[dict[str, Any], ...],
+    source: str,
+    target: str,
+    result: dict[str, Any],
+) -> None:
+    for item in sources:
+        if _copy_finite(item, source, target, result):
+            return
+
+
+def _copy_finite(
+    item: dict[str, Any],
+    source: str,
+    target: str,
+    result: dict[str, Any],
+) -> bool:
+    raw = item.get(source)
+    if not isinstance(raw, (int, float)) or not math.isfinite(float(raw)):
+        return False
+    result[target] = raw
+    return True
 
 
 def _parse_proto(payload: bytes) -> dict[str, Any]:
@@ -218,3 +301,6 @@ def _finish(result: dict[str, Any]) -> None:
     state = result.pop("system_state_raw", None)
     if isinstance(state, (int, float)):
         result["charging_status"] = _STATE_MAP.get(int(state), "unknown")
+    work_mode = result.pop("work_mode_raw", None)
+    if isinstance(work_mode, (int, float)):
+        result["work_mode"] = _WORK_MODE_MAP.get(int(work_mode), "unknown")

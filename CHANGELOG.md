@@ -5,9 +5,23 @@
 - Protocol hypothesis for a future release: `session_energy_raw` may be watt-hours.
   A live value of `1815` corresponded to `1.82 kWh` in the EcoFlow app. Keep the
   raw entity unchanged until additional sessions confirm the unit and rounding.
+
+## 0.1.0-dev5
+
+- Add a read-only, translated operating-mode sensor for the live-confirmed
+  values Fast charging, Solar mode, Custom, and Smart mode.
+- Read Smart ready-by time and energy target from the provider snapshot. A
+  `30 kWh` target was confirmed as raw `30000`; distance mode reports `0` in
+  this energy field and keeps its kilometre target elsewhere.
+- Add disabled-by-default raw provider fields for current, setting flags,
+  phase selection, and vehicle consumption to support the next paired tests.
 - Present session duration dynamically in a human-readable form instead of raw
   seconds (for example `42 s`, `12 min`, `1 h 08 min`, or `2 d 03 h`). Preserve
   the numeric seconds value internally for calculations and automations.
+- Keep every MQTT client hard listen-only; the mode and target tests exposed no
+  validated SET request or acknowledgement.
+- Pin the lightweight test dependencies to avoid incompatible pytest resolver
+  choices on Windows.
 
 ## 0.1.0-dev4
 

@@ -30,14 +30,32 @@
           "updating": "Aktualisierung"
         }
       },
+      "work_mode": {
+        "name": "Betriebsmodus",
+        "state": {
+          "unknown": "Unbekannt",
+          "fast": "Schnellladung",
+          "solar": "Solar-Modus",
+          "custom": "Benutzerdefiniert",
+          "smart": "Smart-Modus"
+        }
+      },
+      "ready_by": {"name": "Bereit vor"},
       "phase_voltage": {"name": "Phasenspannung"},
       "phase_current": {"name": "Phasenstrom"},
       "session_duration": {"name": "Sitzungsdauer"},
+      "smart_charge_target": {"name": "Smart-Zielenergie"},
       "total_energy_raw": {"name": "Gesamtenergie Rohwert"},
       "session_energy_raw": {"name": "Sitzungsenergie Rohwert"},
       "charge_current_set_raw": {"name": "Ladestrom-Sollwert Rohwert"},
       "current_limit_raw": {"name": "Stromgrenze Rohwert"},
-      "suspend_reason_raw": {"name": "Pausengrund Rohwert"}
+      "suspend_reason_raw": {"name": "Pausengrund Rohwert"},
+      "output_current_max_raw": {"name": "Maximaler Ausgangsstrom Rohwert"},
+      "user_current_set_raw": {"name": "Benutzer-Ladestrom Rohwert"},
+      "solar_current_min_raw": {"name": "Solar-Mindeststrom Rohwert"},
+      "switch_bits_raw": {"name": "Einstellungsflags Rohwert"},
+      "phase_specified_raw": {"name": "Ausgewählte Phase Rohwert"},
+      "vehicle_consumption_raw": {"name": "Fahrzeugverbrauch Rohwert"}
     }
   }
 }
