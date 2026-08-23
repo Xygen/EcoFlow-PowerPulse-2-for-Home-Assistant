@@ -8,6 +8,12 @@
   A live value of `1815` corresponded to `1.82 kWh` in the EcoFlow app. Keep the
   raw entity unchanged until additional sessions confirm the unit and rounding.
 
+## 0.1.0-dev6
+
+- Preserve MQTT telemetry received while an HTTP snapshot request is in flight.
+  A slow or empty provider response can no longer replace fresh charger values
+  with an empty data set and make every entity unavailable.
+
 ## 0.1.0-dev5
 
 - Add a read-only, translated operating-mode sensor for the live-confirmed

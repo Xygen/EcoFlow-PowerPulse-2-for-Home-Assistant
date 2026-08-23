@@ -13,6 +13,7 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, Upda
 
 from .api import PowerPulse2ApiClient
 from .const import CONF_EMAIL, CONF_PASSWORD, DOMAIN, UPDATE_INTERVAL_SECONDS
+from .data_merge import merge_snapshot_after_read
 from .ecoflow.cloud_mqtt import EcoFlowMQTTClient
 from .frame_capture import (
     DiagnosticFrameCapture,
@@ -81,9 +82,10 @@ class PowerPulse2Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
 
             result: dict[str, dict[str, Any]] = {}
             for serial, device in self.devices.items():
-                current = dict((self.data or {}).get(serial, {}))
-                current.update(await self.api.async_read(device))
-                result[serial] = current
+                result[serial] = await merge_snapshot_after_read(
+                    lambda device=device: self.api.async_read(device),
+                    lambda serial=serial: (self.data or {}).get(serial),
+                )
             return result
         except UpdateFailed:
             raise
