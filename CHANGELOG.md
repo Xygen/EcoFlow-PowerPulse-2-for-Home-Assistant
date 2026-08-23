@@ -9,6 +9,16 @@
   seconds (for example `42 s`, `12 min`, `1 h 08 min`, or `2 d 03 h`). Preserve
   the numeric seconds value internally for calculations and automations.
 
+## 0.1.0-dev4
+
+- Route CP307 protobuf envelopes by command type so the `2/34` parameter
+  report can no longer overwrite heartbeat telemetry with unrelated fields.
+- Ignore encrypted wire payloads after their decoded form has been selected.
+- Add three passive wildcard subscriptions and privacy-safe topic patterns to
+  help discover PowerPulse-specific command routes without enabling writes.
+- Record that Solar Mode's continuous-charging current is distinct from the
+  charger's separate maximum-current setting.
+
 ## 0.1.0-dev3
 
 - Passively subscribe to C376 app-auth and device-facing SET candidate topics.

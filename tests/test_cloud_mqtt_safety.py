@@ -43,7 +43,7 @@ def test_listen_only_connect_only_subscribes() -> None:
     client._on_connect(paho_client, None, None, 0)  # noqa: SLF001
 
     assert client.connected
-    assert len(paho_client.subscriptions) == 8
+    assert len(paho_client.subscriptions) == 11
     assert any(topic.endswith("/thing/property/set") for topic, _ in paho_client.subscriptions)
     assert any(topic.endswith("/set") and "/open/" in topic for topic, _ in paho_client.subscriptions)
     assert any(topic.endswith("/app/device/property/C376-secret/set") for topic, _ in paho_client.subscriptions)
@@ -52,10 +52,13 @@ def test_listen_only_connect_only_subscribes() -> None:
         "app_set",
         "app_set_reply",
         "device_property",
+        "device_property_children",
         "device_property_set",
+        "open_device_children",
         "open_set",
         "open_set_reply",
         "quota",
+        "app_device_all",
     }
 
 
@@ -65,3 +68,7 @@ def test_mqtt_topic_log_masking() -> None:
     assert client._masked_topic(  # noqa: SLF001 - explicit privacy regression test
         "/open/account-secret/C376-secret/user-secret/quota"
     ) == "/open/<account>/<device>/<user>/quota"
+
+    assert client.diagnostic_topic(
+        "/app/user-secret/C376-secret/thing/property/custom"
+    ) == "/app/<user>/<device>/thing/property/custom"

@@ -77,6 +77,7 @@ def _iter_dicts(value: Any):
 def _parse_proto(payload: bytes) -> dict[str, Any]:
     result: dict[str, Any] = {}
     candidates: list[bytes] = []
+    envelope_seen = False
     try:
         for field, wire, value in iter_protobuf_fields(payload):
             if field != 1 or wire != 2 or not isinstance(value, bytes):
@@ -85,8 +86,24 @@ def _parse_proto(payload: bytes) -> dict[str, Any]:
             # with CP307 pdata at field 1 of that header. App MQTT frames use
             # enc_type=1 (field 11): pdata is XORed with the low byte of the
             # sequence number (field 14). Keep the wire payload as a fallback
-            # because captures with key 0 and older unencrypted frames exist.
+            # only when the header does not mark it as encrypted.
             header_fields = list(iter_protobuf_fields(value))
+            cmd_func = next(
+                (
+                    inner_value
+                    for inner_field, inner_wire, inner_value in header_fields
+                    if inner_field == 8 and inner_wire == 0 and isinstance(inner_value, int)
+                ),
+                None,
+            )
+            cmd_id = next(
+                (
+                    inner_value
+                    for inner_field, inner_wire, inner_value in header_fields
+                    if inner_field == 9 and inner_wire == 0 and isinstance(inner_value, int)
+                ),
+                None,
+            )
             enc_type = next(
                 (
                     inner_value
@@ -103,20 +120,36 @@ def _parse_proto(payload: bytes) -> dict[str, Any]:
                 ),
                 None,
             )
+            pdata_values = [
+                inner_value
+                for inner_field, inner_wire, inner_value in header_fields
+                if inner_field == 1 and inner_wire == 2 and isinstance(inner_value, bytes)
+            ]
+            if pdata_values:
+                envelope_seen = True
+
+            # CP307 status, parameter, charging-record, and acknowledgement
+            # messages reuse field numbers for different meanings. Only
+            # command 2/33 uses the heartbeat schema below. Treating the 2/34
+            # parameter report as a heartbeat can create false states/currents.
+            if (cmd_func, cmd_id) != (2, 33):
+                continue
             for inner_field, inner_wire, inner_value in header_fields:
                 if inner_field != 1 or inner_wire != 2 or not isinstance(inner_value, bytes):
                     continue
                 if enc_type == 1 and isinstance(sequence, int):
                     key = sequence & 0xFF
                     candidates.append(bytes(byte ^ key for byte in inner_value))
-                candidates.append(inner_value)
+                else:
+                    candidates.append(inner_value)
     except ValueError:
         return {}
 
     # Captured BLE payloads are bare HeartBeat messages. Supporting that shape
     # also makes diagnostics fixtures usable, but plausibility checks below
     # prevent arbitrary envelopes from becoming entities.
-    candidates.append(payload)
+    if not envelope_seen:
+        candidates.append(payload)
     for candidate in candidates:
         parsed = _parse_cp307_heartbeat(candidate)
         if parsed:

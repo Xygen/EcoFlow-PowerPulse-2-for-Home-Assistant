@@ -166,6 +166,10 @@ class EcoFlowMQTTClient:
                 masked = masked.replace(value, replacement)
         return masked
 
+    def diagnostic_topic(self, topic: str) -> str:
+        """Return a privacy-safe topic pattern for diagnostics."""
+        return self._masked_topic(topic)
+
     @property
     def subscription_results(self) -> dict[str, int]:
         """Return identifier-free MQTT subscription result codes."""
@@ -255,6 +259,21 @@ class EcoFlowMQTTClient:
             self._subscribe(client, open_set, 1, "open_set")
             self._subscribe(client, open_set_reply, 1, "open_set_reply")
             self._subscribe(client, device_set, 1, "device_property_set")
+            # Passive discovery filters for device-specific command routes not
+            # covered by the known EcoFlow topic names. They never publish and
+            # avoid the high-volume base property topic.
+            self._subscribe(
+                client,
+                f"/open/{self._cert_account}/{self._device_sn}/+",
+                1,
+                "open_device_children",
+            )
+            self._subscribe(
+                client,
+                f"/app/device/property/{self._device_sn}/+",
+                1,
+                "device_property_children",
+            )
 
             if self._user_id:
                 app_set = f"/app/{self._user_id}/{self._device_sn}/thing/property/set"
@@ -263,6 +282,12 @@ class EcoFlowMQTTClient:
                 # frames even while this integration is hard listen-only.
                 self._subscribe(client, app_set, 1, "app_set")
                 self._subscribe(client, app_set_reply, 1, "app_set_reply")
+                self._subscribe(
+                    client,
+                    f"/app/{self._user_id}/{self._device_sn}/#",
+                    1,
+                    "app_device_all",
+                )
 
             if self._subscribe_data:
                 # Subscribe to data topics (Enhanced Mode: MQTT is primary data source)

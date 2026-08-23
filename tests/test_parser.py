@@ -81,6 +81,34 @@ def test_cp307_xor_encoded_app_mqtt_envelope() -> None:
 
     assert result["charging_status"] == "unplugged"
     assert result["charging_power_w"] == 0.0
+    assert result["charge_current_set_raw"] == 16
+    assert result["current_limit_raw"] == 16
+
+
+def test_cp307_parameter_report_is_not_parsed_as_heartbeat() -> None:
+    """cmd 2/34 reuses heartbeat field numbers for different parameters."""
+    parameter_report = b"".join(
+        (
+            encode_field_varint(1, 15),
+            encode_field_varint(9, 1_364_918),
+            encode_field_varint(17, 15),
+            encode_field_varint(18, 15),
+        )
+    )
+    sequence = 5_508_714
+    key = sequence & 0xFF
+    encrypted = bytes(byte ^ key for byte in parameter_report)
+    header = b"".join(
+        (
+            encode_field_bytes(1, encrypted),
+            encode_field_varint(8, 2),
+            encode_field_varint(9, 34),
+            encode_field_varint(11, 1),
+            encode_field_varint(14, sequence),
+        )
+    )
+
+    assert parse_powerpulse2_payload(encode_field_bytes(1, header)) == {}
 
 
 def test_cp307_packed_phase_values() -> None:

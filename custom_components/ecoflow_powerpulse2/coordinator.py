@@ -148,6 +148,7 @@ class PowerPulse2Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
 
     def _record_mqtt_frame(self, serial: str, topic: str, payload: bytes) -> None:
         channel = classify_mqtt_topic(topic)
+        client = self.mqtt_clients.get(serial)
         parsed = (
             parse_powerpulse2_payload(payload)
             if channel_carries_telemetry(channel)
@@ -164,6 +165,9 @@ class PowerPulse2Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
             "timestamp": datetime.now(UTC).isoformat(),
             "device_prefix": serial[:4],
             "channel": channel,
+            "topic_pattern": (
+                client.diagnostic_topic(topic) if client is not None else "unknown"
+            ),
             "size": len(payload),
             "parsed_keys": sorted(parsed),
             "protocol_headers": inspect_envelope_headers(payload),

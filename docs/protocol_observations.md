@@ -35,3 +35,20 @@ Conclusion:
 - The actual app Start/Stop request remains unobserved. It may use another MQTT
   topic or another transport. Do not implement `CHARGE_CTRL` writes until the
   request envelope and acknowledgement are captured.
+
+## 2026-08-23: Solar continuous-charging option
+
+- Solar Mode exposes an optional "Continuous charging" setting. Its 6-16 A
+  value is the current allowed even without solar production; it is not the
+  charger's separately configured maximum current.
+- Enabling the option at 6 A and saving produced a CP307 `cmd_func=2`,
+  `cmd_id=34` parameter report. Disabling and saving produced the same command
+  type in the opposite state.
+- dev3 incorrectly treated that `2/34` message as a `2/33` heartbeat, briefly
+  exposing `15`, `15`, and `unknown` as current/status values. The next real
+  heartbeat restored `60`, `160`, and `unplugged`.
+- No frame appeared on the eight exact SET/SET-reply topics subscribed by
+  dev3. The setting may use another MQTT route or a non-MQTT API.
+- dev4 routes envelopes by command type and adds passive discovery filters;
+  the `2/34` field meanings remain intentionally undecoded until paired
+  captures establish them.
