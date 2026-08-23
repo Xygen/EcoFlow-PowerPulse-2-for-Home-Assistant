@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Release requirement: create and bundle a dedicated PowerPulse 2 integration
+  icon no later than the first non-development release.
 - Protocol hypothesis for a future release: `session_energy_raw` may be watt-hours.
   A live value of `1815` corresponded to `1.82 kWh` in the EcoFlow app. Keep the
   raw entity unchanged until additional sessions confirm the unit and rounding.
