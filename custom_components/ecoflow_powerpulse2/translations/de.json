@@ -1,0 +1,43 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "EcoFlow PowerPulse 2",
+        "description": "Melde dich mit dem EcoFlow-App-Konto der Wallbox an. Diese Entwicklungsversion lauscht nur und kann noch keine Ladeeinstellungen verändern.",
+        "data": {"email": "E-Mail", "password": "Passwort"}
+      }
+    },
+    "error": {
+      "cannot_connect": "Verbindung oder Anmeldung bei EcoFlow fehlgeschlagen",
+      "no_devices": "In diesem Konto wurde keine unterstützte PowerPulse gefunden"
+    },
+    "abort": {"already_configured": "Dieses EcoFlow-Konto ist bereits eingerichtet"}
+  },
+  "entity": {
+    "binary_sensor": {"charging": {"name": "Ladevorgang"}},
+    "sensor": {
+      "charging_power": {"name": "Ladeleistung"},
+      "charging_status": {
+        "name": "Ladestatus",
+        "state": {
+          "unknown": "Unbekannt",
+          "unplugged": "Nicht verbunden",
+          "plugged_in": "Verbunden",
+          "charging": "Lädt",
+          "paused": "Pausiert",
+          "charge_complete": "Laden abgeschlossen",
+          "standby": "Bereitschaft",
+          "updating": "Aktualisierung"
+        }
+      },
+      "phase_voltage": {"name": "Phasenspannung"},
+      "phase_current": {"name": "Phasenstrom"},
+      "session_duration": {"name": "Sitzungsdauer"},
+      "total_energy_raw": {"name": "Gesamtenergie Rohwert"},
+      "session_energy_raw": {"name": "Sitzungsenergie Rohwert"},
+      "charge_current_set_raw": {"name": "Ladestrom-Sollwert Rohwert"},
+      "current_limit_raw": {"name": "Stromgrenze Rohwert"},
+      "suspend_reason_raw": {"name": "Pausengrund Rohwert"}
+    }
+  }
+}

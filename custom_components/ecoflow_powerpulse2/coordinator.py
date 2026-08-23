@@ -1,0 +1,186 @@
+"""Read-only PowerPulse 2 cloud coordinator."""
+
+from __future__ import annotations
+
+import logging
+from datetime import UTC, datetime, timedelta
+from typing import Any
+
+from homeassistant.config_entries import ConfigEntry
+from homeassistant.core import HomeAssistant
+from homeassistant.helpers.aiohttp_client import async_get_clientsession
+from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
+
+from .api import PowerPulse2ApiClient
+from .const import CONF_EMAIL, CONF_PASSWORD, DOMAIN, UPDATE_INTERVAL_SECONDS
+from .ecoflow.cloud_mqtt import EcoFlowMQTTClient
+from .frame_capture import (
+    DiagnosticFrameCapture,
+    channel_carries_telemetry,
+    classify_mqtt_topic,
+    inspect_envelope_headers,
+)
+from .parser import parse_powerpulse2_payload
+
+_LOGGER = logging.getLogger(__name__)
+_MAX_FRAME_BYTES = 2048
+
+
+class PowerPulse2Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
+    """Discover devices, poll snapshots, and merge listen-only MQTT pushes."""
+
+    def __init__(self, hass: HomeAssistant, entry: ConfigEntry) -> None:
+        super().__init__(
+            hass,
+            _LOGGER,
+            config_entry=entry,
+            name=DOMAIN,
+            update_interval=timedelta(seconds=UPDATE_INTERVAL_SECONDS),
+        )
+        self.api = PowerPulse2ApiClient(
+            async_get_clientsession(hass),
+            entry.data[CONF_EMAIL],
+            entry.data[CONF_PASSWORD],
+        )
+        self.devices: dict[str, dict[str, str]] = {}
+        self.mqtt_clients: dict[str, EcoFlowMQTTClient] = {}
+        self._frame_capture = DiagnosticFrameCapture()
+        self._initialized = False
+
+    @property
+    def mqtt_frames(self) -> list[dict[str, Any]]:
+        """Return the bounded all-frame diagnostic view."""
+        return self._frame_capture.recent
+
+    @property
+    def mqtt_command_frames(self) -> list[dict[str, Any]]:
+        """Return official-app SET and SET-reply diagnostic frames."""
+        return self._frame_capture.commands
+
+    @property
+    def mqtt_frame_buckets(self) -> dict[str, dict[str, Any]]:
+        """Return frames grouped by channel and protocol command tuple."""
+        return self._frame_capture.bucket_snapshot()
+
+    async def _async_update_data(self) -> dict[str, dict[str, Any]]:
+        try:
+            if not self._initialized:
+                await self.api.async_login()
+                self.devices = await self.api.async_discover()
+                if not self.devices:
+                    raise UpdateFailed("No EcoFlow PowerPulse device found")
+                try:
+                    await self._async_setup_mqtt()
+                except Exception as exc:
+                    # HTTP snapshots can still provide useful read-only data;
+                    # the coordinator watchdog retries MQTT independently.
+                    _LOGGER.warning("PowerPulse MQTT diagnostics unavailable: %s", exc)
+                self._initialized = True
+            else:
+                await self._async_maintain_mqtt()
+
+            result: dict[str, dict[str, Any]] = {}
+            for serial, device in self.devices.items():
+                current = dict((self.data or {}).get(serial, {}))
+                current.update(await self.api.async_read(device))
+                result[serial] = current
+            return result
+        except UpdateFailed:
+            raise
+        except Exception as exc:
+            raise UpdateFailed(f"EcoFlow PowerPulse 2 update failed: {exc}") from exc
+
+    async def _async_setup_mqtt(self) -> None:
+        """Connect one hard listen-only WSS client per discovered charger."""
+        credentials = await self.api.async_get_mqtt_credentials()
+        account = credentials.get("certificateAccount") or credentials.get("userName", "")
+        password = credentials.get("certificatePassword") or credentials.get("password", "")
+        if not account or not password:
+            raise ConnectionError("Incomplete MQTT credentials")
+
+        for serial in self.devices:
+            if serial in self.mqtt_clients:
+                continue
+            client = EcoFlowMQTTClient(
+                certificate_account=account,
+                certificate_password=password,
+                device_sn=serial,
+                message_handler=lambda topic, payload, sn=serial: self._schedule_mqtt_frame(sn, topic, payload),
+                user_id=self.api.user_id,
+                wss_mode=True,
+                enhanced_mode=True,
+                subscribe_data=True,
+                listen_only=True,
+            )
+            created = await self.hass.async_add_executor_job(client.create_client)
+            if not created:
+                continue
+            self.mqtt_clients[serial] = client
+            connected = await self.hass.async_add_executor_job(client.connect)
+            if not connected:
+                _LOGGER.debug("PowerPulse MQTT listen-only connection failed for %s…", serial[:4])
+                continue
+            await self.hass.async_add_executor_job(client.start_loop)
+
+    async def _async_maintain_mqtt(self) -> None:
+        """Retry missing or disconnected listen-only MQTT clients."""
+        if any(serial not in self.mqtt_clients for serial in self.devices):
+            try:
+                await self._async_setup_mqtt()
+            except Exception as exc:
+                _LOGGER.debug("PowerPulse MQTT setup retry failed: %s", exc)
+
+        for serial, client in list(self.mqtt_clients.items()):
+            if client.is_connected():
+                continue
+            attempted = await self.hass.async_add_executor_job(client.try_reconnect)
+            if attempted:
+                _LOGGER.debug("PowerPulse MQTT reconnect started for %s…", serial[:4])
+
+    def _schedule_mqtt_frame(self, serial: str, topic: str, payload: bytes) -> None:
+        loop = self.hass.loop
+        if loop.is_closed():
+            return
+        try:
+            loop.call_soon_threadsafe(self._record_mqtt_frame, serial, topic, payload)
+        except RuntimeError:
+            return
+
+    def _record_mqtt_frame(self, serial: str, topic: str, payload: bytes) -> None:
+        channel = classify_mqtt_topic(topic)
+        parsed = (
+            parse_powerpulse2_payload(payload)
+            if channel_carries_telemetry(channel)
+            else {}
+        )
+        if parsed:
+            updated = dict(self.data or {})
+            values = dict(updated.get(serial, {}))
+            values.update(parsed)
+            updated[serial] = values
+            self.async_set_updated_data(updated)
+
+        frame = {
+            "timestamp": datetime.now(UTC).isoformat(),
+            "device_prefix": serial[:4],
+            "channel": channel,
+            "size": len(payload),
+            "parsed_keys": sorted(parsed),
+            "protocol_headers": inspect_envelope_headers(payload),
+            "truncated": len(payload) > _MAX_FRAME_BYTES,
+            "redacted_hex": self._redact(payload[:_MAX_FRAME_BYTES]).hex(),
+        }
+        self._frame_capture.record(frame)
+
+    def _redact(self, payload: bytes) -> bytes:
+        redacted = payload
+        for secret in (*self.devices, self.api.user_id):
+            encoded = secret.encode("ascii", errors="ignore")
+            if encoded:
+                redacted = redacted.replace(encoded, b"X" * len(encoded))
+        return redacted
+
+    async def async_shutdown(self) -> None:
+        for client in self.mqtt_clients.values():
+            await self.hass.async_add_executor_job(client.disconnect)
+        self.mqtt_clients.clear()

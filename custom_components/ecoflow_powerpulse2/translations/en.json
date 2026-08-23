@@ -1,0 +1,43 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "EcoFlow PowerPulse 2",
+        "description": "Sign in with the EcoFlow app account that owns the charger. This development version only listens and cannot change charging settings.",
+        "data": {"email": "Email", "password": "Password"}
+      }
+    },
+    "error": {
+      "cannot_connect": "Could not connect to EcoFlow or sign in",
+      "no_devices": "No supported PowerPulse device was found in this account"
+    },
+    "abort": {"already_configured": "This EcoFlow account is already configured"}
+  },
+  "entity": {
+    "binary_sensor": {"charging": {"name": "Charging"}},
+    "sensor": {
+      "charging_power": {"name": "Charging power"},
+      "charging_status": {
+        "name": "Charging status",
+        "state": {
+          "unknown": "Unknown",
+          "unplugged": "Unplugged",
+          "plugged_in": "Plugged in",
+          "charging": "Charging",
+          "paused": "Paused",
+          "charge_complete": "Charge complete",
+          "standby": "Standby",
+          "updating": "Updating"
+        }
+      },
+      "phase_voltage": {"name": "Phase voltage"},
+      "phase_current": {"name": "Phase current"},
+      "session_duration": {"name": "Session duration"},
+      "total_energy_raw": {"name": "Total energy raw"},
+      "session_energy_raw": {"name": "Session energy raw"},
+      "charge_current_set_raw": {"name": "Charge current set raw"},
+      "current_limit_raw": {"name": "Current limit raw"},
+      "suspend_reason_raw": {"name": "Suspend reason raw"}
+    }
+  }
+}

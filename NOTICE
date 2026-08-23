@@ -1,0 +1,11 @@
+This project reuses and adapts EcoFlow authentication, MQTT transport, client
+ID, and protobuf wire helpers from EcoFlow-PowerGlow-for-Home-Assistant:
+https://github.com/Xygen/EcoFlow-PowerGlow-for-Home-Assistant
+
+PowerPulse protocol field research is based in part on ha-ef-ble:
+https://github.com/rabits/ha-ef-ble
+
+MQTT frame capture and command-routing design is informed by ecoflow-energy-ha:
+https://github.com/shuette42/ecoflow-energy-ha
+
+No ha-ef-ble source code is bundled in this repository at this stage.
