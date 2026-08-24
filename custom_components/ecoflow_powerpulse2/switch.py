@@ -31,6 +31,10 @@ async def async_setup_entry(
                 key="continuous_charging_control",
                 translation_key="continuous_charging_control",
             ),
+            SwitchEntityDescription(
+                key="plug_and_play_control",
+                translation_key="plug_and_play_control",
+            ),
         )
     )
 
@@ -56,15 +60,20 @@ class PowerPulse2SettingsSwitch(PowerPulse2Entity, SwitchEntity):
         values = self.coordinator.data.get(self.serial, {})
         if self.entity_description.key == "continuous_charging_control":
             return values.get("work_mode") == "solar"
-        return "battery_discharge_disabled" in values
+        source_key = (
+            "battery_discharge_disabled"
+            if self.entity_description.key == "battery_discharge_control"
+            else "plug_and_play"
+        )
+        return source_key in values
 
     @property
     def is_on(self) -> bool | None:
-        key = (
-            "battery_discharge_disabled"
-            if self.entity_description.key == "battery_discharge_control"
-            else "continuous_charging"
-        )
+        key = {
+            "battery_discharge_control": "battery_discharge_disabled",
+            "continuous_charging_control": "continuous_charging",
+            "plug_and_play_control": "plug_and_play",
+        }[self.entity_description.key]
         value = self.coordinator.data.get(self.serial, {}).get(key)
         return value if isinstance(value, bool) else None
 
@@ -75,9 +84,9 @@ class PowerPulse2SettingsSwitch(PowerPulse2Entity, SwitchEntity):
         await self._async_set(False)
 
     async def _async_set(self, enabled: bool) -> None:
-        setter: Callable[[str, bool], Awaitable[None]] = (
-            self.coordinator.async_set_battery_discharge_disabled
-            if self.entity_description.key == "battery_discharge_control"
-            else self.coordinator.async_set_continuous_charging
-        )
+        setter: Callable[[str, bool], Awaitable[None]] = {
+            "battery_discharge_control": self.coordinator.async_set_battery_discharge_disabled,
+            "continuous_charging_control": self.coordinator.async_set_continuous_charging,
+            "plug_and_play_control": self.coordinator.async_set_plug_and_play,
+        }[self.entity_description.key]
         await setter(self.serial, enabled)

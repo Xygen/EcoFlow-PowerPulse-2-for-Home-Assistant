@@ -82,18 +82,33 @@
       "vehicle_consumption_raw": {"name": "Vehicle consumption raw"}
     },
     "number": {
-      "maximum_output_current_control": {"name": "Maximum output current (experimental)"},
-      "solar_minimum_current_control": {"name": "Solar minimum charging current (experimental)"}
+      "maximum_output_current_control": {"name": "Maximum output current"},
+      "solar_minimum_current_control": {"name": "Solar minimum charging current"},
+      "custom_current_control": {"name": "Custom charging current"},
+      "smart_energy_target_control": {"name": "Smart energy target"},
+      "smart_distance_target_control": {"name": "Smart distance target"}
     },
     "select": {
       "phase_control": {
-        "name": "Phase setting (experimental)",
+        "name": "Phase setting",
         "state": {"auto": "Auto", "one_phase": "Single phase", "three_phase": "Three phase"}
+      },
+      "work_mode_control": {
+        "name": "Operating mode",
+        "state": {"fast": "Fast charging", "solar": "Solar mode", "custom": "Custom", "smart": "Smart mode"}
+      },
+      "smart_target_type_control": {
+        "name": "Smart target type",
+        "state": {"energy": "Energy", "distance": "Distance"}
       }
     },
     "switch": {
-      "battery_discharge_control": {"name": "Disable battery discharge (experimental)"},
-      "continuous_charging_control": {"name": "Continuous charging (experimental)"}
+      "battery_discharge_control": {"name": "Disable battery discharge"},
+      "continuous_charging_control": {"name": "Continuous charging"},
+      "plug_and_play_control": {"name": "Plug and play"}
+    },
+    "datetime": {
+      "smart_ready_by_control": {"name": "Smart ready by"}
     }
   }
 }

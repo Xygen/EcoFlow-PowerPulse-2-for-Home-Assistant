@@ -50,16 +50,24 @@ def build_powerpulse_phase_payload(
 
 
 def build_powerpulse_settings_payload(
-    accessory_descriptor: bytes, settings: dict[int, int], seq: int = 0
+    accessory_descriptor: bytes, settings: dict[int, int | bytes], seq: int = 0
 ) -> tuple[bytes, int]:
     """Build the observed PowerOcean-routed PowerPulse settings SET command."""
     if not settings or any(field not in range(1, 8) for field in settings):
         raise ValueError("settings must contain observed fields 1 through 7")
-    if any(not isinstance(value, int) or value < 0 for value in settings.values()):
-        raise ValueError("settings values must be non-negative integers")
+    if any(
+        not isinstance(value, (int, bytes))
+        or isinstance(value, int) and value < 0
+        or isinstance(value, bytes) and not value
+        for value in settings.values()
+    ):
+        raise ValueError("settings values must be non-negative integers or bytes")
     sequence = _short_sequence(seq)
     settings_payload = b"".join(
-        encode_field_varint(field, value) for field, value in sorted(settings.items())
+        encode_field_bytes(field, value)
+        if isinstance(value, bytes)
+        else encode_field_varint(field, value)
+        for field, value in sorted(settings.items())
     )
     pdata = b"".join(
         (
@@ -79,6 +87,28 @@ def build_powerpulse_settings_payload(
     )
 
 
+def build_powerpulse_smart_settings(
+    *, ready_by_timestamp: int, target_type: str, target_value: int,
+    calculated_energy_wh: int = 0,
+) -> bytes:
+    """Build the observed nested field 4.7 Smart-settings block."""
+    if ready_by_timestamp <= 0:
+        raise ValueError("ready-by timestamp must be positive")
+    if target_type not in ("energy", "distance") or target_value <= 0:
+        raise ValueError("unsupported Smart target")
+    selector = 1 if target_type == "energy" else 2
+    field_three = target_value if selector == 1 else calculated_energy_wh
+    if selector == 2 and field_three <= 0:
+        raise ValueError("distance targets require calculated energy")
+    field_four = 0 if selector == 1 else target_value
+    return b"".join(
+        (
+            encode_field_varint(1, ready_by_timestamp),
+            encode_field_varint(2, selector),
+            encode_field_varint(3, field_three),
+            encode_field_varint(4, field_four),
+        )
+    )
 def _build_envelope(
     pdata: bytes,
     *,

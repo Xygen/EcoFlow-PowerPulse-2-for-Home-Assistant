@@ -71,10 +71,12 @@ authoritative Home Assistant state.
 | Observed response | Same-sequence reply after about 50-226 ms | Unknown | No assigned reply |
 | Suitable as HA state | No; controls require separate direct device readback | Still under investigation | No current evidence |
 
-dev19 uses confirmed app-write fields only for disabled-by-default controls:
-`4.1` for the two requested switches, `4.3` for maximum current, `4.4` for
-Solar minimum current, and `4.5` for phase selection. Every write requires a
-same-sequence reply and matching `241/44` readback.
+dev20 uses confirmed app-write fields only for disabled-by-default controls:
+`4.1` for battery, Plug-and-Play, and Continuous flags; `4.2` for all four
+operating modes; `4.3` for maximum current; `4.4` for Solar minimum current;
+`4.5` for phase selection; `4.6` for Custom current; and nested `4.7` for Smart
+ready-by and target settings. Every write requires a same-sequence reply and
+matching `241/44` readback.
 
 ## Fast-path coverage and next candidates
 
@@ -87,7 +89,7 @@ used by at least one Home Assistant entity:
 | `2` operating mode | Operating-mode enum sensor | Already fully used for the four confirmed modes |
 | `4` maximum output current | Normal Ampere sensor plus disabled-by-default raw sensor | Already fully used |
 | `6` Solar minimum current | Normal Ampere sensor plus disabled-by-default raw sensor | Already fully used and live-validated at 6 A and 7 A |
-| `7` phase selection | Raw sensor, fast normal enum, and experimental disabled-by-default phase control readback | Mapping confirmed for auto, one phase, and three phase |
+| `7` phase selection | Raw sensor, fast normal enum, and disabled-by-default phase control readback | Mapping confirmed for auto, one phase, and three phase |
 | `8` Custom/user current | Raw sensor plus normal Ampere sensor | 6 A and 11 A confirmed the 0.1 A scaling |
 
 The unnamed byte fields `5`, `9`, and `21` are the remaining candidates

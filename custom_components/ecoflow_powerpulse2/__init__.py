@@ -8,7 +8,7 @@ if TYPE_CHECKING:
     from homeassistant.config_entries import ConfigEntry
     from homeassistant.core import HomeAssistant
 
-PLATFORMS = ["binary_sensor", "number", "select", "sensor", "switch"]
+PLATFORMS = ["binary_sensor", "datetime", "number", "select", "sensor", "switch"]
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:

@@ -7,6 +7,26 @@
 - Protocol hypothesis for a future release: `session_energy_raw` may be watt-hours.
   A live value of `1815` corresponded to `1.82 kWh` in the EcoFlow app. Keep the
   raw entity unchanged until additional sessions confirm the unit and rounding.
+- Safety backlog: investigate Start/Stop with and without a connected vehicle.
+  Determine every setting EcoFlow locks while charging and prevent invalid HA
+  writes before publishing. Operating mode and phase selection are already
+  known to be locked during an active charging session; further controls still
+  need classification.
+
+## 0.1.0-dev20
+
+- Capture complete forward and reverse app sequences for Fast, Solar, Custom,
+  and Smart modes, including Custom 6/7/16 A and Smart 30/40 kWh plus 200/300 km.
+- Add disabled-by-default controls for operating mode, Custom current,
+  Plug-and-Play, Smart ready-by date/time, Smart target type, energy target,
+  and distance target.
+- Preserve complete mode-specific payloads and unrelated settings flags, cache
+  the last device-reported Smart block, serialize writes, and continue requiring
+  same-sequence acknowledgement plus direct `241/44` readback.
+- Remove the experimental name suffix from the controls already validated live;
+  controls remain disabled by default until charging-state interlocks can be
+  tested with a connected vehicle.
+- Extend the local suite to 48 passing tests.
 
 ## 0.1.0-dev19
 

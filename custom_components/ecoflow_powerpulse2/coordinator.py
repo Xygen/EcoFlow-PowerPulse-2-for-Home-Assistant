@@ -24,7 +24,10 @@ from .const import (
 )
 from .data_merge import merge_snapshot_after_read
 from .ecoflow.cloud_mqtt import EcoFlowMQTTClient
-from .ecoflow.energy_stream import build_powerpulse_settings_payload
+from .ecoflow.energy_stream import (
+    build_powerpulse_settings_payload,
+    build_powerpulse_smart_settings,
+)
 from .frame_capture import (
     COMMAND_CHANNELS,
     DiagnosticFrameCapture,
@@ -95,6 +98,7 @@ class PowerPulse2Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
         self._accessory_descriptors: dict[str, bytes] = {}
         self._reply_waiters: dict[tuple[str, int], asyncio.Future[None]] = {}
         self._control_lock = asyncio.Lock()
+        self._last_smart_settings: dict[str, dict[str, Any]] = {}
         self._shutting_down = False
         self._initialized = False
 
@@ -159,6 +163,7 @@ class PowerPulse2Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
                     lambda serial=serial: (self.data or {}).get(serial),
                     lambda serial=serial: self._preferred_live_settings(serial),
                 )
+                self._remember_smart_settings(serial, result[serial])
             return result
         except UpdateFailed:
             raise
@@ -266,6 +271,7 @@ class PowerPulse2Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
         ):
             self._last_direct_settings_at[serial] = time.monotonic()
         if parsed:
+            self._remember_smart_settings(serial, parsed)
             updated = dict(self.data or {})
             values = dict(updated.get(serial, {}))
             if parsed.get("work_mode") != "smart":
@@ -390,6 +396,171 @@ class PowerPulse2Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
             expected_value=enabled,
         )
 
+    async def async_set_plug_and_play(self, serial: str, enabled: bool) -> None:
+        """Set Plug-and-Play while preserving every other settings flag."""
+        flags = self._required_int_setting(serial, "switch_bits_raw")
+        flags = flags | 0x02 if enabled else flags & ~0x02
+        await self._async_write_settings(
+            serial,
+            {1: flags},
+            expected_key="plug_and_play",
+            expected_value=enabled,
+        )
+
+    async def async_set_work_mode(self, serial: str, mode: str) -> None:
+        """Select a live-confirmed charging mode with its required companion data."""
+        if mode == "fast":
+            settings: dict[int, int | bytes] = {2: 1}
+        elif mode == "solar":
+            settings = {
+                1: self._required_int_setting(serial, "switch_bits_raw"),
+                2: 2,
+                4: self._required_int_setting(serial, "solar_current_min_raw"),
+            }
+        elif mode == "custom":
+            settings = {
+                2: 3,
+                6: self._required_int_setting(serial, "user_current_set_raw"),
+            }
+        elif mode == "smart":
+            settings = {
+                1: self._required_int_setting(serial, "switch_bits_raw"),
+                2: 4,
+                7: self._smart_settings_payload(serial),
+            }
+        else:
+            raise HomeAssistantError(f"Unsupported charging mode: {mode}")
+        await self._async_write_settings(
+            serial, settings, expected_key="work_mode", expected_value=mode
+        )
+
+    async def async_set_custom_current(self, serial: str, amps: float) -> None:
+        """Set the whole-ampere current used in Custom mode."""
+        if (self.data or {}).get(serial, {}).get("work_mode") != "custom":
+            raise HomeAssistantError("Custom current requires Custom mode")
+        raw = self._validated_whole_amp_setting(amps)
+        await self._async_write_settings(
+            serial,
+            {2: 3, 6: raw},
+            expected_key="user_current_set_raw",
+            expected_value=raw,
+        )
+
+    async def async_set_smart_ready_by(self, serial: str, timestamp: int) -> None:
+        """Set Smart ready-by time while preserving the selected target."""
+        await self._async_write_smart_setting(
+            serial, {"ready_by_timestamp": timestamp}, "ready_by_timestamp", timestamp
+        )
+
+    async def async_set_smart_target_type(self, serial: str, target_type: str) -> None:
+        """Switch between energy and distance Smart targets."""
+        if target_type not in ("energy", "distance"):
+            raise HomeAssistantError(f"Unsupported Smart target type: {target_type}")
+        await self._async_write_smart_setting(
+            serial, {"smart_target_type": target_type}, "smart_target_type", target_type
+        )
+
+    async def async_set_smart_energy_target(self, serial: str, kwh: float) -> None:
+        """Set a whole-kWh Smart energy target."""
+        if not 1 <= kwh <= 100 or not float(kwh).is_integer():
+            raise HomeAssistantError("Smart energy target must be 1 to 100 whole kWh")
+        raw = int(kwh) * 1000
+        await self._async_write_smart_setting(
+            serial,
+            {"smart_target_type": "energy", "smart_charge_target_wh": raw},
+            "smart_charge_target_wh",
+            raw,
+        )
+
+    async def async_set_smart_distance_target(self, serial: str, km: float) -> None:
+        """Set a whole-kilometre Smart distance target."""
+        if not 10 <= km <= 600 or not float(km).is_integer():
+            raise HomeAssistantError("Smart distance target must be 10 to 600 whole km")
+        await self._async_write_smart_setting(
+            serial,
+            {"smart_target_type": "distance", "smart_target_distance_km": int(km)},
+            "smart_target_distance_km",
+            int(km),
+        )
+
+    async def _async_write_smart_setting(
+        self,
+        serial: str,
+        overrides: dict[str, Any],
+        expected_key: str,
+        expected_value: Any,
+    ) -> None:
+        if (self.data or {}).get(serial, {}).get("work_mode") != "smart":
+            raise HomeAssistantError("Smart settings require Smart mode")
+        cached = dict(self._last_smart_settings.get(serial, {}))
+        cached.update(overrides)
+        await self._async_write_settings(
+            serial,
+            {
+                1: self._required_int_setting(serial, "switch_bits_raw"),
+                2: 4,
+                7: self._smart_settings_payload(serial, cached),
+            },
+            expected_key=expected_key,
+            expected_value=expected_value,
+        )
+
+    def _remember_smart_settings(self, serial: str, values: dict[str, Any]) -> None:
+        keys = (
+            "ready_by_timestamp",
+            "smart_target_type",
+            "smart_charge_target_wh",
+            "smart_target_distance_km",
+            "smart_calculated_energy_wh",
+            "vehicle_consumption_raw",
+        )
+        remembered = self._last_smart_settings.setdefault(serial, {})
+        remembered.update({key: values[key] for key in keys if key in values})
+
+    def _smart_settings_payload(
+        self, serial: str, values: dict[str, Any] | None = None
+    ) -> bytes:
+        smart = dict(self._last_smart_settings.get(serial, {}))
+        previous_distance = smart.get("smart_target_distance_km")
+        if values:
+            smart.update(values)
+        ready_by = smart.get("ready_by_timestamp")
+        target_type = smart.get("smart_target_type")
+        target = (
+            smart.get("smart_charge_target_wh")
+            if target_type == "energy"
+            else smart.get("smart_target_distance_km")
+        )
+        if (
+            not isinstance(ready_by, int)
+            or target_type not in ("energy", "distance")
+            or not isinstance(target, int)
+        ):
+            raise HomeAssistantError("Stored Smart settings are unavailable")
+        calculated = smart.get("smart_calculated_energy_wh")
+        if target_type == "distance":
+            consumption = smart.get("vehicle_consumption_raw")
+            if isinstance(consumption, int) and consumption > 0:
+                calculated = target * consumption
+            else:
+                if (
+                    isinstance(calculated, int)
+                    and calculated > 0
+                    and isinstance(previous_distance, int)
+                    and previous_distance > 0
+                ):
+                    calculated = round(target * calculated / previous_distance)
+                else:
+                    raise HomeAssistantError(
+                        "Vehicle consumption for the Smart distance target is unavailable"
+                    )
+        return build_powerpulse_smart_settings(
+            ready_by_timestamp=ready_by,
+            target_type=target_type,
+            target_value=target,
+            calculated_energy_wh=calculated or 0,
+        )
+
     async def async_set_continuous_charging(self, serial: str, enabled: bool) -> None:
         """Set Solar continuous charging while preserving unrelated flags."""
         values = (self.data or {}).get(serial, {})
@@ -446,7 +617,7 @@ class PowerPulse2Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
     async def _async_write_settings(
         self,
         serial: str,
-        settings: dict[int, int],
+        settings: dict[int, int | bytes],
         *,
         expected_key: str,
         expected_value: Any,
@@ -463,7 +634,7 @@ class PowerPulse2Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
     async def _async_write_settings_locked(
         self,
         serial: str,
-        settings: dict[int, int],
+        settings: dict[int, int | bytes],
         *,
         expected_key: str,
         expected_value: Any,

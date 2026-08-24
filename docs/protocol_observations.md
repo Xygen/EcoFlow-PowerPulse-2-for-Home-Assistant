@@ -603,3 +603,36 @@ with the simultaneously known screen on, LED on, screen brightness 25%, and
 LED brightness 25%, while the final zero aligns with battery blocking off.
 This is recorded only as a candidate for later controlled comparisons; dev19
 does not parse field `21` or use this unconfirmed assignment for readback.
+
+## 2026-08-24: charging-state write interlocks to investigate
+
+Start and Stop must be captured both without a vehicle and with a vehicle
+connected. Future control logic must require actual charging-state readback,
+because a SET reply alone confirms transport correlation rather than the
+physical result.
+
+The official app prevents at least operating-mode and phase-selection changes
+while charging is active. Additional locked settings remain to be identified.
+Every exposed write should therefore receive a state-dependent availability or
+local validation rule once its charging-time behaviour is known, preventing a
+predictably invalid MQTT command from being sent at all.
+
+## 2026-08-24: complete operating-mode capture for dev20
+
+Two no-vehicle app sequences captured both directions across every mode. The
+first sequence was Solar -> Fast -> Custom 7 A -> Custom 16 A -> Smart 30 kWh
+-> Smart distance -> Solar. The reverse sequence was Solar -> Smart 40 kWh at
+08:00 (+1) -> Smart 200 km -> Custom 6 A -> Fast -> Solar.
+
+The retained requests confirmed `4.2=1` Fast with no companion field,
+`4.2=3` Custom with `4.6=60/70/160`, and `4.2=2` Solar with `4.1=0` plus
+`4.4=60`. Smart used `4.1=0`, `4.2=4`, and nested `4.7`: field 1 was the full
+ready-by Unix timestamp, field 2 selected energy `1` or distance `2`, field 3
+held 30,000/40,000 Wh or calculated distance energy, and field 4 held `0` for
+energy or 200/300 km for distance. Replies arrived in approximately 60-141 ms,
+and fast direct readback confirmed every resulting mode and value.
+
+dev20 implements these as disabled-by-default, user-triggered controls. Smart
+mode is never built from guessed defaults: the coordinator remembers the last
+device-reported ready-by and target block and refuses the write if required
+values are absent. All writes keep the existing reply and direct-readback gate.

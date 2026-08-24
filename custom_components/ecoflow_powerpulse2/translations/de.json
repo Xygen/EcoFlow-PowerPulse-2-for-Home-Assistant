@@ -82,18 +82,33 @@
       "vehicle_consumption_raw": {"name": "Fahrzeugverbrauch Rohwert"}
     },
     "number": {
-      "maximum_output_current_control": {"name": "Maximaler Ausgangsstrom (experimentell)"},
-      "solar_minimum_current_control": {"name": "Solar-Mindestladestrom (experimentell)"}
+      "maximum_output_current_control": {"name": "Maximaler Ausgangsstrom"},
+      "solar_minimum_current_control": {"name": "Solar-Mindestladestrom"},
+      "custom_current_control": {"name": "Benutzerdefinierter Ladestrom"},
+      "smart_energy_target_control": {"name": "Smart-Zielenergie"},
+      "smart_distance_target_control": {"name": "Smart-Zielstrecke"}
     },
     "select": {
       "phase_control": {
-        "name": "Phaseneinstellung (experimentell)",
+        "name": "Phaseneinstellung",
         "state": {"auto": "Auto", "one_phase": "1-phasig", "three_phase": "3-phasig"}
+      },
+      "work_mode_control": {
+        "name": "Betriebsmodus",
+        "state": {"fast": "Schnellladung", "solar": "Solar-Modus", "custom": "Benutzerdefiniert", "smart": "Smart-Modus"}
+      },
+      "smart_target_type_control": {
+        "name": "Smart-Zieltyp",
+        "state": {"energy": "Energie", "distance": "Strecke"}
       }
     },
     "switch": {
-      "battery_discharge_control": {"name": "Batterieentladung deaktivieren (experimentell)"},
-      "continuous_charging_control": {"name": "Kontinuierlich laden (experimentell)"}
+      "battery_discharge_control": {"name": "Batterieentladung deaktivieren"},
+      "continuous_charging_control": {"name": "Kontinuierlich laden"},
+      "plug_and_play_control": {"name": "Plug-and-Play"}
+    },
+    "datetime": {
+      "smart_ready_by_control": {"name": "Smart – Bereit vor"}
     }
   }
 }

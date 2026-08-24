@@ -377,3 +377,39 @@ The fast field `241/44.21` is separately backlogged: its observed six-byte
 value `01 01 19 19 02 00` aligns with the current screen/LED enable and 25%
 brightness values plus battery blocking off, but no controlled byte-level
 comparison has confirmed those positions. It remains unparsed in dev19.
+
+## Control interlock backlog
+
+Start and Stop charging still require controlled protocol investigation in two
+separate physical states: without a connected vehicle and with a connected
+vehicle. A successful transport acknowledgement must not be treated as proof
+that charging started or stopped; the implementation will require independent
+charger-state readback and must distinguish unplugged, plugged-in, charging,
+paused, completed, and rejected operations where observed.
+
+The EcoFlow app locks some settings during an active charging session. Operating
+mode and phase selection are confirmed members of that locked set; the complete
+set is not yet known. Before exposing further controls as generally available,
+each one must be tested while idle and while charging. Home Assistant should
+mark a locked control unavailable or reject it locally before MQTT publication,
+rather than relying on an expected device-side failure. The current no-vehicle
+tests do not establish which current, Solar, battery, display, LED, or other
+settings remain writable during charging.
+
+## dev20 candidate update (2026-08-24)
+
+Complete forward and reverse no-vehicle app sequences now confirm all four
+operating-mode requests. Fast is `4.2=1`; Solar is `4.2=2` with flags and Solar
+minimum; Custom is `4.2=3` with `4.6` in 0.1 A; Smart is `4.2=4` with flags and
+the nested `4.7` ready-by/target block. Custom was captured at 6, 7, and 16 A.
+Smart was captured at 30 and 40 kWh and at 200 and 300 km; the controlled final
+ready-by value was 08:00 (+1). Every request received a same-sequence reply and
+the fast direct report confirmed the resulting state.
+
+dev20 adds disabled-by-default controls for operating mode, Custom current,
+Plug-and-Play, Smart ready-by time, target type, energy, and distance. It keeps
+the automatic transport listen-only, publishes only on explicit HA user action,
+preserves unrelated flags and mode-specific companion fields, and requires
+both acknowledgement and direct device readback. Charging-time availability
+remains intentionally unresolved until a vehicle is available for interlock
+tests.
