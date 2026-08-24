@@ -24,7 +24,7 @@ from .const import (
 )
 from .data_merge import merge_snapshot_after_read
 from .ecoflow.cloud_mqtt import EcoFlowMQTTClient
-from .ecoflow.energy_stream import build_powerpulse_phase_payload
+from .ecoflow.energy_stream import build_powerpulse_settings_payload
 from .frame_capture import (
     COMMAND_CHANNELS,
     DiagnosticFrameCapture,
@@ -42,6 +42,7 @@ _DIRECT_SETTINGS_FRESH_SECONDS = 10
 _DIRECT_SETTINGS_KEYS = frozenset(
     {
         "continuous_charging",
+        "battery_discharge_disabled",
         "current_limit_raw",
         "output_current_max_raw",
         "phase_specified_raw",
@@ -93,6 +94,7 @@ class PowerPulse2Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
         self._last_direct_settings_at: dict[str, float] = {}
         self._accessory_descriptors: dict[str, bytes] = {}
         self._reply_waiters: dict[tuple[str, int], asyncio.Future[None]] = {}
+        self._control_lock = asyncio.Lock()
         self._shutting_down = False
         self._initialized = False
 
@@ -368,13 +370,117 @@ class PowerPulse2Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
                 "and exactly one connected PowerOcean source are available"
             )
 
+        await self._async_write_settings(
+            serial,
+            {5: phase_values[option]},
+            expected_key="phase_mode",
+            expected_value=option,
+        )
+
+    async def async_set_battery_discharge_disabled(
+        self, serial: str, enabled: bool
+    ) -> None:
+        """Set battery-discharge blocking while preserving every other flag."""
+        flags = self._required_int_setting(serial, "switch_bits_raw")
+        flags = flags | 0x01 if enabled else flags & ~0x01
+        await self._async_write_settings(
+            serial,
+            {1: flags},
+            expected_key="battery_discharge_disabled",
+            expected_value=enabled,
+        )
+
+    async def async_set_continuous_charging(self, serial: str, enabled: bool) -> None:
+        """Set Solar continuous charging while preserving unrelated flags."""
+        values = (self.data or {}).get(serial, {})
+        if values.get("work_mode") != "solar":
+            raise HomeAssistantError("Continuous charging can only be changed in Solar mode")
+        flags = self._required_int_setting(serial, "switch_bits_raw")
+        solar_current = self._required_int_setting(serial, "solar_current_min_raw")
+        flags = flags | 0x10 if enabled else flags & ~0x10
+        await self._async_write_settings(
+            serial,
+            {1: flags, 2: 2, 4: solar_current},
+            expected_key="continuous_charging",
+            expected_value=enabled,
+        )
+
+    async def async_set_maximum_output_current(self, serial: str, amps: float) -> None:
+        """Set the independently configured maximum output current."""
+        raw = self._validated_whole_amp_setting(amps)
+        await self._async_write_settings(
+            serial,
+            {3: raw},
+            expected_key="output_current_max_raw",
+            expected_value=raw,
+        )
+
+    async def async_set_solar_minimum_current(self, serial: str, amps: float) -> None:
+        """Set the no-sun current used by Solar continuous charging."""
+        values = (self.data or {}).get(serial, {})
+        if values.get("work_mode") != "solar" or not values.get("continuous_charging"):
+            raise HomeAssistantError(
+                "Solar minimum current requires Solar mode and Continuous charging"
+            )
+        raw = self._validated_whole_amp_setting(amps)
+        flags = self._required_int_setting(serial, "switch_bits_raw")
+        await self._async_write_settings(
+            serial,
+            {1: flags, 2: 2, 4: raw},
+            expected_key="solar_current_min_raw",
+            expected_value=raw,
+        )
+
+    def _required_int_setting(self, serial: str, key: str) -> int:
+        value = (self.data or {}).get(serial, {}).get(key)
+        if not isinstance(value, int):
+            raise HomeAssistantError(f"Required device readback is unavailable: {key}")
+        return value
+
+    @staticmethod
+    def _validated_whole_amp_setting(amps: float) -> int:
+        if not 6 <= amps <= 16 or not float(amps).is_integer():
+            raise HomeAssistantError("Current must be a whole number from 6 to 16 A")
+        return int(amps) * 10
+
+    async def _async_write_settings(
+        self,
+        serial: str,
+        settings: dict[int, int],
+        *,
+        expected_key: str,
+        expected_value: Any,
+    ) -> None:
+        """Publish one settings command and require reply plus direct readback."""
+        async with self._control_lock:
+            await self._async_write_settings_locked(
+                serial,
+                settings,
+                expected_key=expected_key,
+                expected_value=expected_value,
+            )
+
+    async def _async_write_settings_locked(
+        self,
+        serial: str,
+        settings: dict[int, int],
+        *,
+        expected_key: str,
+        expected_value: Any,
+    ) -> None:
+        if not self.phase_control_available(serial):
+            raise HomeAssistantError(
+                "Control is unavailable until a direct device settings report "
+                "and exactly one connected PowerOcean source are available"
+            )
         observer_serial = next(iter(self.observer_devices))
         client = self.mqtt_clients[observer_serial]
-        payload, sequence = build_powerpulse_phase_payload(
-            self._accessory_descriptors[serial], phase_values[option]
+        payload, sequence = build_powerpulse_settings_payload(
+            self._accessory_descriptors[serial], settings
         )
         waiter = self.hass.loop.create_future()
         self._reply_waiters[(observer_serial, sequence)] = waiter
+        issued_at = time.monotonic()
         published = await self.hass.async_add_executor_job(
             client.send_explicit_control, payload
         )
@@ -389,7 +495,12 @@ class PowerPulse2Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
 
         deadline = time.monotonic() + 5
         while time.monotonic() < deadline:
-            if (self.data or {}).get(serial, {}).get("phase_mode") == option:
+            direct_at = self._last_direct_settings_at.get(serial, 0)
+            if (
+                direct_at > issued_at
+                and (self.data or {}).get(serial, {}).get(expected_key)
+                == expected_value
+            ):
                 return
             await asyncio.sleep(0.2)
         raise HomeAssistantError(

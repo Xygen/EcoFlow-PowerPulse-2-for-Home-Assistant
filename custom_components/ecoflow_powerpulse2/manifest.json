@@ -8,5 +8,5 @@
   "iot_class": "cloud_push",
   "issue_tracker": "https://github.com/Xygen/EcoFlow-PowerPulse-2-for-Home-Assistant/issues",
   "requirements": ["paho-mqtt==2.1.0"],
-  "version": "0.1.0-dev18"
+  "version": "0.1.0-dev19"
 }

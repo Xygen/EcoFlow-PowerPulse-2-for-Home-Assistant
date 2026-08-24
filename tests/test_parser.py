@@ -225,6 +225,7 @@ def _direct_param_set_envelope(
 def test_direct_c376_param_set_report() -> None:
     """Decode the exact high-frequency C376 241/44 report shape."""
     assert parse_powerpulse2_payload(_direct_param_set_envelope()) == {
+        "battery_discharge_disabled": False,
         "continuous_charging": True,
         "current_limit_raw": 160,
         "output_current_max_raw": 160,
@@ -379,7 +380,8 @@ def test_parent_provider_reports_are_keyed_by_embedded_wallbox_serial() -> None:
     }
 
     assert parse_powerpulse2_accessory_payloads(payload) == {
-        "C376TEST": {
+            "C376TEST": {
+                "battery_discharge_disabled": True,
             "charging_power_w": 0,
             "charging_status": "unplugged",
             "continuous_charging": False,

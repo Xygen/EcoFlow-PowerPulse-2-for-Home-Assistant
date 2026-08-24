@@ -28,8 +28,8 @@ diagnostics.
 
 ## Current scope
 
-Version `0.1.0-dev18` keeps automatic MQTT activity listen-only and adds one
-disabled-by-default experimental control:
+Version `0.1.0-dev19` keeps automatic MQTT activity listen-only and provides
+disabled-by-default experimental controls:
 
 - EcoFlow app-account login and PowerPulse discovery
 - listen-only cloud MQTT connection (WSS)
@@ -50,6 +50,8 @@ disabled-by-default experimental control:
   provider snapshot
 - normal Ampere presentation of the Custom-mode current and fast phase enum
   readback
+- experimental controls for phase selection, battery-discharge blocking,
+  Solar Continuous charging, maximum output current, and Solar minimum current
 - maximum output current, Plug-and-Play, phase selection, battery-discharge
   blocking, screen/LED state, and both brightness settings from the live-
   confirmed CP307 settings report
@@ -77,12 +79,14 @@ disabled-by-default experimental control:
   absent for ten seconds, the normal provider fallback resumes automatically
 
 The MQTT transport retains its hard `listen_only` guard for every automatic
-publish path. The experimental phase `select` is disabled in the entity
-registry by default and uses a separate, user-triggered path limited to the
-observed PowerOcean-routed `241/102 -> 4.5` command. It becomes available only
+publish path. All experimental controls are disabled in the entity registry
+by default and use a separate, user-triggered path limited to observed
+PowerOcean-routed `241/102 -> 4.*` commands. They become available only
 after the charger supplies its opaque accessory descriptor, requires exactly
 one connected PowerOcean source, and reports success only after both a matching
-`set_reply` and direct device readback.
+`set_reply` and direct device readback. Current controls accept whole values
+from 6 through 16 A; Solar controls additionally enforce the applicable Solar
+mode and Continuous-charging conditions.
 
 ## Planned controls
 

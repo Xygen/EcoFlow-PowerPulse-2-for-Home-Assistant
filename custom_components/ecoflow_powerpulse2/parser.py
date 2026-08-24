@@ -45,6 +45,7 @@ _CONTINUOUS_CHARGING_MASK = 0x10
 # Continuous charging, and the 6 A Solar minimum unchanged while switchBits
 # changed 16 -> 18 -> 16. This isolates bit 1 as Plug-and-Play.
 _PLUG_AND_PLAY_MASK = 0x02
+_BATTERY_DISCHARGE_DISABLED_MASK = 0x01
 
 # The direct C376 241/44 report carries the same paramSet values as the
 # provider snapshot. A live frame matched all six fields below against the
@@ -562,3 +563,6 @@ def _finish(result: dict[str, Any]) -> None:
             int(switch_bits) & _CONTINUOUS_CHARGING_MASK
         )
         result["plug_and_play"] = bool(int(switch_bits) & _PLUG_AND_PLAY_MASK)
+        result["battery_discharge_disabled"] = bool(
+            int(switch_bits) & _BATTERY_DISCHARGE_DISABLED_MASK
+        )

@@ -577,3 +577,29 @@ accessory descriptor learned from the direct device report, and requires both
 a same-sequence `set_reply` and matching direct `241/44` phase readback. This
 is the first HA-originated write implementation and remains pending live
 hardware validation; Start/Stop and all other controls remain unimplemented.
+
+## 2026-08-24: live HA phase writes and battery flag
+
+The installed dev18 phase `select` was tested from Auto to one phase, then
+three phase, and finally back to Auto. The three HA-originated commands carried
+`4.5=1`, `4.5=2`, and `4.5=0`. Their same-sequence replies arrived after about
+127 ms, 144 ms, and 141 ms. Direct readback followed within roughly 0.5-1.3
+seconds, and the EcoFlow app displayed every resulting value. This completes
+live validation of the first integration write control.
+
+A subsequent official-app battery test identified another settings flag.
+Enabling "Disable battery discharge" changed `4.1` and direct field `1` from
+`16` to `17`; disabling it returned `17` to `16`. The replies arrived after
+about 128 ms and 67 ms, while Continuous charging remained enabled and
+Plug-and-Play remained disabled. This bidirectionally identifies bit `0x01` as
+battery-discharge blocking. dev19 exposes this and the already confirmed
+Continuous, maximum-current, and Solar-minimum-current paths as additional
+disabled-by-default controls with acknowledgement and direct-readback gates.
+
+Immediately after a restart, no `2/34` settings report had arrived while the
+direct `241/44` report was already flowing roughly once per second. Its opaque
+field `21` contained bytes `01 01 19 19 02 00`; the first four values align
+with the simultaneously known screen on, LED on, screen brightness 25%, and
+LED brightness 25%, while the final zero aligns with battery blocking off.
+This is recorded only as a candidate for later controlled comparisons; dev19
+does not parse field `21` or use this unconfirmed assignment for readback.

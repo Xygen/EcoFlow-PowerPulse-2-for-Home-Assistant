@@ -44,12 +44,27 @@ def build_powerpulse_phase_payload(
     """Build the observed PowerOcean-routed PowerPulse phase SET command."""
     if phase not in (0, 1, 2):
         raise ValueError("phase must be 0 (auto), 1 (one phase), or 2 (three phase)")
+    return build_powerpulse_settings_payload(
+        accessory_descriptor, {5: phase}, seq=seq
+    )
+
+
+def build_powerpulse_settings_payload(
+    accessory_descriptor: bytes, settings: dict[int, int], seq: int = 0
+) -> tuple[bytes, int]:
+    """Build the observed PowerOcean-routed PowerPulse settings SET command."""
+    if not settings or any(field not in range(1, 8) for field in settings):
+        raise ValueError("settings must contain observed fields 1 through 7")
+    if any(not isinstance(value, int) or value < 0 for value in settings.values()):
+        raise ValueError("settings values must be non-negative integers")
     sequence = _short_sequence(seq)
-    settings = encode_field_varint(5, phase)
+    settings_payload = b"".join(
+        encode_field_varint(field, value) for field, value in sorted(settings.items())
+    )
     pdata = b"".join(
         (
             encode_field_bytes(1, accessory_descriptor),
-            encode_field_bytes(4, settings),
+            encode_field_bytes(4, settings_payload),
         )
     )
     return (

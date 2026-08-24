@@ -61,7 +61,7 @@ authoritative Home Assistant state.
 | Value or function | App-write path `241/102 -> 4.*` | PowerOcean accessory report `209/8` | Unassigned `96/97` traffic |
 | --- | --- | --- | --- |
 | Role | App sends settings; a same-sequence reply confirms transport correlation but does not echo the settings | Possible additional read path | Likely periodic PowerOcean background traffic |
-| Settings bitmask | `4.1`; observed values include `16`, `18`, and `0` | Earlier field assignments were withdrawn pending controlled evidence | Not assigned |
+| Settings bitmask | `4.1`; bit `0x01` battery-discharge blocking, `0x02` Plug-and-Play, `0x10` Continuous charging | Earlier field assignments were withdrawn pending controlled evidence | Not assigned |
 | Operating mode | `4.2` | Not confirmed | — |
 | Maximum output current | `4.3`, 0.1 A | Not confirmed | — |
 | Solar minimum current | `4.4`, 0.1 A | Not confirmed | — |
@@ -69,7 +69,12 @@ authoritative Home Assistant state.
 | Custom-mode current | `4.6`, 0.1 A | Not confirmed | — |
 | Smart settings | Nested block `4.7` | Not confirmed | — |
 | Observed response | Same-sequence reply after about 50-226 ms | Unknown | No assigned reply |
-| Suitable as HA state | No; it is an observed request, not device readback | Still under investigation | No current evidence |
+| Suitable as HA state | No; controls require separate direct device readback | Still under investigation | No current evidence |
+
+dev19 uses confirmed app-write fields only for disabled-by-default controls:
+`4.1` for the two requested switches, `4.3` for maximum current, `4.4` for
+Solar minimum current, and `4.5` for phase selection. Every write requires a
+same-sequence reply and matching `241/44` readback.
 
 ## Fast-path coverage and next candidates
 

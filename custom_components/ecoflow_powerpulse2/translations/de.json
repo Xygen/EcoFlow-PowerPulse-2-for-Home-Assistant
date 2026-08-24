@@ -81,11 +81,19 @@
       "indicator_brightness": {"name": "LED-Helligkeit"},
       "vehicle_consumption_raw": {"name": "Fahrzeugverbrauch Rohwert"}
     },
+    "number": {
+      "maximum_output_current_control": {"name": "Maximaler Ausgangsstrom (experimentell)"},
+      "solar_minimum_current_control": {"name": "Solar-Mindestladestrom (experimentell)"}
+    },
     "select": {
       "phase_control": {
         "name": "Phaseneinstellung (experimentell)",
         "state": {"auto": "Auto", "one_phase": "1-phasig", "three_phase": "3-phasig"}
       }
+    },
+    "switch": {
+      "battery_discharge_control": {"name": "Batterieentladung deaktivieren (experimentell)"},
+      "continuous_charging_control": {"name": "Kontinuierlich laden (experimentell)"}
     }
   }
 }

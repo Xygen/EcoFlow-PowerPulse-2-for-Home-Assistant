@@ -8,6 +8,19 @@
   A live value of `1815` corresponded to `1.82 kWh` in the EcoFlow app. Keep the
   raw entity unchanged until additional sessions confirm the unit and rounding.
 
+## 0.1.0-dev19
+
+- Live-validate the dev18 phase control for Auto, one phase, and three phases
+  through same-sequence replies, direct readback, and EcoFlow-app display.
+- Confirm battery-discharge blocking as bit `0x01` through an official-app
+  `16 -> 17 -> 16` comparison.
+- Add disabled-by-default experimental controls for battery-discharge blocking,
+  Solar Continuous charging, maximum output current, and Solar minimum current.
+- Preserve unrelated flag bits, enforce whole-ampere 6-16 A ranges and known
+  Solar conditions, serialize writes, and require reply plus direct readback.
+- Derive battery-discharge state from the fast direct bitfield and extend the
+  local suite to 46 passing tests.
+
 ## 0.1.0-dev18
 
 - Complete the fast phase mapping (`0` Auto, `1` one phase, `2` three phase)

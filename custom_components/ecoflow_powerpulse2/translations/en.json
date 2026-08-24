@@ -81,11 +81,19 @@
       "indicator_brightness": {"name": "LED brightness"},
       "vehicle_consumption_raw": {"name": "Vehicle consumption raw"}
     },
+    "number": {
+      "maximum_output_current_control": {"name": "Maximum output current (experimental)"},
+      "solar_minimum_current_control": {"name": "Solar minimum charging current (experimental)"}
+    },
     "select": {
       "phase_control": {
         "name": "Phase setting (experimental)",
         "state": {"auto": "Auto", "one_phase": "Single phase", "three_phase": "Three phase"}
       }
+    },
+    "switch": {
+      "battery_discharge_control": {"name": "Disable battery discharge (experimental)"},
+      "continuous_charging_control": {"name": "Continuous charging (experimental)"}
     }
   }
 }

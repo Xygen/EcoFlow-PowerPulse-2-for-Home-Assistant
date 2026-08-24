@@ -356,3 +356,24 @@ readback. The official-app request/reply evidence is complete, but the first
 HA-originated live write still has to be validated after installation. No
 Start/Stop, current, mode, Smart, LED, screen, battery, or Plug-and-Play write
 is exposed in dev18.
+
+## dev19 candidate update (2026-08-24)
+
+The dev18 phase control has now been live-tested end to end for Auto, one phase,
+and three phases. All three HA commands received same-sequence replies, direct
+wallbox readback, and matching EcoFlow-app display. Reply latency was about
+127-144 ms and readback completed in approximately 0.5-1.3 seconds.
+
+An official-app comparison additionally confirmed `switchBits & 0x01` as
+"Disable battery discharge": the direct flags changed `16 -> 17 -> 16`, while
+Continuous charging and Plug-and-Play were preserved. dev19 therefore adds
+disabled-by-default switches for battery-discharge blocking and Continuous
+charging plus whole-ampere number controls for maximum output current and
+Solar minimum current. All retain unrelated flags, enforce known Solar-mode
+constraints, serialize writes, and require both SET acknowledgement and direct
+device readback. Start/Stop and all remaining settings stay out of scope.
+
+The fast field `241/44.21` is separately backlogged: its observed six-byte
+value `01 01 19 19 02 00` aligns with the current screen/LED enable and 25%
+brightness values plus battery blocking off, but no controlled byte-level
+comparison has confirmed those positions. It remains unparsed in dev19.
