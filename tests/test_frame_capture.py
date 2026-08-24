@@ -44,6 +44,7 @@ def test_envelope_metadata_exposes_command_tuple() -> None:
             encode_field_bytes(1, pdata),
             encode_field_varint(2, 2),
             encode_field_varint(3, 32),
+            encode_field_varint(6, 1),
             encode_field_varint(8, 2),
             encode_field_varint(9, 33),
             encode_field_varint(10, len(pdata)),
@@ -60,6 +61,7 @@ def test_envelope_metadata_exposes_command_tuple() -> None:
             "cmd_id": 33,
             "declared_payload_size": len(pdata),
             "enc_type": 1,
+            "need_ack": 1,
             "sequence": 12345,
             "actual_payload_size": len(pdata),
         }
@@ -120,6 +122,7 @@ def test_small_observer_command_is_xor_decoded_without_raw_bytes() -> None:
             encode_field_bytes(1, encrypted),
             encode_field_varint(8, 96),
             encode_field_varint(9, 97),
+            encode_field_varint(6, 1),
             encode_field_varint(11, 1),
             encode_field_varint(14, sequence),
         )
@@ -181,21 +184,26 @@ def test_observer_command_omits_opaque_content_and_other_tuples() -> None:
     assert "vehicle-secret" not in repr(result)
 
 
-def test_241_102_command_exposes_only_bounded_nested_structure() -> None:
+def test_241_102_need_ack_plaintext_exposes_bounded_settings_structure() -> None:
     secret = b"vehicle-secret"
-    nested = b"".join(
+    settings = b"".join(
         (
-            encode_field_bytes(1, secret),
-            encode_field_varint(2, 60),
-            encode_field_varint(3, 700),
+            encode_field_varint(1, 16),
+            encode_field_varint(2, 2),
+            encode_field_varint(3, 160),
+            encode_field_varint(4, 60),
+            encode_field_varint(5, 0),
+            encode_field_varint(6, 60),
         )
     )
-    pdata = encode_field_bytes(4, nested) + encode_field_varint(5, 1)
+    pdata = encode_field_bytes(1, secret) + encode_field_bytes(4, settings)
     header = b"".join(
         (
             encode_field_bytes(1, pdata),
             encode_field_varint(8, 241),
             encode_field_varint(9, 102),
+            # need_ack must not be mistaken for enc_type.
+            encode_field_varint(11, 1),
             encode_field_varint(14, 1234),
         )
     )
@@ -204,14 +212,13 @@ def test_241_102_command_exposes_only_bounded_nested_structure() -> None:
         encode_field_bytes(1, header), fingerprint_key=b"test-runtime-key"
     )
     whole_fingerprint = result[0].pop("runtime_fingerprint")
-    nested_fingerprint = result[0]["fields"][0].pop("runtime_fingerprint")
-    secret_fingerprint = result[0]["fields"][0]["nested_fields"][0].pop(
-        "runtime_fingerprint"
-    )
+    secret_fingerprint = result[0]["fields"][0].pop("runtime_fingerprint")
+    settings_fingerprint = result[0]["fields"][1].pop("runtime_fingerprint")
 
     assert len(whole_fingerprint) == 16
-    assert len(nested_fingerprint) == 16
     assert len(secret_fingerprint) == 16
+    assert len(settings_fingerprint) == 16
+    assert len(pdata) == 31
     assert result == [
         {
             "cmd_func": 241,
@@ -221,17 +228,20 @@ def test_241_102_command_exposes_only_bounded_nested_structure() -> None:
             "xor_decoded": False,
             "classification": "structured_opaque",
             "fields": [
+                {"field": 1, "wire_type": 2, "size": len(secret)},
                 {
                     "field": 4,
                     "wire_type": 2,
-                    "size": len(nested),
+                    "size": len(settings),
                     "nested_fields": [
-                        {"field": 1, "wire_type": 2, "size": len(secret)},
-                        {"field": 2, "wire_type": 0, "small_value": 60},
-                        {"field": 3, "wire_type": 0, "value_omitted": True},
+                        {"field": 1, "wire_type": 0, "small_value": 16},
+                        {"field": 2, "wire_type": 0, "small_value": 2},
+                        {"field": 3, "wire_type": 0, "small_value": 160},
+                        {"field": 4, "wire_type": 0, "small_value": 60},
+                        {"field": 5, "wire_type": 0, "small_value": 0},
+                        {"field": 6, "wire_type": 0, "small_value": 60},
                     ],
                 },
-                {"field": 5, "wire_type": 0, "small_value": 1},
             ],
         }
     ]
@@ -274,7 +284,7 @@ def test_opaque_runtime_fingerprint_supports_equality_only() -> None:
                 encode_field_bytes(1, encrypted),
                 encode_field_varint(8, 96),
                 encode_field_varint(9, 97),
-                encode_field_varint(11, 1),
+                encode_field_varint(6, 1),
                 encode_field_varint(14, sequence),
             )
         )

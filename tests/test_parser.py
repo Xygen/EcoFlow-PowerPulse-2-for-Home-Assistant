@@ -56,6 +56,25 @@ def test_cp307_heartbeat_inside_cloud_envelope() -> None:
     assert result["session_energy_raw"] == 449
 
 
+def test_need_ack_does_not_trigger_xor_decoding() -> None:
+    """Header field 11 is need_ack; only field 6 marks XOR encoding."""
+    heartbeat = _heartbeat(state=1, power=0.0)
+    header = b"".join(
+        (
+            encode_field_bytes(1, heartbeat),
+            encode_field_varint(8, 2),
+            encode_field_varint(9, 33),
+            encode_field_varint(11, 1),
+            encode_field_varint(14, 1234),
+        )
+    )
+
+    result = parse_powerpulse2_payload(encode_field_bytes(1, header))
+
+    assert result["charging_status"] == "unplugged"
+    assert result["charging_power_w"] == 0.0
+
+
 def test_cp307_xor_encoded_app_mqtt_envelope() -> None:
     """Regression test for the envelope observed on a live C376 charger."""
     heartbeat = _heartbeat(state=1, power=0.0)
@@ -107,7 +126,7 @@ def test_cp307_parameter_report_is_not_parsed_as_heartbeat() -> None:
             encode_field_bytes(1, encrypted),
             encode_field_varint(8, 2),
             encode_field_varint(9, 34),
-            encode_field_varint(11, 1),
+            encode_field_varint(6, 1),
             encode_field_varint(14, sequence),
         )
     )
@@ -138,7 +157,7 @@ def test_cp307_xor_encoded_settings_report() -> None:
             encode_field_bytes(1, encrypted),
             encode_field_varint(8, 2),
             encode_field_varint(9, 34),
-            encode_field_varint(11, 1),
+            encode_field_varint(6, 1),
             encode_field_varint(14, sequence),
         )
     )

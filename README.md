@@ -19,7 +19,7 @@ diagnostics.
 
 ## Current scope
 
-Version `0.1.0-dev12` is deliberately read-only:
+Version `0.1.0-dev13` is deliberately read-only:
 
 - EcoFlow app-account login and PowerPulse discovery
 - listen-only cloud MQTT connection (WSS)
@@ -38,8 +38,9 @@ Version `0.1.0-dev12` is deliberately read-only:
 - privacy-safe structural inspection of the small PowerOcean `96/97`
   background command and the acknowledged `241/102` Solar-current route,
   runtime-keyed opaque-field equality checks, and bounded request/retry/reply
-  correlation by sequence number; the live `241/102` bodies are proprietary
-  binary rather than valid protobuf, and raw command bodies remain omitted
+  correlation by sequence number; EcoFlow header field 6 is treated as
+  `enc_type` and field 11 as `need_ack`, allowing the nested `241/102` protobuf
+  structure to be inspected while raw command bodies remain omitted
 - identifier-free MQTT subscription result codes in diagnostics
 - passive discovery and observation of a linked PowerOcean MQTT source, with
   parent payloads omitted and only privacy-safe numeric PowerPulse accessory

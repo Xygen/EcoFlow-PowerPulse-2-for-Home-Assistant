@@ -8,6 +8,21 @@
   A live value of `1815` corresponded to `1.82 kWh` in the EcoFlow app. Keep the
   raw entity unchanged until additional sessions confirm the unit and rounding.
 
+## 0.1.0-dev13
+
+- Correct the EcoFlow envelope mapping: field 6 is `enc_type`; field 11 is
+  `need_ack`. dev12 incorrectly XOR-decoded acknowledgement-requesting
+  plaintext `241/102` bodies and classified them as opaque.
+- Apply the correction consistently to direct CP307 telemetry, PowerOcean
+  accessory diagnostics, observer-command inspection, and exported envelope
+  metadata.
+- Preserve `need_ack` separately in diagnostics and inspect the bounded nested
+  `241/102` protobuf structure without retaining raw byte or text contents.
+- Increase the diagnostic capture schema to 6 without adding any MQTT publish
+  route; the integration remains hard `listen_only`.
+- Extend the suite to 31 passing tests, including regressions proving that
+  `need_ack=1` alone never triggers XOR while `enc_type=1` still does.
+
 ## 0.1.0-dev12
 
 - Add privacy-safe structural inspection for the live-confirmed PowerOcean
@@ -25,9 +40,9 @@
   size bound, nested privacy rules, and cleartext/hex leak checks.
 - Confirm in a live `6 A -> 7 A -> 6 A` test that both `241/102` requests
   received same-sequence replies and the provider returned `60 -> 70 -> 60`.
-  The 31-byte requests and 23-byte replies are not valid protobuf. Their
-  runtime fingerprints changed in both directions, but dev12 intentionally
-  exposes no byte positions or command contents.
+  dev12 classified the 31-byte requests and 23-byte replies as non-protobuf and
+  exposed only differing runtime fingerprints; dev13 corrects that result as a
+  header-decoding bug rather than a proprietary payload format.
 
 ## 0.1.0-dev11
 

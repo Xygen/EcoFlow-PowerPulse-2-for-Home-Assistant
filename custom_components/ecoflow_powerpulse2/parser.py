@@ -219,7 +219,7 @@ def _parse_proto(payload: bytes) -> dict[str, Any]:
                 continue
             # Standard EcoFlow MQTT envelope: repeated Header at field 1,
             # with CP307 pdata at field 1 of that header. App MQTT frames use
-            # enc_type=1 (field 11): pdata is XORed with the low byte of the
+            # enc_type=1 (field 6): pdata is XORed with the low byte of the
             # sequence number (field 14). Keep the wire payload as a fallback
             # only when the header does not mark it as encrypted.
             header_fields = list(iter_protobuf_fields(value))
@@ -243,7 +243,7 @@ def _parse_proto(payload: bytes) -> dict[str, Any]:
                 (
                     inner_value
                     for inner_field, inner_wire, inner_value in header_fields
-                    if inner_field == 11 and inner_wire == 0 and isinstance(inner_value, int)
+                    if inner_field == 6 and inner_wire == 0 and isinstance(inner_value, int)
                 ),
                 None,
             )

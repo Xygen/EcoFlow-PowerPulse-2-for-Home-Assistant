@@ -49,10 +49,11 @@ def inspect_envelope_headers(payload: bytes) -> list[dict[str, int]]:
     field_names = {
         2: "cmd_src",
         3: "cmd_dst",
+        6: "enc_type",
         8: "cmd_func",
         9: "cmd_id",
         10: "declared_payload_size",
-        11: "enc_type",
+        11: "need_ack",
         14: "sequence",
     }
     try:
@@ -119,7 +120,7 @@ def inspect_observer_command_payloads(
                 if isinstance(sequence, int):
                     summary["sequence"] = sequence
 
-                if varints.get(11) == 1:
+                if varints.get(6) == 1:
                     if not isinstance(sequence, int):
                         summary["classification"] = "missing_xor_sequence"
                         summaries.append(summary)
@@ -297,7 +298,7 @@ def inspect_powerpulse_accessory_reports(payload: bytes) -> list[dict[str, Any]]
                 and isinstance(inner_value, bytes)
             ]
             for pdata in pdata_values:
-                if varints.get(11) == 1 and isinstance(varints.get(14), int):
+                if varints.get(6) == 1 and isinstance(varints.get(14), int):
                     key = varints[14] & 0xFF
                     pdata = bytes(byte ^ key for byte in pdata)
                 report = _summarize_accessory_report(pdata)

@@ -3,9 +3,10 @@
 > **WORK IN PROGRESS — please do not treat these mappings as complete or as a request to implement controls yet.**
 >
 > This is an interim report from a separate, deliberately read-only test
-> integration. Nothing has been posted upstream yet. The results below come
-> from privacy-redacted captures from one live C376 charger installed alongside
-> a PowerOcean Plus, plus paired changes made in the official EcoFlow app.
+> integration. An earlier summary has been posted to upstream issue #247. The
+> results below come from privacy-redacted captures from one live C376 charger
+> installed alongside a PowerOcean Plus, plus paired changes made in the
+> official EcoFlow app.
 
 ## Scope boundary
 
@@ -37,7 +38,7 @@ is unsafe.
 ## Direct C376 MQTT / CP307 details
 
 The useful payload is in the normal EcoFlow protobuf envelope. In the envelope
-header, field 8 is `cmd_func`, field 9 is `cmd_id`, field 11 is `enc_type`, and
+header, field 8 is `cmd_func`, field 9 is `cmd_id`, field 6 is `enc_type`, and
 field 14 is the sequence. With `enc_type=1`, `pdata` is XOR-decoded with
 `sequence & 0xff`.
 
@@ -114,12 +115,14 @@ Within the matched C376 `pileChargingParamReport`:
 | `vehicleInfo.currentVehicleComsumption` | raw vehicle-consumption value | Retained raw; spelling is as received and unit/scaling is not confirmed. |
 
 The parent PowerOcean MQTT stream also carries a PowerPulse accessory report
-under `cmd_func=209` (observed with `cmd_id=8`). In its protobuf body, field 10
-tracks the operating-mode value and field 18 tracks the settings bitmask. We
-currently keep this route diagnostic-only because the matched provider detail
-is easier to attribute safely and contains more named fields. Raw parent
-payloads are intentionally not retained because they can bundle charger,
-battery, and vehicle identifiers.
+under `cmd_func=209` (observed with `cmd_id=8` during an earlier charging
+session). Earlier versions of this report assigned body field 10 to operating
+mode and field 18 to the settings bitmask from a provider-side comparison.
+That comparison did not isolate either value within `209/8`, so both
+assignments are withdrawn pending a controlled report diff. The no-car test
+below contained no `209/8` frame at all. Raw parent payloads are retained only
+through the upstream integration's privacy-masked diagnostic capture because
+they can bundle charger, battery, and vehicle identifiers.
 
 Later live diagnostics also captured 24 frames on the linked PowerOcean's
 official-app property-SET topic. Their envelope headers consistently contained
@@ -173,26 +176,65 @@ changed byte fields during one HA runtime without revealing their contents.
 The existing `96/97` path keeps its stricter 16-byte limit. No MQTT publish path
 is added.
 
-The completed live dev12 `6 A -> 7 A -> 6 A` comparison produced:
+The completed live dev12 `6 A -> 7 A -> 6 A` comparison initially appeared to
+produce:
 
 - sequence 88 for 7 A, with a 31-byte request, a same-sequence 23-byte reply
   after approximately 139 ms, and provider `solarCurrentMin=70`;
 - sequence 96 for the restored 6 A, with the same sizes, a reply after
   approximately 83 ms, and provider `solarCurrentMin=60`;
 - different runtime fingerprints for both target requests and both replies;
-- `opaque_non_protobuf` for all four decoded bodies, so no safe protobuf field
-  tree exists to compare.
+- `opaque_non_protobuf` for all four supposedly decoded bodies.
 
-Solar Mode, Continuous charging, and `switchBits=16` remained unchanged. This
-confirms a reproducible acknowledged binary route, but it does not reveal a
-write payload or the changed byte position.
+The opaque classification was a decoder error rather than a protocol result.
+The observer used header field 11 (`need_ack`) as `enc_type`, while EcoFlow's
+header places `enc_type` in field 6. Because these SET requests ask for an
+acknowledgement, plaintext protobuf was XOR-mutated before inspection. The
+upstream raw diagnostic remains structurally decodable and exposes the nested
+field paths listed in the no-car capture section below. This correction still
+does not turn the observed app write into an approved control template.
+
+## Controlled no-car settings capture requested in issue #247
+
+**WIP caveat:** the changes were left approximately one minute apart rather
+than the requested roughly two minutes. The diagnostic was downloaded
+immediately after the final change. It reports 13 `241/102` SET frames and 13
+same-command SET replies, but time-slot sampling retained only seven complete
+pairs.
+
+No `209/8` frame was present anywhere in the recording. Fields 5, 10 and 18
+therefore have no before/after values in this test; the report was absent, not
+stable. Field 31 is not treated as part of `209/8`: the upstream maintainer's
+recording does not contain fields 30 and above in that message and attributes
+those numbers to a neighbouring message. This capture supplies no isolated
+before/after evidence for that neighbouring field 31 either. The negative
+`209/8` result applies only to the no-car condition and does not establish what
+the report carries during a plugged-in or active charging session.
+
+The retained app writes on the existing PowerOcean MQTT connection decode as
+a top-level accessory descriptor in field 1 and a settings object in field 4:
+
+| Inner path | Function supported by this capture | Retained values |
+| --- | --- | --- |
+| `4.1` | `switchBits` | `16`, `18`, `0`; Plug-and-Play adds bit `0x02`, Continuous charging uses bit `0x10` |
+| `4.2` | work mode | `4` Smart, `3` Custom, `2` Solar |
+| `4.3` | maximum output current | `110` = 11 A |
+| `4.4` | Solar minimum/continuous current | `60` = 6 A |
+| `4.5` | phase selection | `2` three phase, `0` auto |
+| `4.6` | Custom current | `60` = 6 A |
+| `4.7` | Smart settings | nested timestamp/selector/target values, including `30000` Wh |
+
+The retained bodies do not include the 16 A, Fast, return-to-Solar,
+Plug-and-Play-off, Continuous-charging-on or one-phase changes. Their frames
+contribute to the seen counts but were removed by sampling, so those missing
+bodies are not reconstructed or inferred here.
 
 ## Current state of the test implementation
 
-- The current development build is `0.1.0-dev12` and remains read-only. Its
-  second controlled 6 A to 7 A to 6 A test is complete: `241/102` is
-  reproducibly acknowledged, but its body is proprietary binary rather than
-  valid protobuf.
+- Development build `0.1.0-dev13` corrects the dev12 header bug and remains
+  read-only. The parser now reads `enc_type` from field 6 and keeps field 11 as
+  `need_ack`; acknowledgement-requesting plaintext bodies are no longer
+  XOR-mutated. The upstream diagnostic confirms nested protobuf.
 - MQTT uses a hard `listen_only` guard; automatic get-all/stream activation and
   every other publish path are suppressed.
 - The new `Kontinuierlich laden` binary sensor was verified live in both
@@ -220,18 +262,17 @@ write payload or the changed byte position.
 4. Check additional operating states and map `suspend_reason` values.
 5. Decide how best to represent the three individual phase voltages/currents
    upstream instead of only exposing an aggregate maximum.
-6. Adapt the two-source model (direct C376 MQTT plus the linked PowerOcean
-   provider detail) to `ecoflow-energy-ha` without allowing unrelated parent
-   `workMode` or other similarly named fields to leak into the charger device.
-7. For any future controls, capture the actual request envelope **and** device
-   acknowledgement first. No PowerPulse-attributable SET or SET-reply frame was
-   observed during the paired Start/Stop, mode, target, or current changes. The
-   controlled current test identifies acknowledged `241/102` traffic in both
-   directions. Dev12 confirms that its body is not protobuf. A later diagnostic
-   must locate changing byte positions without exposing their values, and target
-   attribution plus acknowledgement semantics still must be confirmed before
-   considering a write. Start/Stop or other settings may still use different
-   commands, the provider HTTP API, or another transport.
+6. Keep upstream proposals on the existing PowerOcean path. Direct C376 MQTT
+   and developer-key-only provider detail are useful research evidence but are
+   not proposed as duplicate production sources.
+7. Validate dev13 live with a controlled `6 A -> 7 A -> 6 A` comparison and
+   confirm that safe path `4.4` follows `60 -> 70 -> 60` in the acknowledged
+   `241/102` requests.
+8. For any future controls, retain the captured request **and** same-sequence
+   reply evidence, but separately confirm target attribution, acknowledgement
+   semantics, complete value mappings and safety constraints. `241/102` is an
+   observed app-write path, not a readback source. Start/Stop may still use a
+   different command or transport.
 
 For now I would suggest treating all of this as read-support research only,
 with Start/Stop and current-setting controls explicitly out of scope until the

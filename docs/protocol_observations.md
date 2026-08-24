@@ -163,10 +163,13 @@ Confirmed or currently retained provider fields:
   tests
 
 The linked PowerOcean MQTT stream also emits a PowerPulse accessory report
-under `cmd_func=209` (observed with `cmd_id=8`). In that protobuf body, field 10
-tracks the operating-mode value and field 18 tracks the settings bitmask. This
-route remains diagnostic-only; the matched provider-detail report contains
-more named values and can be attributed to the complete embedded serial.
+under `cmd_func=209` (observed with `cmd_id=8` during an earlier charging
+session). Earlier notes assigned body field 10 to operating mode and field 18
+to the settings bitmask by comparing it with provider data. That attribution
+was not isolated by a controlled `209/8` comparison and is therefore withdrawn
+pending direct evidence. The no-car settings capture below contained no
+`209/8` report at all, so it neither confirms nor disproves either field
+meaning.
 
 ## 2026-08-24: Solar continuous-charging bit
 
@@ -298,17 +301,100 @@ Controlled dev12 result (`6 A -> 7 A -> 6 A`):
   from `70` to `60`.
 - Solar Mode, Continuous charging, and `switchBits=16` remained unchanged.
 - Both request bodies and both reply bodies were classified
-  `opaque_non_protobuf`. Their runtime fingerprints differed between the two
-  target values, confirming a body change without exposing its contents.
+  `opaque_non_protobuf` by dev12. That classification is now known to be a
+  decoder artefact: the observer treated header field 11 (`need_ack`) as
+  `enc_type`; the EcoFlow header uses field 6 for `enc_type`. Because the SET
+  requests set `need_ack=1`, dev12 XOR-mutated plaintext protobuf bodies.
 
-Conclusion after dev12:
+Corrected conclusion after the upstream diagnostic comparison:
 
 - The acknowledged route and bidirectional provider effect are reproducible.
-- The body is proprietary binary rather than the assumed nested protobuf, so
-  no field path or value can be assigned from this release.
-- A next diagnostic may compare runtime-keyed fingerprints by byte position or
-  small fixed chunk. It must still omit raw values and remain listen-only.
-- Neither dev12 body is a reusable write template.
+- The request body is nested protobuf, not proprietary binary. Its settings
+  object is top-level field 4. The field assignments from the controlled
+  no-car test are recorded below.
+- The correction does not make the frame a reusable write template. Target
+  attribution, complete value coverage, acknowledgement semantics and safety
+  constraints still need review before any control is considered.
+
+Implementation note for `0.1.0-dev13`:
+
+- The local envelope parser and diagnostic capture now read `enc_type` from
+  header field 6 and retain field 11 separately as `need_ack`.
+- XOR is applied only when field 6 explicitly equals `1`; an
+  acknowledgement-requesting plaintext SET is no longer mutated.
+- The fix applies to direct CP307 `2/33` and `2/34` parsing, PowerOcean
+  accessory inspection, and the allow-listed `241/102` observer.
+- Diagnostic capture schema 6 retains only the bounded field tree, small
+  varints, byte-field sizes and runtime-keyed fingerprints. Raw PowerOcean
+  payloads remain omitted and MQTT remains hard `listen_only`.
+- Regression tests cover both directions: `enc_type=1` still XOR-decodes, while
+  `need_ack=1` without field 6 leaves a plaintext protobuf unchanged.
+
+A live dev13 `6 A -> 7 A -> 6 A` check should now expose the safe settings path
+inside top-level field 4 and confirm whether path `4.4` follows `60 -> 70 -> 60`
+in the same acknowledged request/reply sequence.
+
+## 2026-08-24: No-car PowerOcean settings capture for issue #247
+
+The official app changed 13 settings while the upstream integration recorded
+the linked PowerOcean. No car was connected. Changes were approximately one
+minute apart, shorter than the requested roughly two-minute interval. The
+diagnostic was downloaded immediately after the final change.
+
+Capture facts:
+
+- `app_writes_watched=true`
+- 13 `241/102` SET frames and 13 `241/102` SET replies were seen
+- time-slot sampling retained seven request/reply pairs
+- no `209/8` frame was present anywhere in the capture
+
+Recorded test timeline (Europe/Berlin):
+
+| Note time | App change | Retained request evidence |
+| --- | --- | --- |
+| 15:45 | maximum current 16 A to 11 A | 15:45:38, `4.3=110`, reply after 117 ms |
+| 15:47 | maximum current 11 A to 16 A | body not retained |
+| 15:49 | Solar to Smart | 15:49:04, `4.1=16`, `4.2=4`, Smart block in `4.7`, reply after 120 ms |
+| 15:50 | Smart to Fast | body not retained |
+| 15:51 | Fast to Custom | 15:51:09, `4.2=3`, `4.6=60`, reply after 98 ms |
+| 15:52 | Custom to Solar | body not retained |
+| 15:53 | Plug-and-Play off to on | 15:53:03, `4.1=18`, reply after 217 ms |
+| 15:54 | Plug-and-Play on to off | body not retained |
+| 15:55 | Continuous charging on to off | 15:55:10, `4.1=0`, `4.2=2`, `4.4=60`, reply after 118 ms |
+| 15:56 | Continuous charging off to on | body not retained |
+| 15:57 | phase auto to one phase | body not retained |
+| 15:58 | phase one to three phase | 15:58:09, `4.5=2`, reply after 57 ms |
+| 15:59 | phase three to auto | 15:59:08, `4.5=0`, reply after 203 ms |
+
+Consequently there is no controlled diff for fields 5, 10 or 18 of `209/8`:
+the report is absent rather than those fields being unchanged. Field 31 must
+not be folded into that schema: the upstream maintainer reports that fields 30
+and above are not present in his accessory message and instead belong to a
+neighbouring message. This capture provides no isolated before/after evidence
+for that neighbouring field 31 either. It does establish that the no-car
+settings sequence did not cause an observable `209/8` report in this
+installation.
+
+The retained `241/102` requests are plaintext nested protobuf. Top-level field
+1 identifies the accessory; top-level field 4 contains the settings object:
+
+| `241/102` path | Observed meaning | Retained evidence |
+| --- | --- | --- |
+| `4.1` | settings bitmask | `16` with Continuous charging on and Plug-and-Play off; `18` after Plug-and-Play was enabled; `0` after both were disabled |
+| `4.2` | work mode | `4` Smart; `3` Custom; `2` Solar |
+| `4.3` | maximum output current, 0.1 A | `110` for 11 A |
+| `4.4` | Solar continuous/minimum current, 0.1 A | `60` for 6 A |
+| `4.5` | phase selection | `2` three phase; `0` auto |
+| `4.6` | Custom-mode current, 0.1 A | `60` for 6 A |
+| `4.7` | Smart-mode settings | nested values included a ready-by Unix timestamp, selector `1`, target `30000`, and final value `0` |
+
+The sampler did not retain the reverse/current values at 16 A, Fast, the
+return to Solar, Plug-and-Play off, Continuous charging on, or one-phase. Their
+SET/reply frames are included in the seen counts but their bodies cannot be
+reconstructed from this diagnostic. These missing bodies must not be inferred.
+`241/102` is reported only as an additional observation on the existing
+PowerOcean MQTT connection; it is an app-write path, not a startup/readback
+source and not a substitute for the requested `209/8` telemetry evidence.
 
 ## 2026-08-24: Session-energy scaling hypothesis
 
