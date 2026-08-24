@@ -441,3 +441,10 @@ other opaque content. One repeated bundled app sequence is required before the
 four HA controls can be built from evidence rather than inferred positions.
 The bounded per-command sample count is increased from eight to sixteen so the
 entire repeated sequence can be retained in one run.
+
+The repeat resolved nested field `4.21` as a six-byte display-settings block:
+LED enable, screen enable, LED brightness percent, screen brightness percent,
+and two observed zero bytes. The 25/50/75/100% values and LED off/on were
+captured with acknowledgements and device readback. dev21 adds four
+disabled-by-default HA controls that preserve the whole block; screen and LED
+brightness become unavailable whenever the corresponding switch is off.

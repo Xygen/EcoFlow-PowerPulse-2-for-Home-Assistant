@@ -614,6 +614,63 @@ class PowerPulse2Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
             expected_value=raw,
         )
 
+    async def async_set_screen_enabled(self, serial: str, enabled: bool) -> None:
+        """Switch the wallbox screen while preserving all display settings."""
+        await self._async_write_display_settings(
+            serial, screen_enabled=enabled,
+            expected_key="screen_enabled", expected_value=enabled,
+        )
+
+    async def async_set_indicator_enabled(self, serial: str, enabled: bool) -> None:
+        """Switch the wallbox LED indicator while preserving display settings."""
+        await self._async_write_display_settings(
+            serial, indicator_enabled=enabled,
+            expected_key="indicator_enabled", expected_value=enabled,
+        )
+
+    async def async_set_screen_brightness(self, serial: str, percent: float) -> None:
+        """Set the screen to one of the four observed brightness levels."""
+        await self._async_write_display_settings(
+            serial, screen_brightness_pct=self._validated_brightness(percent),
+            expected_key="screen_brightness_pct", expected_value=int(percent),
+        )
+
+    async def async_set_indicator_brightness(self, serial: str, percent: float) -> None:
+        """Set the LED indicator to one of the four observed brightness levels."""
+        await self._async_write_display_settings(
+            serial, indicator_brightness_pct=self._validated_brightness(percent),
+            expected_key="indicator_brightness_pct", expected_value=int(percent),
+        )
+
+    async def _async_write_display_settings(
+        self, serial: str, *, expected_key: str, expected_value: Any, **overrides: Any
+    ) -> None:
+        values = dict((self.data or {}).get(serial, {}))
+        values.update(overrides)
+        required = (
+            "indicator_enabled", "screen_enabled",
+            "indicator_brightness_pct", "screen_brightness_pct",
+        )
+        if any(key not in values for key in required):
+            raise HomeAssistantError("Complete display settings readback is unavailable")
+        raw = bytes((
+            int(values["indicator_enabled"]),
+            int(values["screen_enabled"]),
+            int(values["indicator_brightness_pct"]),
+            int(values["screen_brightness_pct"]),
+            0,
+            0,
+        ))
+        await self._async_write_settings(
+            serial, {21: raw}, expected_key=expected_key, expected_value=expected_value
+        )
+
+    @staticmethod
+    def _validated_brightness(percent: float) -> int:
+        if percent not in (25, 50, 75, 100):
+            raise HomeAssistantError("Brightness must be 25, 50, 75, or 100 percent")
+        return int(percent)
+
     def _required_int_setting(self, serial: str, key: str) -> int:
         value = (self.data or {}).get(serial, {}).get(key)
         if not isinstance(value, int):

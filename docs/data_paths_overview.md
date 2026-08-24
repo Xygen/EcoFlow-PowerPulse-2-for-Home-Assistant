@@ -68,14 +68,16 @@ authoritative Home Assistant state.
 | Phase selection | `4.5` | Not confirmed | — |
 | Custom-mode current | `4.6`, 0.1 A | Not confirmed | — |
 | Smart settings | Nested block `4.7` | Not confirmed | — |
+| Screen/LED settings | Nested bytes `4.21`: LED enable, screen enable, LED %, screen %, `0`, `0` | Provider fields `13`-`16` supply readback | — |
 | Observed response | Same-sequence reply after about 50-226 ms | Unknown | No assigned reply |
 | Suitable as HA state | No; controls require separate direct device readback | Still under investigation | No current evidence |
 
-dev20 uses confirmed app-write fields only for disabled-by-default controls:
+dev21 uses confirmed app-write fields only for disabled-by-default controls:
 `4.1` for battery, Plug-and-Play, and Continuous flags; `4.2` for all four
 operating modes; `4.3` for maximum current; `4.4` for Solar minimum current;
 `4.5` for phase selection; `4.6` for Custom current; and nested `4.7` for Smart
-ready-by and target settings. Every write requires a same-sequence reply and
+ready-by and target settings; nested `4.21` controls screen and LED state plus
+their 25/50/75/100% brightness. Every write requires a same-sequence reply and
 matching `241/44` readback.
 
 ## Fast-path coverage and next candidates

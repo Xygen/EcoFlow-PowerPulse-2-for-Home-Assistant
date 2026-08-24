@@ -13,6 +13,16 @@
   known to be locked during an active charging session; further controls still
   need classification.
 
+## 0.1.0-dev21
+
+- Add disabled-by-default controls for the screen, LED indicator, and their
+  four brightness levels (25/50/75/100%).
+- Preserve all four display values in the observed nested `241/102 -> 4.21`
+  block and continue requiring acknowledgement plus fresh device readback.
+- Make each brightness control unavailable while its corresponding display is
+  switched off.
+- Extend the local suite to 50 passing tests.
+
 ## 0.1.0-dev20
 
 - Capture complete forward and reverse app sequences for Fast, Solar, Custom,

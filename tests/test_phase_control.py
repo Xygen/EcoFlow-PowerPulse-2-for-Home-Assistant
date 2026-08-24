@@ -57,13 +57,26 @@ def test_settings_control_preserves_multi_field_app_shape() -> None:
 
 
 def test_settings_control_rejects_unobserved_fields_and_ranges() -> None:
-    for settings in ({}, {8: 1}, {1: -1}, {7: b""}):
+    for settings in ({}, {8: 1}, {22: 1}, {1: -1}, {7: b""}):
         try:
             build_powerpulse_settings_payload(b"opaque", settings, seq=1)
         except ValueError:
             pass
         else:
             raise AssertionError(f"unsafe settings accepted: {settings}")
+
+
+def test_display_settings_match_observed_nested_shape() -> None:
+    payload, _ = build_powerpulse_settings_payload(
+        b"opaque-accessory", {21: bytes((1, 1, 25, 100, 0, 0))}, seq=171
+    )
+    header = _bytes_field(payload, 1)
+    pdata = _bytes_field(header, 1)
+    settings = _bytes_field(pdata, 4)
+
+    assert list(iter_protobuf_fields(settings)) == [
+        (21, 2, bytes((1, 1, 25, 100, 0, 0)))
+    ]
 
 
 def test_smart_energy_settings_match_observed_nested_shape() -> None:

@@ -62,6 +62,22 @@ async def async_setup_entry(
                 native_step=1,
                 native_unit_of_measurement="km",
             ),
+            NumberEntityDescription(
+                key="screen_brightness_control",
+                translation_key="screen_brightness_control",
+                native_min_value=25,
+                native_max_value=100,
+                native_step=25,
+                native_unit_of_measurement="%",
+            ),
+            NumberEntityDescription(
+                key="indicator_brightness_control",
+                translation_key="indicator_brightness_control",
+                native_min_value=25,
+                native_max_value=100,
+                native_step=25,
+                native_unit_of_measurement="%",
+            ),
         )
     )
 
@@ -95,6 +111,10 @@ class PowerPulse2CurrentNumber(PowerPulse2Entity, NumberEntity):
             return values.get("work_mode") == "smart"
         if self.entity_description.key == "smart_distance_target_control":
             return values.get("work_mode") == "smart"
+        if self.entity_description.key == "screen_brightness_control":
+            return values.get("screen_enabled") is True
+        if self.entity_description.key == "indicator_brightness_control":
+            return values.get("indicator_enabled") is True
         return "output_current_max_raw" in values
 
     @property
@@ -105,6 +125,8 @@ class PowerPulse2CurrentNumber(PowerPulse2Entity, NumberEntity):
             "custom_current_control": "user_current_set_raw",
             "smart_energy_target_control": "smart_charge_target_wh",
             "smart_distance_target_control": "smart_target_distance_km",
+            "screen_brightness_control": "screen_brightness_pct",
+            "indicator_brightness_control": "indicator_brightness_pct",
         }[self.entity_description.key]
         value = self.coordinator.data.get(self.serial, {}).get(key)
         if value is None and self.entity_description.key.startswith("smart_"):
@@ -113,7 +135,10 @@ class PowerPulse2CurrentNumber(PowerPulse2Entity, NumberEntity):
             return None
         if self.entity_description.key == "smart_energy_target_control":
             return float(value) / 1000
-        if self.entity_description.key == "smart_distance_target_control":
+        if self.entity_description.key in (
+            "smart_distance_target_control", "screen_brightness_control",
+            "indicator_brightness_control",
+        ):
             return float(value)
         return float(value) / 10
 
@@ -126,5 +151,9 @@ class PowerPulse2CurrentNumber(PowerPulse2Entity, NumberEntity):
             await self.coordinator.async_set_custom_current(self.serial, value)
         elif self.entity_description.key == "smart_energy_target_control":
             await self.coordinator.async_set_smart_energy_target(self.serial, value)
+        elif self.entity_description.key == "screen_brightness_control":
+            await self.coordinator.async_set_screen_brightness(self.serial, value)
+        elif self.entity_description.key == "indicator_brightness_control":
+            await self.coordinator.async_set_indicator_brightness(self.serial, value)
         else:
             await self.coordinator.async_set_smart_distance_target(self.serial, value)

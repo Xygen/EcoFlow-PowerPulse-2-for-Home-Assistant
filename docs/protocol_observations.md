@@ -675,3 +675,14 @@ opaque byte field remain hidden. A repeated app sequence can therefore isolate
 the four display bytes without weakening identifier redaction.
 The per-command bucket is expanded from eight to sixteen bounded samples so the
 complete screen-plus-LED sequence fits in one capture.
+
+The repeated capture exposed the complete nested block as
+`4.21 = [LED enabled, screen enabled, LED brightness, screen brightness, 0, 0]`.
+LED off/on changed byte 1 between 0/1; LED levels changed byte 3 through
+25/50/75/100; and screen levels changed byte 4 through 25/50/75/100. Earlier
+screen off/on readback plus the stable companion values identify byte 2 as the
+screen-enable flag. All retained requests received same-sequence replies in
+54-158 ms and matching device readback. dev21 therefore exposes four
+disabled-by-default controls, preserving the complete six-byte block on every
+write. Each brightness control is unavailable while its corresponding display
+is off.

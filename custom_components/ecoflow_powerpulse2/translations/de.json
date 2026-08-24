@@ -86,7 +86,9 @@
       "solar_minimum_current_control": {"name": "Solar-Mindestladestrom"},
       "custom_current_control": {"name": "Benutzerdefinierter Ladestrom"},
       "smart_energy_target_control": {"name": "Smart-Zielenergie"},
-      "smart_distance_target_control": {"name": "Smart-Zielstrecke"}
+      "smart_distance_target_control": {"name": "Smart-Zielstrecke"},
+      "screen_brightness_control": {"name": "Bildschirmhelligkeit"},
+      "indicator_brightness_control": {"name": "LED-Helligkeit"}
     },
     "select": {
       "phase_control": {
@@ -105,7 +107,9 @@
     "switch": {
       "battery_discharge_control": {"name": "Batterieentladung deaktivieren"},
       "continuous_charging_control": {"name": "Kontinuierlich laden"},
-      "plug_and_play_control": {"name": "Plug-and-Play"}
+      "plug_and_play_control": {"name": "Plug-and-Play"},
+      "screen_control": {"name": "Bildschirm"},
+      "indicator_control": {"name": "LED-Anzeige"}
     },
     "datetime": {
       "smart_ready_by_control": {"name": "Smart – Bereit vor"}

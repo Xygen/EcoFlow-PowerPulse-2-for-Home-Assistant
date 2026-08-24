@@ -53,8 +53,8 @@ def build_powerpulse_settings_payload(
     accessory_descriptor: bytes, settings: dict[int, int | bytes], seq: int = 0
 ) -> tuple[bytes, int]:
     """Build the observed PowerOcean-routed PowerPulse settings SET command."""
-    if not settings or any(field not in range(1, 8) for field in settings):
-        raise ValueError("settings must contain observed fields 1 through 7")
+    if not settings or any(field not in {*range(1, 8), 21} for field in settings):
+        raise ValueError("settings must contain an observed field (1 through 7 or 21)")
     if any(
         not isinstance(value, (int, bytes))
         or isinstance(value, int) and value < 0
