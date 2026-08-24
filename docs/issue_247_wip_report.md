@@ -96,7 +96,7 @@ Within the matched C376 `pileChargingParamReport`:
 | `paramSet.currentOuputMax` | maximum output current, tenths of A | The misspelling is present in the provider data. Paired values match CP307 `2/34` field 9. |
 | `paramSet.userCurrentSet` | raw user-current setting | Retained raw; exact relationship to the different app current sliders is not yet established. |
 | `paramSet.solarCurrentMin` | raw Solar minimum/continuous-current setting | Retained raw pending more paired captures. |
-| `paramSet.switchBits` | settings bitmask | Retained raw; individual bits are not yet assigned. |
+| `paramSet.switchBits` | settings bitmask | `switchBits & 0x10` is live-confirmed as the Solar-mode Continuous charging switch; other bits remain unassigned. |
 | `paramSet.phaseSpecified` | raw phase-selection field | Retained raw; the CP307 `2/34` field 11 mapping is currently better established. |
 | `paramSet.smartMode.timeToUseCar` | ready-by time | Unix timestamp. Returning to Solar Mode reset it to `0`. |
 | `paramSet.smartMode.chargeTarget` | Smart energy target in Wh | `30000` matched 30 kWh. In distance-target mode this field was `0`; the 200 km target is stored elsewhere. |
@@ -112,11 +112,11 @@ battery, and vehicle identifiers.
 
 ## Current state of the test implementation
 
-- The local WIP is `0.1.0-dev9` and remains read-only.
+- The local WIP is `0.1.0-dev10` and remains read-only.
 - MQTT uses a hard `listen_only` guard; automatic get-all/stream activation and
   every other publish path are suppressed.
 - The parser has been exercised against live C376 frames. The current local
-  suite passes 23 tests, including XOR envelope decoding, packed phase values,
+  suite passes 24 tests, including XOR envelope decoding, packed phase values,
   command-specific `2/33` vs `2/34` routing, settings fields, and matching an
   embedded PowerPulse report to its exact serial.
 - This is not proposed as production-ready code or as a ready-made patch for
@@ -128,8 +128,8 @@ battery, and vehicle identifiers.
 1. Confirm session-energy field 42 across more non-zero sessions, including
    rounding and whether raw units are consistently Wh.
 2. Pair additional app changes with provider/MQTT snapshots to separate
-   `userCurrentSet`, `solarCurrentMin`, heartbeat fields 17/18, `switchBits`,
-   and `phaseSpecified` cleanly.
+   `userCurrentSet`, `solarCurrentMin`, heartbeat fields 17/18, the remaining
+   `switchBits`, and `phaseSpecified` cleanly.
 3. Locate the Smart distance target and confirm the unit/scaling of
    `currentVehicleComsumption`.
 4. Check additional operating states and map `suspend_reason` values.
