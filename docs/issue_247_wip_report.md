@@ -318,9 +318,12 @@ bodies are not reconstructed or inferred here.
 5. Check additional operating states and map `suspend_reason` values.
 6. Decide how best to represent the three individual phase voltages/currents
    upstream instead of only exposing an aggregate maximum.
-7. Keep upstream proposals on the existing PowerOcean path. Direct C376 MQTT
-   and developer-key-only provider detail are useful research evidence but are
-   not proposed as duplicate production sources.
+7. Keep upstream proposals aligned with the maintainer's selected architecture.
+   The latest diagnostic showed no PowerPulse 2 readback on the PowerOcean in
+   the no-car state, so direct C376 MQTT is now being considered as the only
+   observed hardware-readback source rather than a duplicate source. The
+   provider-detail path remains research and fallback evidence unless the
+   maintainer explicitly chooses to include HTTP polling.
 8. For any future controls, retain the captured request **and** same-sequence
    reply evidence, but separately confirm target attribution, acknowledgement
    semantics, complete value mappings and safety constraints. `241/102` is an
