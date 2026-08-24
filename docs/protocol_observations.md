@@ -4,6 +4,9 @@ These observations come from privacy-redacted cloud MQTT diagnostics captured
 from a live C376 charger. They document evidence only; they are not permission
 to transmit inferred commands.
 
+For a compact value-by-path matrix, see
+[data_paths_overview.md](data_paths_overview.md).
+
 ## Scope boundary
 
 EcoFlow's first-generation **PowerPulse** wallbox (named without a version

@@ -17,6 +17,15 @@ assumed to work with this integration. The linked PowerOcean is currently an
 essential source for the richer provider snapshot and passive protocol
 diagnostics.
 
+## Documentation
+
+- [Data-path overview](docs/data_paths_overview.md): reader-friendly tables
+  showing which values have been found on each wallbox and PowerOcean path
+- [Protocol observations](docs/protocol_observations.md): chronological live
+  evidence and field mappings
+- [Issue #247 WIP report](docs/issue_247_wip_report.md): current research state,
+  limitations, and remaining work
+
 ## Current scope
 
 Version `0.1.0-dev16` is deliberately read-only:
