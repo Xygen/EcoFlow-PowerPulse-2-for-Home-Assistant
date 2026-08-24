@@ -28,7 +28,7 @@ diagnostics.
 
 ## Current scope
 
-Version `0.1.0-dev16` is deliberately read-only:
+Version `0.1.0-dev17` is deliberately read-only:
 
 - EcoFlow app-account login and PowerPulse discovery
 - listen-only cloud MQTT connection (WSS)
@@ -42,8 +42,9 @@ Version `0.1.0-dev16` is deliberately read-only:
   remains available separately
 - passive decoding of the direct C376 `241/44` parameter report, which arrives
   about once per second and provides the confirmed mode, Continuous-charging
-  flag, maximum output current, Solar minimum current, Custom current, and raw
-  phase selection without waiting for the cached provider snapshot
+  and Plug-and-Play flags, maximum output current, Solar minimum current,
+  Custom current, and raw phase selection without waiting for the cached
+  provider snapshot
 - maximum output current, Plug-and-Play, phase selection, battery-discharge
   blocking, screen/LED state, and both brightness settings from the live-
   confirmed CP307 settings report
@@ -67,7 +68,7 @@ Version `0.1.0-dev16` is deliberately read-only:
 - a delayed, coalesced provider refresh after a `241/102` settings reply has
   been matched to its previously observed official-app request; this only reads
   fresh state and does not publish MQTT traffic. A recent direct `241/44`
-  device report takes precedence for its eight derived keys; if that report is
+  device report takes precedence for its nine derived keys; if that report is
   absent for ten seconds, the normal provider fallback resumes automatically
 
 The MQTT transport contains a hard `listen_only` guard. It suppresses every

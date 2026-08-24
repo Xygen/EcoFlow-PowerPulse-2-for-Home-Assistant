@@ -37,6 +37,11 @@ _PHASE_MODE_MAP = {
 # unchanged. Other bits may describe unrelated settings, so isolate bit 4.
 _CONTINUOUS_CHARGING_MASK = 0x10
 
+# A controlled Plug-and-Play off -> on -> off comparison kept Solar mode,
+# Continuous charging, and the 6 A Solar minimum unchanged while switchBits
+# changed 16 -> 18 -> 16. This isolates bit 1 as Plug-and-Play.
+_PLUG_AND_PLAY_MASK = 0x02
+
 # The direct C376 241/44 report carries the same paramSet values as the
 # provider snapshot. A live frame matched all six fields below against the
 # simultaneously visible HA/provider values. Keep the command-specific parser
@@ -492,3 +497,4 @@ def _finish(result: dict[str, Any]) -> None:
         result["continuous_charging"] = bool(
             int(switch_bits) & _CONTINUOUS_CHARGING_MASK
         )
+        result["plug_and_play"] = bool(int(switch_bits) & _PLUG_AND_PLAY_MASK)

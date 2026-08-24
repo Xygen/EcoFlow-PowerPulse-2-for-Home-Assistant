@@ -33,7 +33,7 @@ mapping yet.
 | Solar minimum current | — | — | `1.4.8.6`; `70` = 7 A and `60` = 6 A | `paramSet.solarCurrentMin` |
 | Custom/user current, raw | — | — | `1.4.8.8`; currently observed as `60` | `paramSet.userCurrentSet` |
 | Phase selection | — | Field `11`: `1` one phase, `2` three phase, `3` auto | `1.4.8.7`; only `0` = auto has been paired so far | `paramSet.phaseSpecified`, raw |
-| Plug-and-Play | — | Field `2`: `0`/`1` | Probably represented in the combined `1.4.8.1` bitmask, but not yet isolated in direct readback | Combined `paramSet.switchBits`; separate bit not yet exposed |
+| Plug-and-Play | — | Field `2`: `0`/`1` | Bit `0x02` in `1.4.8.1`; confirmed by `16 -> 18 -> 16` | Bit `0x02` in `paramSet.switchBits` |
 | LED enabled | — | Field `13`: `0`/`1` | — | — |
 | LED brightness | — | Field `14`, percent | — | — |
 | Screen enabled | — | Field `15`: `0`/`1` | — | — |
@@ -75,7 +75,7 @@ used by at least one Home Assistant entity:
 
 | Fast field | Current HA use | Further useful work |
 | --- | --- | --- |
-| `1` settings bitmask | Continuous-charging binary sensor and raw settings-flags sensor | Isolate the Plug-and-Play bit through an off/on/off comparison of direct reports |
+| `1` settings bitmask | Continuous-charging and Plug-and-Play binary sensors plus the raw settings-flags sensor | Investigate only the remaining unassigned bits through controlled comparisons |
 | `2` operating mode | Operating-mode enum sensor | Already fully used for the four confirmed modes |
 | `4` maximum output current | Normal Ampere sensor plus disabled-by-default raw sensor | Already fully used |
 | `6` Solar minimum current | Normal Ampere sensor plus disabled-by-default raw sensor | Already fully used and live-validated at 6 A and 7 A |

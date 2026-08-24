@@ -483,7 +483,7 @@ and provider state without using the official-app SET request as state:
 
 | `241/44` parameter field | Live value | Matched read-only meaning |
 | --- | ---: | --- |
-| `1` | `16` | settings bitmask; Continuous charging on |
+| `1` | `16` | settings bitmask; Continuous charging on and Plug-and-Play off |
 | `2` | `2` | Solar operating mode |
 | `4` | `160` | maximum output current, 0.1 A |
 | `6` | `70` | Solar minimum/continuous current, 0.1 A |
@@ -514,6 +514,25 @@ This confirms that device-originated `241/44` readback, rather than an
 optimistic application of the observed request, now provides the fast HA state
 for this setting. The measured delay is consistent with the report's roughly
 one-second cadence plus coordinator processing.
+
+A subsequent controlled Plug-and-Play off-on-off comparison isolated another
+bit in the same direct field while Solar mode, Continuous charging, and the
+6 A Solar minimum remained unchanged:
+
+- enabling Plug-and-Play sent `241/102` path `4.1=18`; the same-sequence reply
+  arrived after approximately 306 ms, and direct `241/44` field `1` changed
+  from `16` to `18` approximately 1.47 seconds after the SET;
+- disabling Plug-and-Play sent `4.1=16`; its reply arrived after approximately
+  101 ms, and direct field `1` returned from `18` to `16` approximately 1.69
+  seconds after the SET;
+- the existing Plug-and-Play entity changed in both directions, while
+  Continuous charging remained on, the mode remained Solar, and the Solar
+  minimum remained 6 A.
+
+The bidirectional controlled difference confirms `switchBits & 0x02` as
+Plug-and-Play. dev17 derives the existing binary sensor from this bit and adds
+it to the recent-direct-value preference set. This is readback only and adds
+no MQTT publish path.
 
 The same parameter object also contained length-delimited fields `5`, `9`,
 `21`, and `31`, sized 16, 14, 6, and 10 bytes in the inspected snapshot. Their

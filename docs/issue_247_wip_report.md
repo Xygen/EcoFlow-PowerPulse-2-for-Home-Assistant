@@ -231,7 +231,7 @@ bodies are not reconstructed or inferred here.
 
 ## Current state of the test implementation
 
-- Development build `0.1.0-dev16` includes the dev13 header correction and
+- Development build `0.1.0-dev17` includes the dev13 header correction and
   remains read-only. The parser reads `enc_type` from field 6 and keeps field 11 as
   `need_ack`; acknowledgement-requesting plaintext bodies are no longer
   XOR-mutated. The upstream diagnostic confirms nested protobuf.
@@ -251,6 +251,12 @@ bodies are not reconstructed or inferred here.
   approximately 1.77 seconds after the SET. The provider fallback did not
   complete until about 20.26 seconds after the SET, independently confirming
   that direct `241/44` readback produced the fast entity update.
+- A controlled Plug-and-Play off-on-off test then changed direct `241/44`
+  field `1` from `16 -> 18 -> 16`, while Solar mode, Continuous charging, and
+  the 6 A Solar minimum remained stable. The direct transitions followed their
+  SET requests after approximately 1.47 s and 1.69 s. This bidirectionally
+  confirms bit `0x02`; dev17 uses it for the existing Plug-and-Play binary
+  sensor without adding a publish path.
 - The completed live dev13 `6 A -> 7 A -> 6 A` comparison decoded path `4.4`
   as `70 -> 60`, while `4.1=16` and Solar mode `4.2=2` remained stable. The
   same-sequence replies arrived after approximately 144 ms and 226 ms and
@@ -279,7 +285,8 @@ bodies are not reconstructed or inferred here.
   directions: `switchBits=0` produced `off`, `switchBits=16` produced `on`, and
   `solarCurrentMin=60` remained stored throughout the test.
 - The parser has been exercised against live C376 frames. The current local
-  suite passes 39 tests, including direct `241/44` parameter decoding, strict
+  suite passes 40 tests, including direct `241/44` parameter decoding,
+  Plug-and-Play bit derivation, strict
   command/range rejection, selected fresh-MQTT merge priority, XOR envelope
   decoding, packed phase values,
   command-specific `2/33` vs `2/34` routing, settings fields, matching an
@@ -298,8 +305,8 @@ bodies are not reconstructed or inferred here.
    fields `5`, `9`, `21`, and `31` using controlled one-setting-at-a-time
    comparisons. Their observed sizes alone are not semantic evidence.
 3. Pair additional app changes with provider/MQTT snapshots to separate
-   `userCurrentSet`, heartbeat fields 17/18, the remaining `switchBits`, and
-   `phaseSpecified` cleanly.
+   `userCurrentSet`, heartbeat fields 17/18, the remaining unassigned
+   `switchBits`, and `phaseSpecified` cleanly.
 4. Locate the Smart distance target and confirm the unit/scaling of
    `currentVehicleComsumption`.
 5. Check additional operating states and map `suspend_reason` values.

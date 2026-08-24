@@ -8,6 +8,16 @@
   A live value of `1815` corresponded to `1.82 kWh` in the EcoFlow app. Keep the
   raw entity unchanged until additional sessions confirm the unit and rounding.
 
+## 0.1.0-dev17
+
+- Confirm through a controlled Plug-and-Play off-on-off test that bit `0x02` in
+  the direct `241/44` settings bitmask is Plug-and-Play. The fast bitfield
+  changed `16 -> 18 -> 16` while Solar mode, Continuous charging, and the 6 A
+  Solar minimum remained unchanged.
+- Derive the existing Plug-and-Play binary sensor from that bit and prefer the
+  direct device value over cached provider state while `241/44` remains fresh.
+- Keep MQTT hard `listen_only` and extend the local suite to 40 passing tests.
+
 ## 0.1.0-dev16
 
 - Decode the direct, XOR-encrypted C376 `241/44` parameter report observed

@@ -177,12 +177,13 @@ def test_cp307_xor_encoded_settings_report() -> None:
 def _direct_param_set_envelope(
     *,
     cmd_id: int = 44,
+    switch_bits: int = 16,
     work_mode: int = 2,
     solar_current_min: int = 70,
 ) -> bytes:
     param_set = b"".join(
         (
-            encode_field_varint(1, 16),
+            encode_field_varint(1, switch_bits),
             encode_field_varint(2, work_mode),
             encode_field_varint(4, 160),
             encode_field_bytes(5, b"unknown-smart"),
@@ -221,11 +222,22 @@ def test_direct_c376_param_set_report() -> None:
         "current_limit_raw": 160,
         "output_current_max_raw": 160,
         "phase_specified_raw": 0,
+        "plug_and_play": False,
         "solar_current_min_raw": 70,
         "switch_bits_raw": 16,
         "user_current_set_raw": 60,
         "work_mode": "solar",
     }
+
+
+def test_direct_param_set_decodes_plug_and_play_bit() -> None:
+    result = parse_powerpulse2_payload(
+        _direct_param_set_envelope(switch_bits=18)
+    )
+
+    assert result["continuous_charging"] is True
+    assert result["plug_and_play"] is True
+    assert result["switch_bits_raw"] == 18
 
 
 def test_direct_param_set_requires_exact_command() -> None:
@@ -306,6 +318,7 @@ def test_nested_powerpulse_provider_report() -> None:
     assert result["solar_current_min_raw"] == 60
     assert result["switch_bits_raw"] == 9
     assert result["continuous_charging"] is False
+    assert result["plug_and_play"] is False
     assert result["phase_specified_raw"] == 0
     assert result["vehicle_consumption_raw"] == 175
 
@@ -336,6 +349,7 @@ def test_parent_provider_reports_are_keyed_by_embedded_wallbox_serial() -> None:
             "charging_power_w": 0,
             "charging_status": "unplugged",
             "continuous_charging": False,
+            "plug_and_play": False,
             "solar_current_min_raw": 60,
             "switch_bits_raw": 9,
             "work_mode": "solar",

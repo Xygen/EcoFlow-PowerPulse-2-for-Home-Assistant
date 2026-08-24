@@ -42,6 +42,7 @@ _DIRECT_SETTINGS_KEYS = frozenset(
         "current_limit_raw",
         "output_current_max_raw",
         "phase_specified_raw",
+        "plug_and_play",
         "solar_current_min_raw",
         "switch_bits_raw",
         "user_current_set_raw",
