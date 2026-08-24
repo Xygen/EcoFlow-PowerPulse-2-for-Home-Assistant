@@ -8,6 +8,22 @@
   A live value of `1815` corresponded to `1.82 kWh` in the EcoFlow app. Keep the
   raw entity unchanged until additional sessions confirm the unit and rounding.
 
+## 0.1.0-dev18
+
+- Complete the fast phase mapping (`0` Auto, `1` one phase, `2` three phase)
+  and expose it through the existing enum sensor.
+- Confirm Custom current field `8` at 6 A and 11 A and add a normal Ampere
+  sensor while retaining the raw diagnostic entity.
+- Decode Smart field `31` into ready-by time, target type, energy target,
+  distance target, and calculated energy in distance mode. Controlled 200 km
+  and 300 km tests produced 30,000 Wh and 45,000 Wh.
+- Add the first disabled-by-default experimental control: a phase `select`
+  routed through the linked PowerOcean using captured `241/102 -> 4.5`.
+  Require a device-derived accessory descriptor, exactly one PowerOcean,
+  same-sequence acknowledgement, and matching direct device readback.
+- Keep all automatic MQTT traffic listen-only and leave Start/Stop and every
+  other setting write unimplemented. Extend the suite to 44 passing tests.
+
 ## 0.1.0-dev17
 
 - Confirm through a controlled Plug-and-Play off-on-off test that bit `0x02` in

@@ -6,8 +6,9 @@ chronological evidence in [protocol_observations.md](protocol_observations.md).
 
 The tables distinguish device readback from app-write observations. A fast
 acknowledgement of an app request is not automatically a trustworthy state
-value. The integration therefore remains read-only and uses only confirmed
-device or provider reports for Home Assistant entity state.
+value. Read entities therefore use confirmed device or provider reports. The
+dev18 phase control is separately evidence-gated and requires acknowledgement
+plus device readback.
 
 `—` means that no value has been identified on that path. Values marked
 **raw** are intentionally not assigned a final unit or complete semantic
@@ -31,19 +32,21 @@ mapping yet.
 | Continuous charging | — | — | Bit `0x10` in `1.4.8.1`; `16` means enabled when no other known bit is set | Bit `0x10` in `paramSet.switchBits` |
 | Maximum output current | Field `18` as current limit | Field `9`; `160` = 16 A | `1.4.8.4`; `160` = 16 A | `paramSet.currentOuputMax` |
 | Solar minimum current | — | — | `1.4.8.6`; `70` = 7 A and `60` = 6 A | `paramSet.solarCurrentMin` |
-| Custom/user current, raw | — | — | `1.4.8.8`; currently observed as `60` | `paramSet.userCurrentSet` |
-| Phase selection | — | Field `11`: `1` one phase, `2` three phase, `3` auto | `1.4.8.7`; only `0` = auto has been paired so far | `paramSet.phaseSpecified`, raw |
+| Custom/user current | — | — | `1.4.8.8`; `60` = 6 A and `110` = 11 A | `paramSet.userCurrentSet` |
+| Phase selection | — | Field `11`: `1` one phase, `2` three phase, `3` auto | `1.4.8.7`: `0` auto, `1` one phase, `2` three phase | `paramSet.phaseSpecified`, raw |
 | Plug-and-Play | — | Field `2`: `0`/`1` | Bit `0x02` in `1.4.8.1`; confirmed by `16 -> 18 -> 16` | Bit `0x02` in `paramSet.switchBits` |
 | LED enabled | — | Field `13`: `0`/`1` | — | — |
 | LED brightness | — | Field `14`, percent | — | — |
 | Screen enabled | — | Field `15`: `0`/`1` | — | — |
 | Screen brightness | — | Field `16`, percent | — | — |
 | Battery discharge disabled | — | Field `22`: `0`/`1` | — | — |
-| Smart ready-by time | — | — | Possibly contained in an unnamed byte field; not decoded | `paramSet.smartMode.timeToUseCar` |
-| Smart energy target | — | — | Possibly contained in an unnamed byte field; not decoded | `paramSet.smartMode.chargeTarget`; `30000` = 30 kWh |
-| Smart distance target | — | — | Unknown | Stored in another, still unidentified provider field |
+| Smart ready-by time | — | — | `1.4.8.31.1`, Unix timestamp | `paramSet.smartMode.timeToUseCar` |
+| Smart target type | — | — | `1.4.8.31.2`: `1` energy, `2` distance | Inferred through the selected target |
+| Smart energy target | — | — | Energy mode: `1.4.8.31.3`, Wh | `paramSet.smartMode.chargeTarget`; `30000` = 30 kWh |
+| Smart distance target | — | — | Distance mode: `1.4.8.31.4`, km | Provider energy target becomes `0` in distance mode |
+| Smart calculated energy | — | — | Distance mode: `1.4.8.31.3`; 300 km produced 45000 Wh | — |
 | Vehicle consumption, raw | — | — | Unknown | `vehicleInfo.currentVehicleComsumption` |
-| Unassigned content | — | Additional fields may exist | Byte fields `5`, `9`, `21`, and `31`, with observed sizes 16, 14, 6, and 10 bytes | Other unassigned provider fields exist |
+| Unassigned content | — | Additional fields may exist | Byte fields `5`, `9`, and `21`; field `31` is now decoded for Smart settings | Other unassigned provider fields exist |
 
 The installed dev16 build confirmed the practical difference between the two
 main settings read paths. Restoring the Solar minimum from 7 A to 6 A updated
@@ -79,10 +82,10 @@ used by at least one Home Assistant entity:
 | `2` operating mode | Operating-mode enum sensor | Already fully used for the four confirmed modes |
 | `4` maximum output current | Normal Ampere sensor plus disabled-by-default raw sensor | Already fully used |
 | `6` Solar minimum current | Normal Ampere sensor plus disabled-by-default raw sensor | Already fully used and live-validated at 6 A and 7 A |
-| `7` phase selection | Disabled-by-default raw phase sensor | Confirm one-phase, three-phase, and auto values, then feed the normal phase enum sensor from this fast path |
-| `8` Custom/user current | Disabled-by-default raw user-current sensor | Pair at least two Custom-mode slider values, then add a normal Ampere sensor if 0.1 A scaling is confirmed |
+| `7` phase selection | Raw sensor, fast normal enum, and experimental disabled-by-default phase control readback | Mapping confirmed for auto, one phase, and three phase |
+| `8` Custom/user current | Raw sensor plus normal Ampere sensor | 6 A and 11 A confirmed the 0.1 A scaling |
 
-The unnamed byte fields `5`, `9`, `21`, and `31` are the remaining candidates
+The unnamed byte fields `5`, `9`, and `21` are the remaining candidates
 for additional fast values. Controlled one-setting-at-a-time comparisons are
 needed before parsing them. Smart ready-by/target settings are the strongest
 first test because they are already known on the slower provider path and can

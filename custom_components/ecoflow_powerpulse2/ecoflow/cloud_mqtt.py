@@ -617,6 +617,20 @@ class EcoFlowMQTTClient:
         topic = f"/app/{self._user_id}/{self._device_sn}/thing/property/set"
         return self.publish(topic, payload, qos=1)
 
+    def send_explicit_control(self, payload: bytes) -> bool:
+        """Publish one user-requested control while retaining listen-only defaults."""
+        if not self._wss_mode or not self.is_connected() or not self._user_id:
+            return False
+        if not payload:
+            return False
+        topic = f"/app/{self._user_id}/{self._device_sn}/thing/property/set"
+        try:
+            result = self.client.publish(topic, payload, qos=1)
+            return result.rc == 0
+        except Exception as exc:
+            _LOGGER.error("Explicit control publish failed (%s): %s", self._masked_topic(topic), exc)
+            return False
+
     def send_energy_stream_switch(self) -> bool:
         """Send EnergyStreamSwitch to keep energy_stream_report alive (WSS only)."""
         try:

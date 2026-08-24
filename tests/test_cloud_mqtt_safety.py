@@ -14,6 +14,19 @@ class _UnexpectedPublisher:
         raise AssertionError("listen-only client reached the Paho publish method")
 
 
+class _ExplicitPublisher(_UnexpectedPublisher):
+    def __init__(self) -> None:
+        super().__init__()
+        self.published: list[tuple[str, bytes, int]] = []
+
+    def publish(self, topic: str, payload: bytes, qos: int):
+        self.published.append((topic, payload, qos))
+        return type("Result", (), {"rc": 0})()
+
+    def is_connected(self) -> bool:
+        return True
+
+
 def _client() -> EcoFlowMQTTClient:
     return EcoFlowMQTTClient(
         certificate_account="account-secret",
@@ -34,6 +47,22 @@ def test_listen_only_publish_never_reaches_paho() -> None:
         "/app/user-secret/C376-secret/thing/property/set",
         b"must-not-leave",
     )
+
+
+def test_explicit_control_is_the_only_listen_only_publish_escape_hatch() -> None:
+    client = _client()
+    publisher = _ExplicitPublisher()
+    client.client = publisher
+    client.connected = True
+
+    assert client.send_explicit_control(b"validated-control")
+    assert publisher.published == [
+        (
+            "/app/user-secret/C376-secret/thing/property/set",
+            b"validated-control",
+            1,
+        )
+    ]
 
 
 def test_listen_only_connect_only_subscribes() -> None:

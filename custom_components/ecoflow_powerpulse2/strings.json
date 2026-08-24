@@ -3,7 +3,7 @@
     "step": {
       "user": {
         "title": "EcoFlow PowerPulse 2",
-        "description": "Sign in with the EcoFlow app account that owns the charger. This development version only listens and cannot change charging settings.",
+        "description": "Sign in with the EcoFlow app account that owns the charger. Experimental controls are disabled by default and must be enabled explicitly in the entity registry.",
         "data": {
           "email": "Email",
           "password": "Password"
@@ -57,6 +57,9 @@
       "phase_current": {"name": "Phase current"},
       "session_duration": {"name": "Session duration"},
       "smart_charge_target": {"name": "Smart energy target"},
+      "smart_target_type": {"name": "Smart target type", "state": {"energy": "Energy", "distance": "Distance"}},
+      "smart_target_distance": {"name": "Smart distance target"},
+      "smart_calculated_energy": {"name": "Calculated Smart energy"},
       "total_energy_raw": {"name": "Total energy raw"},
       "session_energy_raw": {"name": "Session energy raw"},
       "charge_current_set_raw": {"name": "Charge current set raw"},
@@ -65,6 +68,7 @@
       "suspend_reason_raw": {"name": "Suspend reason raw"},
       "output_current_max_raw": {"name": "Maximum output current raw"},
       "user_current_set_raw": {"name": "User current setting raw"},
+      "user_current_set": {"name": "Custom charging current"},
       "solar_current_min_raw": {"name": "Solar minimum current raw"},
       "solar_minimum_current": {"name": "Solar minimum charging current"},
       "switch_bits_raw": {"name": "Setting flags raw"},
@@ -81,6 +85,12 @@
       "screen_brightness": {"name": "Screen brightness"},
       "indicator_brightness": {"name": "LED brightness"},
       "vehicle_consumption_raw": {"name": "Vehicle consumption raw"}
+    },
+    "select": {
+      "phase_control": {
+        "name": "Phase setting (experimental)",
+        "state": {"auto": "Auto", "one_phase": "Single phase", "three_phase": "Three phase"}
+      }
     }
   }
 }

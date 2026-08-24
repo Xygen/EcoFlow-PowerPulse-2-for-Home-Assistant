@@ -11,6 +11,11 @@ def _sequence(seq: int) -> int:
     return seq or (int(time.time() * 1000) & 0x7FFFFFFF)
 
 
+def _short_sequence(seq: int) -> int:
+    """Match the one-byte rolling sequences observed on app settings SETs."""
+    return seq if seq else (int(time.time() * 1000) & 0xFF)
+
+
 def build_energy_stream_activate_payload(seq: int = 0) -> bytes:
     """Build the verified PowerOcean EnergyStreamSwitch keepalive frame."""
     pdata = encode_field_varint(1, 1)
@@ -31,6 +36,32 @@ def build_device_get_all_payload(seq: int = 0) -> bytes:
     header.extend(encode_field_varint(14, _sequence(seq)))
     header.extend(encode_field_bytes(23, b"app"))
     return encode_field_bytes(1, bytes(header))
+
+
+def build_powerpulse_phase_payload(
+    accessory_descriptor: bytes, phase: int, seq: int = 0
+) -> tuple[bytes, int]:
+    """Build the observed PowerOcean-routed PowerPulse phase SET command."""
+    if phase not in (0, 1, 2):
+        raise ValueError("phase must be 0 (auto), 1 (one phase), or 2 (three phase)")
+    sequence = _short_sequence(seq)
+    settings = encode_field_varint(5, phase)
+    pdata = b"".join(
+        (
+            encode_field_bytes(1, accessory_descriptor),
+            encode_field_bytes(4, settings),
+        )
+    )
+    return (
+        _build_envelope(
+            pdata,
+            destination=96,
+            cmd_func=241,
+            cmd_id=102,
+            seq=sequence,
+        ),
+        sequence,
+    )
 
 
 def _build_envelope(

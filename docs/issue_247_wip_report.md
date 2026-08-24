@@ -333,3 +333,26 @@ bodies are not reconstructed or inferred here.
 For now I would suggest treating all of this as read-support research only,
 with Start/Stop and current-setting controls explicitly out of scope until the
 write path is observed rather than inferred.
+
+## dev18 candidate update (2026-08-24)
+
+The next bundled development build incorporates the completed controlled
+comparisons rather than one test per build:
+
+- fast phase mapping `0` Auto, `1` one phase, `2` three phase;
+- Custom current field `8` scaled in 0.1 A, verified at 6 A and 11 A;
+- Smart field `31` decoded into ready-by timestamp, energy/distance selector,
+  Wh value and kilometre value; 200/300 km corresponded to calculated
+  30,000/45,000 Wh in this configuration;
+- normal Custom-current, Smart-target-type and Smart-distance entities;
+- a disabled-by-default experimental phase `select` using the observed
+  PowerOcean-routed `241/102 -> 4.5` command.
+
+The phase write is deliberately narrower than the generic transport. It is
+unavailable until a direct device frame supplies the exact opaque accessory
+descriptor, refuses ambiguous installations with more than one PowerOcean
+observer, and requires both the same-sequence SET reply and direct phase
+readback. The official-app request/reply evidence is complete, but the first
+HA-originated live write still has to be validated after installation. No
+Start/Stop, current, mode, Smart, LED, screen, battery, or Plug-and-Play write
+is exposed in dev18.

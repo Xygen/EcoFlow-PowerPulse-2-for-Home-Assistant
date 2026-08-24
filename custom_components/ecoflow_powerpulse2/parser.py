@@ -7,7 +7,11 @@ import math
 from struct import unpack
 from typing import Any
 
-from .ecoflow.proto_encoding import iter_protobuf_fields
+from .ecoflow.proto_encoding import (
+    encode_field_bytes,
+    encode_field_varint,
+    iter_protobuf_fields,
+)
 
 _STATE_MAP = {
     1: "unplugged",
@@ -81,6 +85,33 @@ def parse_powerpulse2_payload(payload: bytes | dict[str, Any]) -> dict[str, Any]
     except (json.JSONDecodeError, UnicodeDecodeError):
         return _parse_proto(payload)
     return _parse_json(value) if isinstance(value, dict) else {}
+
+
+def extract_powerpulse_accessory_descriptor(payload: bytes) -> bytes | None:
+    """Extract the validated opaque accessory descriptor from a direct 241/44."""
+    for parser_kind, candidate in _decoded_proto_candidates(payload):
+        if parser_kind != "param_set":
+            continue
+        try:
+            level_one = _protobuf_bytes_at(candidate, 1)
+            descriptor = _protobuf_bytes_at(level_one, 1)
+            descriptor_fields = list(iter_protobuf_fields(descriptor))
+        except (LookupError, ValueError):
+            continue
+        marker = next(
+            (value for field, wire, value in descriptor_fields if field == 1 and wire == 0),
+            None,
+        )
+        opaque = next(
+            (value for field, wire, value in descriptor_fields if field == 2 and wire == 2),
+            None,
+        )
+        if marker == 215 and isinstance(opaque, bytes) and len(opaque) == 16:
+            # The direct report adds a descriptor-local status field, while
+            # every captured app SET used only the stable marker and 16-byte
+            # accessory identifier (21 bytes total).
+            return encode_field_varint(1, marker) + encode_field_bytes(2, opaque)
+    return None
 
 
 def parse_powerpulse2_accessory_payloads(
@@ -223,6 +254,29 @@ def _copy_finite(
 
 def _parse_proto(payload: bytes) -> dict[str, Any]:
     result: dict[str, Any] = {}
+    candidates, envelope_seen = _decoded_proto_candidates(payload, include_envelope_state=True)
+
+    # Captured BLE payloads are bare HeartBeat messages. Supporting that shape
+    # also makes diagnostics fixtures usable, but plausibility checks below
+    # prevent arbitrary envelopes from becoming entities.
+    if not envelope_seen:
+        candidates.append(("heartbeat", payload))
+    for parser_kind, candidate in candidates:
+        if parser_kind == "heartbeat":
+            parsed = _parse_cp307_heartbeat(candidate)
+        elif parser_kind == "settings":
+            parsed = _parse_cp307_settings(candidate)
+        else:
+            parsed = _parse_cp307_direct_param_set(candidate)
+        if parsed:
+            result.update(parsed)
+    return result
+
+
+def _decoded_proto_candidates(
+    payload: bytes, *, include_envelope_state: bool = False
+) -> list[tuple[str, bytes]] | tuple[list[tuple[str, bytes]], bool]:
+    """Return command-labelled, decrypted payloads from EcoFlow envelopes."""
     candidates: list[tuple[str, bytes]] = []
     envelope_seen = False
     try:
@@ -296,23 +350,10 @@ def _parse_proto(payload: bytes) -> dict[str, Any]:
                 else:
                     candidates.append((parser_kind, inner_value))
     except ValueError:
-        return {}
-
-    # Captured BLE payloads are bare HeartBeat messages. Supporting that shape
-    # also makes diagnostics fixtures usable, but plausibility checks below
-    # prevent arbitrary envelopes from becoming entities.
-    if not envelope_seen:
-        candidates.append(("heartbeat", payload))
-    for parser_kind, candidate in candidates:
-        if parser_kind == "heartbeat":
-            parsed = _parse_cp307_heartbeat(candidate)
-        elif parser_kind == "settings":
-            parsed = _parse_cp307_settings(candidate)
-        else:
-            parsed = _parse_cp307_direct_param_set(candidate)
-        if parsed:
-            result.update(parsed)
-    return result
+        candidates = []
+    if include_envelope_state:
+        return candidates, envelope_seen
+    return candidates
 
 
 def _parse_cp307_direct_param_set(payload: bytes) -> dict[str, Any]:
@@ -361,7 +402,30 @@ def _parse_cp307_direct_param_set(payload: bytes) -> dict[str, Any]:
         "solar_current_min_raw": fields[6],
         "phase_specified_raw": fields[7],
         "user_current_set_raw": fields[8],
+        "phase_mode": {0: "auto", 1: "one_phase", 2: "three_phase"}.get(
+            fields[7], "unknown"
+        ),
     }
+    try:
+        smart_bytes = _protobuf_bytes_at(param_set, 31)
+        smart_fields = {
+            field: value
+            for field, wire, value in iter_protobuf_fields(smart_bytes)
+            if wire == 0 and isinstance(value, int)
+        }
+    except (LookupError, ValueError):
+        smart_fields = {}
+    selector = smart_fields.get(2)
+    if selector in (1, 2):
+        result["smart_target_type"] = "energy" if selector == 1 else "distance"
+        if isinstance(smart_fields.get(1), int):
+            result["ready_by_timestamp"] = smart_fields[1]
+        if selector == 1 and isinstance(smart_fields.get(3), int):
+            result["smart_charge_target_wh"] = smart_fields[3]
+        if selector == 2 and isinstance(smart_fields.get(4), int):
+            result["smart_target_distance_km"] = smart_fields[4]
+            if isinstance(smart_fields.get(3), int):
+                result["smart_calculated_energy_wh"] = smart_fields[3]
     _finish(result)
     return result
 

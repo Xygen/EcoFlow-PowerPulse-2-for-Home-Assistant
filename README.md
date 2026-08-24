@@ -28,13 +28,16 @@ diagnostics.
 
 ## Current scope
 
-Version `0.1.0-dev17` is deliberately read-only:
+Version `0.1.0-dev18` keeps automatic MQTT activity listen-only and adds one
+disabled-by-default experimental control:
 
 - EcoFlow app-account login and PowerPulse discovery
 - listen-only cloud MQTT connection (WSS)
 - charging state and charging power from known CP307 heartbeat fields
 - operating mode, Smart ready-by time, and Smart energy target from the
   provider snapshot when EcoFlow reports them
+- Smart target type and distance from the fast direct report, including the
+  calculated energy used by the charger in distance mode
 - continuous-charging state in Solar mode, decoded from the live-confirmed
   provider flag while keeping the separately stored minimum current unchanged
 - Solar minimum charging current as a normal Ampere sensor, converted from the
@@ -45,6 +48,8 @@ Version `0.1.0-dev17` is deliberately read-only:
   and Plug-and-Play flags, maximum output current, Solar minimum current,
   Custom current, and raw phase selection without waiting for the cached
   provider snapshot
+- normal Ampere presentation of the Custom-mode current and fast phase enum
+  readback
 - maximum output current, Plug-and-Play, phase selection, battery-discharge
   blocking, screen/LED state, and both brightness settings from the live-
   confirmed CP307 settings report
@@ -71,13 +76,17 @@ Version `0.1.0-dev17` is deliberately read-only:
   device report takes precedence for its nine derived keys; if that report is
   absent for ten seconds, the normal provider fallback resumes automatically
 
-The MQTT transport contains a hard `listen_only` guard. It suppresses every
-publish path, including automatic get-all or stream requests. This lets us
-observe real PowerPulse 2 traffic before implementing controls.
+The MQTT transport retains its hard `listen_only` guard for every automatic
+publish path. The experimental phase `select` is disabled in the entity
+registry by default and uses a separate, user-triggered path limited to the
+observed PowerOcean-routed `241/102 -> 4.5` command. It becomes available only
+after the charger supplies its opaque accessory descriptor, requires exactly
+one connected PowerOcean source, and reports success only after both a matching
+`set_reply` and direct device readback.
 
 ## Planned controls
 
-The first control targets are:
+Further control targets are:
 
 1. start and stop charging
 2. charging-current/power limit
@@ -110,9 +119,10 @@ The resulting path must be
 Assistant, then add **EcoFlow PowerPulse 2** under
 **Settings > Devices & services**.
 
-Use a development/test Home Assistant instance. The read-only telemetry parser
-has been validated against live C376 MQTT frames, but the integration is not
-ready for general use and no charging controls have been validated.
+Use a development/test Home Assistant instance. The telemetry parser has been
+validated against live C376 MQTT frames, but the integration is not ready for
+general use. The experimental phase control is based on official-app captures
+and still requires its first live HA-originated hardware test.
 
 ## Capturing the missing protocol evidence
 

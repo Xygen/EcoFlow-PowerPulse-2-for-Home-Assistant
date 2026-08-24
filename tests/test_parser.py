@@ -8,6 +8,7 @@ from custom_components.ecoflow_powerpulse2.ecoflow.proto_encoding import (
     encode_field_varint,
 )
 from custom_components.ecoflow_powerpulse2.parser import (
+    extract_powerpulse_accessory_descriptor,
     parse_powerpulse2_accessory_payloads,
     parse_powerpulse2_payload,
 )
@@ -180,6 +181,7 @@ def _direct_param_set_envelope(
     switch_bits: int = 16,
     work_mode: int = 2,
     solar_current_min: int = 70,
+    smart_settings: bytes = b"unknown",
 ) -> bytes:
     param_set = b"".join(
         (
@@ -190,12 +192,17 @@ def _direct_param_set_envelope(
             encode_field_varint(6, solar_current_min),
             encode_field_varint(7, 0),
             encode_field_varint(8, 60),
-            encode_field_bytes(31, b"unknown"),
+            encode_field_bytes(31, smart_settings),
         )
     )
     report = b"".join(
         (
-            encode_field_bytes(1, b"C376TEST-DESCRIPTOR"),
+            encode_field_bytes(
+                1,
+                encode_field_varint(1, 215)
+                + encode_field_bytes(2, b"0123456789abcdef")
+                + encode_field_varint(3, 1),
+            ),
             encode_field_bytes(4, encode_field_bytes(8, param_set)),
         )
     )
@@ -222,12 +229,39 @@ def test_direct_c376_param_set_report() -> None:
         "current_limit_raw": 160,
         "output_current_max_raw": 160,
         "phase_specified_raw": 0,
+        "phase_mode": "auto",
         "plug_and_play": False,
         "solar_current_min_raw": 70,
         "switch_bits_raw": 16,
         "user_current_set_raw": 60,
         "work_mode": "solar",
     }
+
+
+def test_direct_param_set_exposes_validated_descriptor_only_to_control_helper() -> None:
+    assert extract_powerpulse_accessory_descriptor(_direct_param_set_envelope()) == (
+        encode_field_varint(1, 215) + encode_field_bytes(2, b"0123456789abcdef")
+    )
+
+
+def test_direct_smart_distance_fields() -> None:
+    smart = b"".join(
+        (
+            encode_field_varint(1, 1_787_637_600),
+            encode_field_varint(2, 2),
+            encode_field_varint(3, 45_000),
+            encode_field_varint(4, 300),
+            encode_field_varint(5, 0),
+        )
+    )
+    result = parse_powerpulse2_payload(
+        _direct_param_set_envelope(work_mode=4, smart_settings=smart)
+    )
+
+    assert result["smart_target_type"] == "distance"
+    assert result["smart_target_distance_km"] == 300
+    assert result["smart_calculated_energy_wh"] == 45_000
+    assert result["ready_by_timestamp"] == 1_787_637_600
 
 
 def test_direct_param_set_decodes_plug_and_play_bit() -> None:

@@ -551,3 +551,29 @@ backlog for later controlled one-setting-at-a-time comparisons, especially
 Smart-mode, vehicle, and other settings that still lack a fast confirmed
 source. No entity should be created from these fields until such a comparison
 isolates its value and unit.
+
+## 2026-08-24: dev18 bundled mappings and experimental phase control
+
+Controlled direct `241/44 -> 1.4.8` comparisons completed the phase mapping:
+field `7` is `0` Auto, `1` one phase, and `2` three phase. Custom-mode field
+`8` changed from `60` at 6 A to `110` at 11 A and back to `60`, confirming a
+0.1 A scale. Both fields updated in roughly 0.7-1.8 seconds, substantially
+faster than the provider fallback.
+
+Smart settings are nested in field `31`: subfield `1` is the ready-by Unix
+timestamp, subfield `2` selects `1` energy or `2` distance, subfield `3` is the
+energy value in Wh, and subfield `4` is the distance in km. Energy mode changed
+30,000 to 40,000 Wh while the related distance changed 200 to 266. Distance
+mode at 200 and 300 km produced calculated values of 30,000 and 45,000 Wh,
+respectively, consistent with 150 Wh/km. The EcoFlow app rejected a target
+when the chosen ready-by time was too soon, and its edit dialog incorrectly
+initialised the time to approximately now plus 24 hours even though the
+overview and device readback retained 08:00 (+1).
+
+dev18 introduces one disabled-by-default experimental `select` for phase
+choice. It uses only the captured `241/102 -> 4.5` route. The command is sent
+through the single linked PowerOcean client, reuses the opaque 21-byte
+accessory descriptor learned from the direct device report, and requires both
+a same-sequence `set_reply` and matching direct `241/44` phase readback. This
+is the first HA-originated write implementation and remains pending live
+hardware validation; Start/Stop and all other controls remain unimplemented.

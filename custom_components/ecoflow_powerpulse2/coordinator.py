@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import time
 from datetime import UTC, datetime, timedelta
@@ -9,6 +10,7 @@ from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
@@ -22,6 +24,7 @@ from .const import (
 )
 from .data_merge import merge_snapshot_after_read
 from .ecoflow.cloud_mqtt import EcoFlowMQTTClient
+from .ecoflow.energy_stream import build_powerpulse_phase_payload
 from .frame_capture import (
     COMMAND_CHANNELS,
     DiagnosticFrameCapture,
@@ -30,7 +33,7 @@ from .frame_capture import (
     inspect_envelope_headers,
     inspect_powerpulse_accessory_reports,
 )
-from .parser import parse_powerpulse2_payload
+from .parser import extract_powerpulse_accessory_descriptor, parse_powerpulse2_payload
 from .passive_refresh import ConfirmedSettingsReplyGate, DelayedRefreshCoalescer
 
 _LOGGER = logging.getLogger(__name__)
@@ -42,10 +45,16 @@ _DIRECT_SETTINGS_KEYS = frozenset(
         "current_limit_raw",
         "output_current_max_raw",
         "phase_specified_raw",
+        "phase_mode",
         "plug_and_play",
         "solar_current_min_raw",
         "switch_bits_raw",
         "user_current_set_raw",
+        "smart_calculated_energy_wh",
+        "smart_charge_target_wh",
+        "smart_target_distance_km",
+        "smart_target_type",
+        "ready_by_timestamp",
         "work_mode",
     }
 )
@@ -82,6 +91,8 @@ class PowerPulse2Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
         self._last_settings_reply_at: str | None = None
         self._last_settings_refresh_at: str | None = None
         self._last_direct_settings_at: dict[str, float] = {}
+        self._accessory_descriptors: dict[str, bytes] = {}
+        self._reply_waiters: dict[tuple[str, int], asyncio.Future[None]] = {}
         self._shutting_down = False
         self._initialized = False
 
@@ -238,6 +249,10 @@ class PowerPulse2Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
         channel = classify_mqtt_topic(topic)
         client = self.mqtt_clients.get(serial)
         protocol_headers = inspect_envelope_headers(payload)
+        if serial in self.devices:
+            descriptor = extract_powerpulse_accessory_descriptor(payload)
+            if descriptor is not None:
+                self._accessory_descriptors[serial] = descriptor
         parsed = (
             parse_powerpulse2_payload(payload)
             if serial in self.devices and channel_carries_telemetry(channel)
@@ -251,6 +266,20 @@ class PowerPulse2Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
         if parsed:
             updated = dict(self.data or {})
             values = dict(updated.get(serial, {}))
+            if parsed.get("work_mode") != "smart":
+                for key in (
+                    "ready_by_timestamp",
+                    "smart_calculated_energy_wh",
+                    "smart_charge_target_wh",
+                    "smart_target_distance_km",
+                    "smart_target_type",
+                ):
+                    values.pop(key, None)
+            elif parsed.get("smart_target_type") == "energy":
+                values.pop("smart_target_distance_km", None)
+                values.pop("smart_calculated_energy_wh", None)
+            elif parsed.get("smart_target_type") == "distance":
+                values.pop("smart_charge_target_wh", None)
             values.update(parsed)
             updated[serial] = values
             self.async_set_updated_data(updated)
@@ -287,6 +316,15 @@ class PowerPulse2Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
             "payload_omitted": is_observer,
         }
         self._frame_capture.record(frame)
+        if channel == "set_reply":
+            for header in protocol_headers:
+                if (header.get("cmd_func"), header.get("cmd_id")) != (241, 102):
+                    continue
+                sequence = header.get("sequence")
+                if isinstance(sequence, int):
+                    waiter = self._reply_waiters.pop((serial, sequence), None)
+                    if waiter is not None and not waiter.done():
+                        waiter.set_result(None)
         if not self._shutting_down and self._settings_reply_gate.observe(frame):
             self._settings_reply_count += 1
             self._last_settings_reply_at = frame["timestamp"]
@@ -311,6 +349,53 @@ class PowerPulse2Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
         self._settings_refresh_count += 1
         self._last_settings_refresh_at = datetime.now(UTC).isoformat()
 
+    def phase_control_available(self, serial: str) -> bool:
+        """Return whether the evidence-gated phase control can be used."""
+        if serial not in self._accessory_descriptors or len(self.observer_devices) != 1:
+            return False
+        observer_serial = next(iter(self.observer_devices))
+        client = self.mqtt_clients.get(observer_serial)
+        return client is not None and client.is_connected()
+
+    async def async_set_phase_mode(self, serial: str, option: str) -> None:
+        """Send a user-requested phase SET and require reply plus device readback."""
+        phase_values = {"auto": 0, "one_phase": 1, "three_phase": 2}
+        if option not in phase_values:
+            raise HomeAssistantError(f"Unsupported phase option: {option}")
+        if not self.phase_control_available(serial):
+            raise HomeAssistantError(
+                "Phase control is unavailable until a direct device settings report "
+                "and exactly one connected PowerOcean source are available"
+            )
+
+        observer_serial = next(iter(self.observer_devices))
+        client = self.mqtt_clients[observer_serial]
+        payload, sequence = build_powerpulse_phase_payload(
+            self._accessory_descriptors[serial], phase_values[option]
+        )
+        waiter = self.hass.loop.create_future()
+        self._reply_waiters[(observer_serial, sequence)] = waiter
+        published = await self.hass.async_add_executor_job(
+            client.send_explicit_control, payload
+        )
+        if not published:
+            self._reply_waiters.pop((observer_serial, sequence), None)
+            raise HomeAssistantError("EcoFlow rejected the MQTT publish request")
+        try:
+            await asyncio.wait_for(waiter, timeout=5)
+        except TimeoutError as exc:
+            self._reply_waiters.pop((observer_serial, sequence), None)
+            raise HomeAssistantError("No EcoFlow SET reply was received") from exc
+
+        deadline = time.monotonic() + 5
+        while time.monotonic() < deadline:
+            if (self.data or {}).get(serial, {}).get("phase_mode") == option:
+                return
+            await asyncio.sleep(0.2)
+        raise HomeAssistantError(
+            "EcoFlow acknowledged the command, but device readback did not confirm it"
+        )
+
     @property
     def _mqtt_sources(self) -> dict[str, dict[str, str]]:
         """Return all device serials whose topics are observed passively."""
@@ -327,6 +412,10 @@ class PowerPulse2Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
     async def async_shutdown(self) -> None:
         self._shutting_down = True
         await self._settings_refresh.async_close()
+        for waiter in self._reply_waiters.values():
+            if not waiter.done():
+                waiter.cancel()
+        self._reply_waiters.clear()
         for client in self.mqtt_clients.values():
             await self.hass.async_add_executor_job(client.disconnect)
         self.mqtt_clients.clear()

@@ -3,7 +3,7 @@
     "step": {
       "user": {
         "title": "EcoFlow PowerPulse 2",
-        "description": "Melde dich mit dem EcoFlow-App-Konto der Wallbox an. Diese Entwicklungsversion lauscht nur und kann noch keine Ladeeinstellungen verändern.",
+        "description": "Melde dich mit dem EcoFlow-App-Konto der Wallbox an. Experimentelle Steuerungen sind standardmäßig deaktiviert und müssen ausdrücklich in der Entitätsverwaltung aktiviert werden.",
         "data": {"email": "E-Mail", "password": "Passwort"}
       }
     },
@@ -52,6 +52,9 @@
       "phase_current": {"name": "Phasenstrom"},
       "session_duration": {"name": "Sitzungsdauer"},
       "smart_charge_target": {"name": "Smart-Zielenergie"},
+      "smart_target_type": {"name": "Smart-Zieltyp", "state": {"energy": "Energie", "distance": "Strecke"}},
+      "smart_target_distance": {"name": "Smart-Zielstrecke"},
+      "smart_calculated_energy": {"name": "Berechnete Smart-Energie"},
       "total_energy_raw": {"name": "Gesamtenergie Rohwert"},
       "session_energy_raw": {"name": "Sitzungsenergie Rohwert"},
       "charge_current_set_raw": {"name": "Ladestrom-Sollwert Rohwert"},
@@ -60,6 +63,7 @@
       "suspend_reason_raw": {"name": "Pausengrund Rohwert"},
       "output_current_max_raw": {"name": "Maximaler Ausgangsstrom Rohwert"},
       "user_current_set_raw": {"name": "Benutzer-Ladestrom Rohwert"},
+      "user_current_set": {"name": "Benutzerdefinierter Ladestrom"},
       "solar_current_min_raw": {"name": "Solar-Mindeststrom Rohwert"},
       "solar_minimum_current": {"name": "Solar-Mindestladestrom"},
       "switch_bits_raw": {"name": "Einstellungsflags Rohwert"},
@@ -76,6 +80,12 @@
       "screen_brightness": {"name": "Bildschirmhelligkeit"},
       "indicator_brightness": {"name": "LED-Helligkeit"},
       "vehicle_consumption_raw": {"name": "Fahrzeugverbrauch Rohwert"}
+    },
+    "select": {
+      "phase_control": {
+        "name": "Phaseneinstellung (experimentell)",
+        "state": {"auto": "Auto", "one_phase": "1-phasig", "three_phase": "3-phasig"}
+      }
     }
   }
 }

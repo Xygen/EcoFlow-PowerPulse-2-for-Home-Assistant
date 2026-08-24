@@ -106,6 +106,25 @@ SENSORS = (
         entity_registry_enabled_default=False,
     ),
     PowerPulse2SensorDescription(
+        key="smart_target_type",
+        translation_key="smart_target_type",
+        device_class=SensorDeviceClass.ENUM,
+        options=["energy", "distance"],
+    ),
+    PowerPulse2SensorDescription(
+        key="smart_target_distance_km",
+        translation_key="smart_target_distance",
+        native_unit_of_measurement="km",
+    ),
+    PowerPulse2SensorDescription(
+        key="smart_calculated_energy_wh",
+        translation_key="smart_calculated_energy",
+        native_unit_of_measurement=UnitOfEnergy.WATT_HOUR,
+        device_class=SensorDeviceClass.ENERGY,
+        diagnostic=True,
+        entity_registry_enabled_default=False,
+    ),
+    PowerPulse2SensorDescription(
         key="total_energy_raw",
         translation_key="total_energy_raw",
         diagnostic=True,
@@ -148,6 +167,15 @@ SENSORS = (
         translation_key="user_current_set_raw",
         diagnostic=True,
         entity_registry_enabled_default=False,
+    ),
+    PowerPulse2SensorDescription(
+        key="user_current_set_a",
+        source_key="user_current_set_raw",
+        translation_key="user_current_set",
+        native_unit_of_measurement=UnitOfElectricCurrent.AMPERE,
+        device_class=SensorDeviceClass.CURRENT,
+        suggested_display_precision=0,
+        value_fn=tenths_to_float,
     ),
     PowerPulse2SensorDescription(
         key="solar_current_min_raw",
