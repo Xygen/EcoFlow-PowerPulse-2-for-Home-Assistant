@@ -8,6 +8,20 @@
   A live value of `1815` corresponded to `1.82 kWh` in the EcoFlow app. Keep the
   raw entity unchanged until additional sessions confirm the unit and rounding.
 
+## 0.1.0-dev15
+
+- Record from the live dev14 test that the same-sequence `241/102` replies
+  arrived after approximately 56 ms and 207 ms, but provider reads around two
+  seconds later still returned the preceding Solar minimum current.
+- Replace the ineffective two-second read with one coalesced provider refresh
+  after 20 seconds. The normal 30-second poll remains available and may update
+  the entity earlier depending on its existing schedule.
+- Keep the provider snapshot authoritative. The integration does not
+  optimistically copy values from the observed app request because the reply
+  does not echo the settings object or prove value-level application.
+- Retain diagnostic schema 7, the hard MQTT `listen_only` guard, and all 35
+  passing tests from dev14.
+
 ## 0.1.0-dev14
 
 - Rename the German screen switch from `Anzeigebildschirm` to `Bildschirm` and

@@ -231,7 +231,7 @@ bodies are not reconstructed or inferred here.
 
 ## Current state of the test implementation
 
-- Development build `0.1.0-dev14` includes the dev13 header correction and
+- Development build `0.1.0-dev15` includes the dev13 header correction and
   remains read-only. The parser reads `enc_type` from field 6 and keeps field 11 as
   `need_ack`; acknowledgement-requesting plaintext bodies are no longer
   XOR-mutated. The upstream diagnostic confirms nested protobuf.
@@ -243,10 +243,15 @@ bodies are not reconstructed or inferred here.
   entity followed about 31 s and 36 s after the corresponding MQTT SET frames,
   demonstrating that acknowledgement latency and provider/entity refresh
   latency are separate measurements.
-- dev14 adds a two-second delayed provider read only after a `241/102` reply is
-  matched to its previously observed request by source and sequence. Duplicate,
-  unmatched, direct-device, and unrelated-command replies do not trigger it;
-  rapid requests are coalesced and the normal 30-second poll remains intact.
+- dev14 tested a two-second delayed provider read after a `241/102` reply was
+  matched to its previously observed request by source and sequence. Both live
+  directions still returned the preceding value at that time. Readback later
+  followed after about 25-29 seconds in the measured cases.
+- dev15 therefore performs one coalesced provider read after 20 seconds instead.
+  Duplicate, unmatched, direct-device, and unrelated-command replies cannot
+  trigger it; the normal 30-second poll remains intact and may update earlier.
+  Observed app-request values are not applied optimistically because the reply
+  does not echo or explicitly confirm the settings object.
 - The normal Solar minimum charging current is now presented in Ampere via
   `solarCurrentMin / 10`, while its raw diagnostic entity remains available.
   The maximum-output-current entity defaults to zero decimal places, and the
@@ -271,9 +276,8 @@ bodies are not reconstructed or inferred here.
 
 1. Confirm session-energy field 42 across more non-zero sessions, including
    rounding and whether raw units are consistently Wh.
-2. Validate dev14 live: verify the translated names and new Ampere sensor, then
-   repeat `6 A -> 7 A -> 6 A` and compare reply, triggered refresh and entity
-   timestamps against the previous 31-36-second delay.
+2. Validate dev15 live by restoring 6 A and confirm whether the 20-second
+   refresh returns the new value before the regular poll.
 3. Pair additional app changes with provider/MQTT snapshots to separate
    `userCurrentSet`, heartbeat fields 17/18, the remaining `switchBits`, and
    `phaseSpecified` cleanly.

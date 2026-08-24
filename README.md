@@ -19,7 +19,7 @@ diagnostics.
 
 ## Current scope
 
-Version `0.1.0-dev14` is deliberately read-only:
+Version `0.1.0-dev15` is deliberately read-only:
 
 - EcoFlow app-account login and PowerPulse discovery
 - listen-only cloud MQTT connection (WSS)

@@ -375,7 +375,26 @@ Implementation note for `0.1.0-dev14`:
   `listen_only`; no command body is retained or published.
 - Diagnostic schema 7 adds only the configured delay, aggregate counts,
   pending/active flags, and UTC timestamps for the last confirmed reply and
-  completed refresh. Live latency validation is pending installation.
+  completed refresh.
+
+Live dev14 latency result:
+
+- Saving 7 A used sequence 213. The reply followed after approximately 56 ms;
+  the scheduled provider refresh completed about 2.06 seconds later but still
+  returned 6 A. A later read confirmed 7 A.
+- Restoring 6 A used sequence 222. The reply followed after approximately
+  207 ms; the scheduled provider refresh completed about 2.09 seconds later
+  but still returned 7 A. The normal/provider readback exposed 6 A about
+  28.8 seconds after the SET.
+- A further 7 A change used sequence 237. The reply followed after about
+  204 ms, and 7 A was confirmed no later than about 25 seconds after the SET.
+
+The fast reply therefore confirms request/reply correlation but is not followed
+by an immediately fresh provider snapshot. dev15 replaces the ineffective
+two-second read with one coalesced read after 20 seconds. The integration does
+not apply the observed request optimistically: the reply carries only the
+accessory descriptor, not the settings object or an explicit value readback.
+The normal 30-second provider poll remains as fallback and may win earlier.
 
 ## 2026-08-24: No-car PowerOcean settings capture for issue #247
 

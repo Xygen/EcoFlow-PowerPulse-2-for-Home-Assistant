@@ -25,7 +25,7 @@ DOMAIN = "ecoflow_powerpulse2"
 CONF_EMAIL = "email"
 CONF_PASSWORD = "password"
 UPDATE_INTERVAL_SECONDS = 30
-SETTINGS_REFRESH_DELAY_SECONDS = 2
+SETTINGS_REFRESH_DELAY_SECONDS = 20
 
 @dataclass(frozen=True, kw_only=True)
 class PowerPulse2SensorDescription(SensorEntityDescription):
