@@ -127,6 +127,15 @@ no decoded or raw bytes are stored. A separate bounded view groups requests,
 retries, and replies by source and sequence. This instrumentation still does
 not attribute the tuple to the PowerPulse and never publishes MQTT traffic.
 
+The first live dev11 baseline showed that the decoded two-byte body is not a
+protobuf message. The tuple also appeared without a user action in pairs about
+20 seconds apart and still had no SET reply, making background PowerOcean
+traffic more likely than a PowerPulse-setting command. For the controlled test,
+dev11 therefore adds a runtime-keyed HMAC fingerprint for equality comparison.
+The random key is never exported, so the small body cannot be recovered by
+offline brute force; fingerprints are intentionally comparable only until the
+integration restarts.
+
 ## Current state of the test implementation
 
 - The current development build is `0.1.0-dev11` and remains read-only. Its
@@ -137,10 +146,11 @@ not attribute the tuple to the PowerPulse and never publishes MQTT traffic.
   directions: `switchBits=0` produced `off`, `switchBits=16` produced `on`, and
   `solarCurrentMin=60` remained stored throughout the test.
 - The parser has been exercised against live C376 frames. The current local
-  suite passes 27 tests, including XOR envelope decoding, packed phase values,
+  suite passes 28 tests, including XOR envelope decoding, packed phase values,
   command-specific `2/33` vs `2/34` routing, settings fields, matching an
   embedded PowerPulse report to its exact serial, privacy-safe `96/97`
-  inspection, and command-sequence correlation.
+  inspection, runtime-keyed opaque-body comparison, and command-sequence
+  correlation.
 - This is not proposed as production-ready code or as a ready-made patch for
   `ecoflow-energy-ha` yet. The useful output at this stage is the field and
   data-source evidence above.

@@ -125,7 +125,13 @@ def test_small_observer_command_is_xor_decoded_without_raw_bytes() -> None:
         )
     )
 
-    assert inspect_observer_command_payloads(encode_field_bytes(1, header)) == [
+    result = inspect_observer_command_payloads(
+        encode_field_bytes(1, header), fingerprint_key=b"test-runtime-key"
+    )
+    fingerprint = result[0].pop("runtime_fingerprint")
+
+    assert len(fingerprint) == 16
+    assert result == [
         {
             "cmd_func": 96,
             "cmd_id": 97,
@@ -156,9 +162,12 @@ def test_observer_command_omits_opaque_content_and_other_tuples() -> None:
     )
 
     result = inspect_observer_command_payloads(
-        encode_field_bytes(1, safe_header) + encode_field_bytes(1, unrelated_header)
+        encode_field_bytes(1, safe_header) + encode_field_bytes(1, unrelated_header),
+        fingerprint_key=b"test-runtime-key",
     )
+    fingerprint = result[0].pop("runtime_fingerprint")
 
+    assert len(fingerprint) == 16
     assert result == [
         {
             "cmd_func": 96,
@@ -170,6 +179,32 @@ def test_observer_command_omits_opaque_content_and_other_tuples() -> None:
         }
     ]
     assert "vehicle-secret" not in repr(result)
+
+
+def test_opaque_runtime_fingerprint_supports_equality_only() -> None:
+    def envelope(pdata: bytes, sequence: int) -> bytes:
+        key = sequence & 0xFF
+        encrypted = bytes(byte ^ key for byte in pdata)
+        header = b"".join(
+            (
+                encode_field_bytes(1, encrypted),
+                encode_field_varint(8, 96),
+                encode_field_varint(9, 97),
+                encode_field_varint(11, 1),
+                encode_field_varint(14, sequence),
+            )
+        )
+        return encode_field_bytes(1, header)
+
+    capture = DiagnosticFrameCapture(fingerprint_key=b"runtime-secret")
+    first = capture.inspect_observer_command_payloads(envelope(b"\xff\x00", 1))[0]
+    repeated = capture.inspect_observer_command_payloads(envelope(b"\xff\x00", 2))[0]
+    changed = capture.inspect_observer_command_payloads(envelope(b"\xff\x01", 3))[0]
+
+    assert first["classification"] == "opaque_non_protobuf"
+    assert first["runtime_fingerprint"] == repeated["runtime_fingerprint"]
+    assert first["runtime_fingerprint"] != changed["runtime_fingerprint"]
+    assert "ff00" not in repr(first)
 
 
 def test_command_bucket_survives_frequent_telemetry() -> None:

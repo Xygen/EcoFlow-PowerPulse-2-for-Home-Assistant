@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
+import hmac
 from collections import OrderedDict
+from hashlib import sha256
+from secrets import token_bytes
 from struct import unpack
 from typing import Any
 
@@ -71,7 +74,9 @@ def inspect_envelope_headers(payload: bytes) -> list[dict[str, int]]:
     return headers
 
 
-def inspect_observer_command_payloads(payload: bytes) -> list[dict[str, Any]]:
+def inspect_observer_command_payloads(
+    payload: bytes, *, fingerprint_key: bytes | None = None
+) -> list[dict[str, Any]]:
     """Summarize the small, live-observed PowerOcean 96/97 command body.
 
     Parent payloads can contain identifiers belonging to the charger, battery,
@@ -120,6 +125,13 @@ def inspect_observer_command_payloads(payload: bytes) -> list[dict[str, Any]]:
                 if len(pdata) > _MAX_SAFE_COMMAND_PAYLOAD_BYTES:
                     summary["classification"] = "omitted_size_limit"
                 else:
+                    if fingerprint_key:
+                        # The key is random for each integration runtime and is
+                        # never exported. This permits equality checks without
+                        # exposing a brute-forceable hash of a two-byte body.
+                        summary["runtime_fingerprint"] = hmac.new(
+                            fingerprint_key, pdata, sha256
+                        ).hexdigest()[:16]
                     summary.update(_summarize_safe_command_fields(pdata))
                 summaries.append(summary)
     except ValueError:
@@ -146,7 +158,7 @@ def _summarize_safe_command_fields(payload: bytes) -> dict[str, Any]:
                 contains_opaque = True
             fields.append(item)
     except ValueError:
-        return {"classification": "invalid_protobuf", "fields": []}
+        return {"classification": "opaque_non_protobuf", "fields": []}
 
     if not fields:
         classification = "empty"
@@ -247,16 +259,26 @@ class DiagnosticFrameCapture:
         max_buckets: int = 48,
         max_samples_per_bucket: int = 8,
         max_correlations: int = 48,
+        fingerprint_key: bytes | None = None,
     ) -> None:
         self._max_recent = max_recent
         self._max_commands = max_commands
         self._max_buckets = max_buckets
         self._max_samples_per_bucket = max_samples_per_bucket
         self._max_correlations = max_correlations
+        self._fingerprint_key = fingerprint_key or token_bytes(32)
         self._recent: list[dict[str, Any]] = []
         self._commands: list[dict[str, Any]] = []
         self._buckets: OrderedDict[str, dict[str, Any]] = OrderedDict()
         self._correlations: OrderedDict[str, dict[str, Any]] = OrderedDict()
+
+    def inspect_observer_command_payloads(
+        self, payload: bytes
+    ) -> list[dict[str, Any]]:
+        """Return runtime-linkable summaries without exporting the HMAC key."""
+        return inspect_observer_command_payloads(
+            payload, fingerprint_key=self._fingerprint_key
+        )
 
     def record(self, frame: dict[str, Any]) -> None:
         """Record one already-redacted frame in all applicable views."""

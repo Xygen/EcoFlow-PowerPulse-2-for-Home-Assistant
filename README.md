@@ -23,7 +23,8 @@ Version `0.1.0-dev11` is deliberately read-only:
 - redacted MQTT frame capture grouped by channel and `(cmd_func, cmd_id)`
 - passive observation of app-auth and device-facing SET candidate topics
 - privacy-safe structural inspection of the small PowerOcean `96/97` SET
-  candidate plus bounded request/retry/reply correlation by sequence number
+  candidate, runtime-keyed opaque-body equality checks, and bounded
+  request/retry/reply correlation by sequence number
 - identifier-free MQTT subscription result codes in diagnostics
 - passive discovery and observation of a linked PowerOcean MQTT source, with
   parent payloads omitted and only privacy-safe numeric PowerPulse accessory

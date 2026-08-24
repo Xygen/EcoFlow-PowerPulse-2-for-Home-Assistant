@@ -21,7 +21,6 @@ from .frame_capture import (
     channel_carries_telemetry,
     classify_mqtt_topic,
     inspect_envelope_headers,
-    inspect_observer_command_payloads,
     inspect_powerpulse_accessory_reports,
 )
 from .parser import parse_powerpulse2_payload
@@ -208,7 +207,7 @@ class PowerPulse2Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
             inspect_powerpulse_accessory_reports(payload) if is_observer else []
         )
         command_payloads = (
-            inspect_observer_command_payloads(payload)
+            self._frame_capture.inspect_observer_command_payloads(payload)
             if is_observer and channel in COMMAND_CHANNELS
             else []
         )

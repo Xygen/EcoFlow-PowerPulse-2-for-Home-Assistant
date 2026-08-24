@@ -15,9 +15,12 @@
   bytes are considered; opaque bytes and larger numeric values remain omitted.
 - Group passive SET requests, retries, and replies by source and sequence in a
   bounded diagnostic view.
+- Add a runtime-keyed HMAC fingerprint for small opaque bodies. It supports
+  equality comparisons during one HA runtime without exporting the key, raw
+  bytes, or an offline brute-forceable hash of the two-byte payload.
 - Increase the diagnostic capture schema to 4 without adding any publish path;
   MQTT remains hard `listen_only`.
-- Extend the parser/capture suite to 27 passing tests, including privacy,
+- Extend the parser/capture suite to 28 passing tests, including privacy,
   XOR-decoding, tuple allow-listing, and request/reply correlation checks.
 
 ## 0.1.0-dev10

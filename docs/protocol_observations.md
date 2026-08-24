@@ -207,11 +207,23 @@ Implementation note for `0.1.0-dev11`:
   and larger numeric values are not retained.
 - Requests, retries, and replies are grouped by source and sequence in a
   bounded diagnostic view.
+- Small opaque bodies receive a runtime-keyed HMAC fingerprint. The secret key
+  is never exported, making the fingerprint useful only for equality checks
+  within one integration runtime rather than for recovering the two bytes.
 - Diagnostic capture schema 4 adds no publish path and remains hard
   `listen_only`.
 
-The live 6 A to 7 A to 6 A comparison is still pending. Until that test shows
-a time-aligned field change and acknowledgement, `96/97` remains unassigned.
+Initial dev11 baseline after restart:
+
+- the XOR-decoded two-byte `96/97` body was not valid protobuf;
+- no SET reply was present;
+- `96/97` appeared without a user action in recurring pairs, approximately
+  every 20 seconds.
+
+This periodic baseline makes unrelated PowerOcean housekeeping traffic more
+likely. The live 6 A to 7 A to 6 A comparison is still pending. Until that test
+shows a time-aligned fingerprint or field change and acknowledgement, `96/97`
+remains unassigned.
 
 ## 2026-08-24: Session-energy scaling hypothesis
 
