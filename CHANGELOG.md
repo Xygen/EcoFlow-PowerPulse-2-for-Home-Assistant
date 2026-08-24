@@ -21,6 +21,9 @@
   block and continue requiring acknowledgement plus fresh device readback.
 - Make each brightness control unavailable while its corresponding display is
   switched off.
+- Live-validate both switches and both brightness controls from Home Assistant:
+  off/on, 25 -> 50 -> 25%, matching readback, and correct disabled-state
+  availability. Restore screen and LED to on at 25%.
 - Extend the local suite to 50 passing tests.
 
 ## 0.1.0-dev20

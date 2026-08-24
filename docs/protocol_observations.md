@@ -686,3 +686,10 @@ screen-enable flag. All retained requests received same-sequence replies in
 disabled-by-default controls, preserving the complete six-byte block on every
 write. Each brightness control is unavailable while its corresponding display
 is off.
+
+The installed dev21 controls were subsequently exercised directly from Home
+Assistant. Screen off/on, screen 25 -> 50 -> 25%, LED off/on, and LED
+25 -> 50 -> 25% each completed only after acknowledgement and matching
+readback. When either display was off, its corresponding Number entity became
+unavailable and returned when switched on. Final state was restored to screen
+on at 25% and LED on at 25%.

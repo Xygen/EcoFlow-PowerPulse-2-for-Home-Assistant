@@ -448,3 +448,9 @@ and two observed zero bytes. The 25/50/75/100% values and LED off/on were
 captured with acknowledgements and device readback. dev21 adds four
 disabled-by-default HA controls that preserve the whole block; screen and LED
 brightness become unavailable whenever the corresponding switch is off.
+
+Live testing of the installed dev21 build from HA confirmed screen off/on,
+screen 25 -> 50 -> 25%, LED off/on, and LED 25 -> 50 -> 25%, including
+matching binary/sensor readback. Each brightness Number correctly became
+unavailable while its display was off. Both displays were restored to on at
+25% after the test.
