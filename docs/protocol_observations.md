@@ -156,7 +156,9 @@ Confirmed or currently retained provider fields:
 - `paramSet.smartMode.timeToUseCar`: Unix ready-by timestamp
 - `paramSet.smartMode.chargeTarget`: energy target in Wh; `30000` matched
   30 kWh, while distance-target mode reported `0`
-- `paramSet.userCurrentSet`, `solarCurrentMin`, `phaseSpecified`, and
+- `paramSet.solarCurrentMin`: Solar minimum/continuous current in tenths of an
+  ampere; later paired as `60` = 6 A and `70` = 7 A
+- `paramSet.userCurrentSet`, `phaseSpecified`, and
   `vehicleInfo.currentVehicleComsumption`: retained raw pending further paired
   tests
 
@@ -202,8 +204,9 @@ omitted because they may bundle device and vehicle identifiers.
 
 Conclusion:
 
-- Treat `96/97` only as a route to investigate in a new, tightly timed paired
-  test.
+- Retain `96/97` only as background diagnostic evidence until a specific
+  function is demonstrated; the controlled current test below does not assign
+  that function to it.
 - Passive diagnostics may classify only the exact candidate with strict
   privacy limits and request/reply correlation.
 - Do not use these frames as a command template unless the exact setting
@@ -230,10 +233,47 @@ Initial dev11 baseline after restart:
 - `96/97` appeared without a user action in recurring pairs, approximately
   every 20 seconds.
 
-This periodic baseline makes unrelated PowerOcean housekeeping traffic more
-likely. The live 6 A to 7 A to 6 A comparison is still pending. Until that test
-shows a time-aligned fingerprint or field change and acknowledgement, `96/97`
-remains unassigned.
+This periodic baseline made unrelated PowerOcean housekeeping traffic more
+likely. The controlled comparison below did not associate `96/97` with the
+current change; it exposed a different acknowledged tuple instead.
+
+## 2026-08-24: Controlled Solar current 6 A to 7 A to 6 A
+
+Conditions:
+
+- Solar Mode remained selected.
+- Continuous charging remained enabled throughout (`switchBits=16`).
+- Only its permitted-without-solar current was changed and saved, first from
+  6 A to 7 A and then back to 6 A.
+
+Observed provider values:
+
+- initial 6 A: `solarCurrentMin=60`
+- saved 7 A: `solarCurrentMin=70`
+- restored 6 A: `solarCurrentMin=60`
+
+This confirms tenths-of-an-ampere scaling for `solarCurrentMin` across a paired
+change in both directions.
+
+Observed PowerOcean command metadata:
+
+- 6 A to 7 A: `cmd_func=241`, `cmd_id=102`, 31-byte request, same-sequence
+  23-byte SET reply after approximately 64 ms
+- 7 A to 6 A: the same `241/102` tuple and sizes, with the SET reply after
+  approximately 119 ms
+- `96/97` continued independently as periodic and retried traffic without a
+  matching reply
+
+Conclusion:
+
+- `241/102` is strongly correlated with saving the Solar minimum current in
+  this PowerOcean-linked PowerPulse 2 installation.
+- The metadata and provider result establish a route candidate, not a command
+  payload. The privacy guard still omits both bodies.
+- Before any write implementation, a later diagnostic must compare the request
+  and reply structures safely, isolate the field that changed between 6 A and
+  7 A, confirm target attribution, and interpret the acknowledgement.
+- `96/97` is no longer considered the Solar current-setting candidate.
 
 ## 2026-08-24: Session-energy scaling hypothesis
 

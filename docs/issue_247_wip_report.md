@@ -106,7 +106,7 @@ Within the matched C376 `pileChargingParamReport`:
 | `paramSet.workMode` | operating mode | Live-confirmed: `1` Fast, `2` Solar, `3` Custom, `4` Smart. |
 | `paramSet.currentOuputMax` | maximum output current, tenths of A | The misspelling is present in the provider data. Paired values match CP307 `2/34` field 9. |
 | `paramSet.userCurrentSet` | raw user-current setting | Retained raw; exact relationship to the different app current sliders is not yet established. |
-| `paramSet.solarCurrentMin` | Solar minimum/continuous-current setting, tenths of A | `60` matched 6 A and remained stored while Continuous charging was switched off and back on. Another current value should still be paired before treating the scaling as generally confirmed. |
+| `paramSet.solarCurrentMin` | Solar minimum/continuous-current setting, tenths of A | A controlled `6 A -> 7 A -> 6 A` test produced `60 -> 70 -> 60`. The value also remained stored while Continuous charging was switched off and back on. |
 | `paramSet.switchBits` | settings bitmask | `switchBits & 0x10` is live-confirmed as the Solar-mode Continuous charging switch; other bits remain unassigned. |
 | `paramSet.phaseSpecified` | raw phase-selection field | Retained raw; the CP307 `2/34` field 11 mapping is currently better established. |
 | `paramSet.smartMode.timeToUseCar` | ready-by time | Unix timestamp. Returning to Solar Mode reset it to `0`. |
@@ -147,10 +147,29 @@ The random key is never exported, so the small body cannot be recovered by
 offline brute force; fingerprints are intentionally comparable only until the
 integration restarts.
 
+The subsequent controlled `6 A -> 7 A -> 6 A` test separated the relevant
+traffic from that baseline:
+
+- Saving 7 A was followed by a PowerOcean `cmd_func=241`, `cmd_id=102` SET with
+  a same-sequence SET reply about 64 ms later. The next provider snapshot
+  changed `solarCurrentMin` from `60` to `70`.
+- Saving 6 A produced the same `241/102` request/reply pair, with the reply
+  about 119 ms later. The provider snapshot returned from `70` to `60`.
+- `switchBits=16`, Continuous charging enabled, and Solar Mode remained
+  unchanged throughout.
+- `96/97` continued periodically and in short retry bursts without replies, so
+  it is not the current-setting command candidate.
+
+This strongly identifies `241/102` as the route used while saving the Solar
+minimum current in this PowerOcean-linked installation. The 31-byte request and
+23-byte reply bodies are still privacy-omitted. Their safe structure and exact
+acknowledgement semantics must be compared before any write implementation.
+
 ## Current state of the test implementation
 
 - The current development build is `0.1.0-dev11` and remains read-only. Its
-  passive `96/97` diagnostic awaits the controlled 6 A to 7 A to 6 A test.
+  controlled 6 A to 7 A to 6 A test is complete and identifies `241/102` as
+  the acknowledged current-setting route candidate.
 - MQTT uses a hard `listen_only` guard; automatic get-all/stream activation and
   every other publish path are suppressed.
 - The new `Kontinuierlich laden` binary sensor was verified live in both
@@ -172,8 +191,7 @@ integration restarts.
    rounding and whether raw units are consistently Wh.
 2. Pair additional app changes with provider/MQTT snapshots to separate
    `userCurrentSet`, heartbeat fields 17/18, the remaining `switchBits`, and
-   `phaseSpecified` cleanly. Confirm `solarCurrentMin` with a second current
-   value in addition to the paired `60` = 6 A observation.
+   `phaseSpecified` cleanly.
 3. Locate the Smart distance target and confirm the unit/scaling of
    `currentVehicleComsumption`.
 4. Check additional operating states and map `suspend_reason` values.
@@ -185,10 +203,12 @@ integration restarts.
 7. For any future controls, capture the actual request envelope **and** device
    acknowledgement first. No PowerPulse-attributable SET or SET-reply frame was
    observed during the paired Start/Stop, mode, target, or current changes. The
-   later PowerOcean `96/97` SET traffic is now classified only through the
-   narrow dev11 diagnostic and must still be reproduced in a tightly timed
-   one-change test before it can be considered relevant. Writes may still use
-   the provider HTTP API or another transport.
+   controlled current test identifies acknowledged `241/102` traffic in both
+   directions, but its request and reply bodies remain privacy-omitted. Their
+   structure, changed fields, target attribution, and acknowledgement semantics
+   must be confirmed before considering a write. Start/Stop or other settings
+   may still use different commands, the provider HTTP API, or another
+   transport.
 
 For now I would suggest treating all of this as read-support research only,
 with Start/Stop and current-setting controls explicitly out of scope until the

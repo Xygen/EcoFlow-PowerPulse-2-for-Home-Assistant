@@ -18,6 +18,10 @@
 - Add a runtime-keyed HMAC fingerprint for small opaque bodies. It supports
   equality comparisons during one HA runtime without exporting the key, raw
   bytes, or an offline brute-forceable hash of the two-byte payload.
+- Confirm in a paired live 6 A to 7 A to 6 A test that provider
+  `solarCurrentMin` uses tenths of an ampere (`60`, `70`, `60`). Both saves
+  correlated with PowerOcean `241/102` SET requests and same-sequence replies;
+  their payloads remain omitted and are not treated as write templates.
 - Increase the diagnostic capture schema to 4 without adding any publish path;
   MQTT remains hard `listen_only`.
 - Extend the parser/capture suite to 28 passing tests, including privacy,
