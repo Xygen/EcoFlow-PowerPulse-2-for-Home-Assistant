@@ -421,3 +421,12 @@ snapshot omitted the stored distance type/value. Entering Smart once in the app
 restored the direct 200 km block. The follow-up implementation keeps both Smart
 value controls writable in Smart mode so either can atomically establish its
 target type; type-only switching remains gated until both values are known.
+
+The corrected installed build completed the remaining HA-originated tests:
+distance 200 km -> energy 40 -> 30 -> 40 kWh, target type back to distance,
+distance 200 -> 300 -> 200 km, and a same-value ready-by republish. Each
+integration call returned only after its SET reply and fresh direct wallbox
+readback. The sequence ended in Solar mode with Plug-and-Play off; Custom current
+remained restored to 6 A and the stored Smart distance remained 200 km. This
+validates the controls without a vehicle, but does not close the separate
+charging-time interlock backlog.

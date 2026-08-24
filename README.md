@@ -132,8 +132,9 @@ Assistant, then add **EcoFlow PowerPulse 2** under
 Use a development/test Home Assistant instance. The telemetry parser has been
 validated against live C376 MQTT frames, but the integration is not ready for
 general use. Phase, battery, Continuous, maximum-current, and Solar-current
-writes have been live-tested from HA; the new dev20 mode and Smart controls
-still require post-installation validation.
+writes have been live-tested from HA. The installed dev20 mode, Custom-current,
+Plug-and-Play, and Smart controls have also completed reversible live tests with
+SET acknowledgement and direct readback while no vehicle was connected.
 
 ## Capturing the missing protocol evidence
 

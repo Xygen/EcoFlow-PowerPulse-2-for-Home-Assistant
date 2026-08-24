@@ -31,6 +31,11 @@
   the inactive target can be initialised atomically with its target type after
   a restart. Enable the separate type-only selector only when both stored target
   values are known, avoiding a guessed fallback.
+- Live-validate the installed dev20 controls for all four operating modes,
+  Custom current 6/7 A, Plug-and-Play off/on/off, Smart energy 30/40 kWh,
+  Smart distance 200/300 km, target-type switching, and ready-by republish.
+  Restore the charger to Solar mode, Plug-and-Play off, Custom 6 A, and stored
+  Smart distance 200 km after the reversible test sequence.
 
 ## 0.1.0-dev19
 

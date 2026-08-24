@@ -646,3 +646,15 @@ energy, but no historical non-zero energy target. Both target-value controls
 therefore remain writable in Smart mode and atomically select their own type;
 the type-only selector is available only after both reusable target values have
 been observed.
+
+After installing the bootstrap fix, the complete HA-originated Smart sequence
+also succeeded. Setting 40 kWh from the initial distance state atomically
+selected energy and supplied the missing non-zero target. Subsequent
+40 -> 30 -> 40 kWh, energy -> distance, and 200 -> 300 -> 200 km changes all
+received replies and matching direct readback. Republishing the unchanged
+ready-by timestamp exercised the nested time write without altering the user's
+schedule; the coordinator accepted it only after a fresh direct report. The
+final HA mode write restored Solar. Together with the earlier installed tests,
+dev20 is now live-confirmed for Fast, Solar, Custom, Smart, Custom 6/7 A,
+Plug-and-Play, all Smart target controls, and ready-by transport in the
+no-vehicle state.
