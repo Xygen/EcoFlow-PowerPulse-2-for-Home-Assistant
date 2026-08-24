@@ -12,9 +12,13 @@ from typing import Any
 from .ecoflow.proto_encoding import iter_protobuf_fields
 
 COMMAND_CHANNELS = frozenset({"observed_set", "set_reply"})
-_SAFE_OBSERVER_COMMAND_PAIRS = frozenset({(96, 97)})
-_MAX_SAFE_COMMAND_PAYLOAD_BYTES = 16
+_SAFE_OBSERVER_COMMAND_LIMITS = {
+    (96, 97): 16,
+    (241, 102): 64,
+}
 _MAX_SAFE_SMALL_VARINT = 255
+_MAX_SAFE_COMMAND_NESTING_DEPTH = 3
+_MAX_SAFE_COMMAND_FIELDS = 32
 
 
 def classify_mqtt_topic(topic: str) -> str:
@@ -77,12 +81,15 @@ def inspect_envelope_headers(payload: bytes) -> list[dict[str, int]]:
 def inspect_observer_command_payloads(
     payload: bytes, *, fingerprint_key: bytes | None = None
 ) -> list[dict[str, Any]]:
-    """Summarize the small, live-observed PowerOcean 96/97 command body.
+    """Summarize narrowly allow-listed live-observed PowerOcean commands.
 
     Parent payloads can contain identifiers belonging to the charger, battery,
-    or vehicle. This helper therefore accepts only the exact candidate command
-    tuple and a very small decoded body. Small protobuf varints are retained;
-    opaque fields expose their size only, and larger numbers are omitted.
+    or vehicle. This helper therefore accepts only exact command tuples with a
+    per-tuple decoded-size limit. Small protobuf varints are retained; opaque
+    fields expose their size only, and larger numbers are omitted. The 241/102
+    candidate additionally receives bounded nested-structure summaries and
+    runtime-only fingerprints for byte fields so paired captures can identify
+    which field changed without retaining its contents.
     """
     summaries: list[dict[str, Any]] = []
     try:
@@ -96,7 +103,8 @@ def inspect_observer_command_payloads(
                 if inner_wire == 0 and isinstance(inner_value, int)
             }
             command_pair = (varints.get(8), varints.get(9))
-            if command_pair not in _SAFE_OBSERVER_COMMAND_PAIRS:
+            payload_limit = _SAFE_OBSERVER_COMMAND_LIMITS.get(command_pair)
+            if payload_limit is None:
                 continue
 
             for inner_field, inner_wire, pdata in header_fields:
@@ -122,7 +130,7 @@ def inspect_observer_command_payloads(
                 else:
                     summary["xor_decoded"] = False
 
-                if len(pdata) > _MAX_SAFE_COMMAND_PAYLOAD_BYTES:
+                if len(pdata) > payload_limit:
                     summary["classification"] = "omitted_size_limit"
                 else:
                     if fingerprint_key:
@@ -132,41 +140,133 @@ def inspect_observer_command_payloads(
                         summary["runtime_fingerprint"] = hmac.new(
                             fingerprint_key, pdata, sha256
                         ).hexdigest()[:16]
-                    summary.update(_summarize_safe_command_fields(pdata))
+                    summary.update(
+                        _summarize_safe_command_fields(
+                            pdata,
+                            fingerprint_key=fingerprint_key,
+                            recursive=command_pair == (241, 102),
+                        )
+                    )
                 summaries.append(summary)
     except ValueError:
         return []
     return summaries
 
 
-def _summarize_safe_command_fields(payload: bytes) -> dict[str, Any]:
+def _summarize_safe_command_fields(
+    payload: bytes,
+    *,
+    fingerprint_key: bytes | None = None,
+    recursive: bool = False,
+) -> dict[str, Any]:
     """Describe protobuf structure without retaining opaque command bytes."""
-    fields: list[dict[str, Any]] = []
-    contains_opaque = False
-    contains_omitted_number = False
     try:
-        for field, wire, value in iter_protobuf_fields(payload):
-            item: dict[str, Any] = {"field": field, "wire_type": wire}
-            if wire == 0 and isinstance(value, int):
-                if value <= _MAX_SAFE_SMALL_VARINT:
-                    item["small_value"] = value
-                else:
-                    item["value_omitted"] = True
-                    contains_omitted_number = True
-            elif isinstance(value, bytes):
-                item["size"] = len(value)
-                contains_opaque = True
-            fields.append(item)
+        parsed = list(iter_protobuf_fields(payload))
     except ValueError:
         return {"classification": "opaque_non_protobuf", "fields": []}
 
+    fields, structure_truncated = _summarize_command_field_list(
+        parsed,
+        fingerprint_key=fingerprint_key,
+        recursive=recursive,
+        depth=0,
+        remaining_fields=[_MAX_SAFE_COMMAND_FIELDS],
+    )
+    contains_opaque = any(_field_contains_opaque(item) for item in fields)
+    contains_omitted_number = any(_field_contains_omitted_number(item) for item in fields)
     if not fields:
         classification = "empty"
     elif contains_opaque or contains_omitted_number:
         classification = "structured_opaque"
     else:
         classification = "small_numeric_only"
-    return {"classification": classification, "fields": fields}
+    result: dict[str, Any] = {"classification": classification, "fields": fields}
+    if structure_truncated:
+        result["structure_truncated"] = True
+    return result
+
+
+def _summarize_command_field_list(
+    parsed: list[tuple[int, int, int | bytes]],
+    *,
+    fingerprint_key: bytes | None,
+    recursive: bool,
+    depth: int,
+    remaining_fields: list[int],
+) -> tuple[list[dict[str, Any]], bool]:
+    """Return a bounded field tree plus whether the shared budget was reached."""
+    fields: list[dict[str, Any]] = []
+    truncated = False
+    for field, wire, value in parsed:
+        if remaining_fields[0] <= 0:
+            truncated = True
+            break
+        remaining_fields[0] -= 1
+
+        item: dict[str, Any] = {"field": field, "wire_type": wire}
+        if wire == 0 and isinstance(value, int):
+            if value <= _MAX_SAFE_SMALL_VARINT:
+                item["small_value"] = value
+            else:
+                item["value_omitted"] = True
+        elif isinstance(value, bytes):
+            item["size"] = len(value)
+            if recursive and fingerprint_key:
+                item["runtime_fingerprint"] = hmac.new(
+                    fingerprint_key, value, sha256
+                ).hexdigest()[:16]
+            if recursive and depth < _MAX_SAFE_COMMAND_NESTING_DEPTH:
+                nested = _parse_nested_command_message(value)
+                if nested is not None:
+                    nested_fields, nested_truncated = _summarize_command_field_list(
+                        nested,
+                        fingerprint_key=fingerprint_key,
+                        recursive=True,
+                        depth=depth + 1,
+                        remaining_fields=remaining_fields,
+                    )
+                    item["nested_fields"] = nested_fields
+                    truncated = truncated or nested_truncated
+        fields.append(item)
+    return fields, truncated
+
+
+def _parse_nested_command_message(
+    payload: bytes,
+) -> list[tuple[int, int, int | bytes]] | None:
+    """Recognize a complete nested protobuf message conservatively."""
+    if not payload or len(payload) > 64:
+        return None
+    try:
+        parsed = list(iter_protobuf_fields(payload))
+    except ValueError:
+        return None
+    if not parsed or not any(wire == 0 for _, wire, _ in parsed):
+        return None
+    if any(field > 1024 for field, _, _ in parsed):
+        return None
+    return parsed
+
+
+def _field_contains_opaque(item: dict[str, Any]) -> bool:
+    """Return whether a summarized field contains hidden byte content."""
+    if "size" in item:
+        return True
+    nested = item.get("nested_fields")
+    return isinstance(nested, list) and any(
+        isinstance(child, dict) and _field_contains_opaque(child) for child in nested
+    )
+
+
+def _field_contains_omitted_number(item: dict[str, Any]) -> bool:
+    """Return whether a summarized field tree contains a hidden large number."""
+    if item.get("value_omitted") is True:
+        return True
+    nested = item.get("nested_fields")
+    return isinstance(nested, list) and any(
+        isinstance(child, dict) and _field_contains_omitted_number(child)
+        for child in nested
+    )
 
 
 def inspect_powerpulse_accessory_reports(payload: bytes) -> list[dict[str, Any]]:

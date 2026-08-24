@@ -8,6 +8,22 @@
   A live value of `1815` corresponded to `1.82 kWh` in the EcoFlow app. Keep the
   raw entity unchanged until additional sessions confirm the unit and rounding.
 
+## 0.1.0-dev12
+
+- Add privacy-safe structural inspection for the live-confirmed PowerOcean
+  `241/102` request/reply route. Only decoded bodies up to 64 bytes are accepted.
+- Traverse at most three nested protobuf levels and 32 total fields. Small
+  varints are visible for controlled comparison; larger numbers and all byte or
+  text contents remain omitted.
+- Add runtime-keyed fingerprints to individual byte fields so a paired capture
+  can locate changed fields without storing identifiers or raw payload bytes.
+- Keep the existing 16-byte `96/97` limit and formally treat that tuple as
+  independent background traffic rather than the Solar-current command.
+- Increase the diagnostic capture schema to 5 without adding any publish path;
+  MQTT remains hard `listen_only`.
+- Extend the parser/capture suite to 30 passing tests, including the `241/102`
+  size bound, nested privacy rules, and cleartext/hex leak checks.
+
 ## 0.1.0-dev11
 
 - Add privacy-safe structural inspection for the live-observed PowerOcean

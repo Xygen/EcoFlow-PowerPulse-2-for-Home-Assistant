@@ -275,6 +275,25 @@ Conclusion:
   7 A, confirm target attribution, and interpret the acknowledgement.
 - `96/97` is no longer considered the Solar current-setting candidate.
 
+Implementation note for `0.1.0-dev12`:
+
+- Passive body inspection now admits the exact `241/102` tuple with a 64-byte
+  decoded-body limit; the observed request and reply sizes are 31 and 23 bytes.
+- The diagnostic records only protobuf field numbers, wire types, byte-field
+  sizes, small varints up to 255, and runtime-keyed fingerprints. It never
+  exports byte/text contents or the random fingerprint key.
+- Nested messages are traversed no deeper than three levels and the entire
+  structure is capped at 32 fields. Larger numeric values remain omitted.
+- `96/97` retains its stricter 16-byte limit. No other tuple is inspected.
+- Diagnostic capture schema 5 adds no MQTT publish route and remains hard
+  `listen_only`.
+
+The purpose of dev12 is a second controlled `6 A -> 7 A -> 6 A` comparison.
+The safe request/reply field trees and per-field runtime fingerprints should
+show which path changes with `solarCurrentMin`, while the provider snapshot
+independently confirms `60 -> 70 -> 60`. Even a matching field is evidence for
+further protocol research, not yet a reusable write template.
+
 ## 2026-08-24: Session-energy scaling hypothesis
 
 A non-zero charging session reported CP307 heartbeat field 42 as `1815` while

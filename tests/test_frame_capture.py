@@ -181,6 +181,90 @@ def test_observer_command_omits_opaque_content_and_other_tuples() -> None:
     assert "vehicle-secret" not in repr(result)
 
 
+def test_241_102_command_exposes_only_bounded_nested_structure() -> None:
+    secret = b"vehicle-secret"
+    nested = b"".join(
+        (
+            encode_field_bytes(1, secret),
+            encode_field_varint(2, 60),
+            encode_field_varint(3, 700),
+        )
+    )
+    pdata = encode_field_bytes(4, nested) + encode_field_varint(5, 1)
+    header = b"".join(
+        (
+            encode_field_bytes(1, pdata),
+            encode_field_varint(8, 241),
+            encode_field_varint(9, 102),
+            encode_field_varint(14, 1234),
+        )
+    )
+
+    result = inspect_observer_command_payloads(
+        encode_field_bytes(1, header), fingerprint_key=b"test-runtime-key"
+    )
+    whole_fingerprint = result[0].pop("runtime_fingerprint")
+    nested_fingerprint = result[0]["fields"][0].pop("runtime_fingerprint")
+    secret_fingerprint = result[0]["fields"][0]["nested_fields"][0].pop(
+        "runtime_fingerprint"
+    )
+
+    assert len(whole_fingerprint) == 16
+    assert len(nested_fingerprint) == 16
+    assert len(secret_fingerprint) == 16
+    assert result == [
+        {
+            "cmd_func": 241,
+            "cmd_id": 102,
+            "decoded_size": len(pdata),
+            "sequence": 1234,
+            "xor_decoded": False,
+            "classification": "structured_opaque",
+            "fields": [
+                {
+                    "field": 4,
+                    "wire_type": 2,
+                    "size": len(nested),
+                    "nested_fields": [
+                        {"field": 1, "wire_type": 2, "size": len(secret)},
+                        {"field": 2, "wire_type": 0, "small_value": 60},
+                        {"field": 3, "wire_type": 0, "value_omitted": True},
+                    ],
+                },
+                {"field": 5, "wire_type": 0, "small_value": 1},
+            ],
+        }
+    ]
+    assert "vehicle-secret" not in repr(result)
+    assert secret.hex() not in repr(result)
+
+
+def test_241_102_command_omits_body_over_pair_specific_limit() -> None:
+    pdata = b"X" * 65
+    header = b"".join(
+        (
+            encode_field_bytes(1, pdata),
+            encode_field_varint(8, 241),
+            encode_field_varint(9, 102),
+        )
+    )
+
+    result = inspect_observer_command_payloads(
+        encode_field_bytes(1, header), fingerprint_key=b"test-runtime-key"
+    )
+
+    assert result == [
+        {
+            "cmd_func": 241,
+            "cmd_id": 102,
+            "decoded_size": 65,
+            "xor_decoded": False,
+            "classification": "omitted_size_limit",
+        }
+    ]
+    assert "58" * 65 not in repr(result)
+
+
 def test_opaque_runtime_fingerprint_supports_equality_only() -> None:
     def envelope(pdata: bytes, sequence: int) -> bytes:
         key = sequence & 0xFF

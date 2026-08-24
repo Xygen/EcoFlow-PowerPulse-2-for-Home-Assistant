@@ -165,22 +165,30 @@ minimum current in this PowerOcean-linked installation. The 31-byte request and
 23-byte reply bodies are still privacy-omitted. Their safe structure and exact
 acknowledgement semantics must be compared before any write implementation.
 
+Development build `0.1.0-dev12` adds that narrow comparison instrument. It
+accepts only the exact `241/102` tuple up to 64 decoded bytes, traverses at most
+three nested protobuf levels and 32 total fields, and retains only field/wire
+metadata, sizes, and varints up to 255. Runtime-keyed fingerprints identify
+changed byte fields during one HA runtime without revealing their contents.
+The existing `96/97` path keeps its stricter 16-byte limit. No MQTT publish path
+is added.
+
 ## Current state of the test implementation
 
-- The current development build is `0.1.0-dev11` and remains read-only. Its
-  controlled 6 A to 7 A to 6 A test is complete and identifies `241/102` as
-  the acknowledged current-setting route candidate.
+- The current development build is `0.1.0-dev12` and remains read-only. It is
+  prepared for a second controlled 6 A to 7 A to 6 A test that compares safe
+  `241/102` request and reply structures.
 - MQTT uses a hard `listen_only` guard; automatic get-all/stream activation and
   every other publish path are suppressed.
 - The new `Kontinuierlich laden` binary sensor was verified live in both
   directions: `switchBits=0` produced `off`, `switchBits=16` produced `on`, and
   `solarCurrentMin=60` remained stored throughout the test.
 - The parser has been exercised against live C376 frames. The current local
-  suite passes 28 tests, including XOR envelope decoding, packed phase values,
+  suite passes 30 tests, including XOR envelope decoding, packed phase values,
   command-specific `2/33` vs `2/34` routing, settings fields, matching an
-  embedded PowerPulse report to its exact serial, privacy-safe `96/97`
-  inspection, runtime-keyed opaque-body comparison, and command-sequence
-  correlation.
+  embedded PowerPulse report to its exact serial, privacy-safe `96/97` and
+  `241/102` inspection, runtime-keyed opaque-field comparison, and
+  command-sequence correlation.
 - This is not proposed as production-ready code or as a ready-made patch for
   `ecoflow-energy-ha` yet. The useful output at this stage is the field and
   data-source evidence above.
@@ -204,11 +212,10 @@ acknowledgement semantics must be compared before any write implementation.
    acknowledgement first. No PowerPulse-attributable SET or SET-reply frame was
    observed during the paired Start/Stop, mode, target, or current changes. The
    controlled current test identifies acknowledged `241/102` traffic in both
-   directions, but its request and reply bodies remain privacy-omitted. Their
-   structure, changed fields, target attribution, and acknowledgement semantics
-   must be confirmed before considering a write. Start/Stop or other settings
-   may still use different commands, the provider HTTP API, or another
-   transport.
+   directions. Dev12 can compare its privacy-safe structure, but changed fields,
+   target attribution, and acknowledgement semantics still must be confirmed
+   before considering a write. Start/Stop or other settings may still use
+   different commands, the provider HTTP API, or another transport.
 
 For now I would suggest treating all of this as read-support research only,
 with Start/Stop and current-setting controls explicitly out of scope until the
