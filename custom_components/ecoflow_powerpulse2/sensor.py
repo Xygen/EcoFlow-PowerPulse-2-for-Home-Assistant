@@ -44,13 +44,13 @@ class PowerPulse2Sensor(PowerPulse2Entity, SensorEntity):
 
     @property
     def available(self) -> bool:
-        return self.coordinator.last_update_success and self.entity_description.key in self.coordinator.data.get(
-            self.serial, {}
-        )
+        source_key = self.entity_description.source_key or self.entity_description.key
+        return self.coordinator.last_update_success and source_key in self.coordinator.data.get(self.serial, {})
 
     @property
     def native_value(self):
-        value = self.coordinator.data.get(self.serial, {}).get(self.entity_description.key)
+        source_key = self.entity_description.source_key or self.entity_description.key
+        value = self.coordinator.data.get(self.serial, {}).get(source_key)
         if self.entity_description.value_fn is not None:
             return self.entity_description.value_fn(value)
         return value

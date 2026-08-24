@@ -361,6 +361,22 @@ fast same-sequence acknowledgement from the slower provider-backed readback;
 the current integration intentionally continues to expose only the latter as
 entity state.
 
+Implementation note for `0.1.0-dev14`:
+
+- A provider refresh is now scheduled two seconds after the passive observer
+  has seen both a `241/102` request and a same-source, same-sequence
+  `241/102` reply.
+- A reply without a retained request, a duplicate reply, the periodic `96/97`
+  traffic, and direct PowerPulse frames cannot trigger this path.
+- Requests received before the delayed read are coalesced. A new confirmed
+  change arriving while the HTTP read itself is active can schedule only one
+  additional delayed pass. The normal 30-second poll remains the fallback.
+- The trigger performs only the existing provider HTTP read. MQTT remains hard
+  `listen_only`; no command body is retained or published.
+- Diagnostic schema 7 adds only the configured delay, aggregate counts,
+  pending/active flags, and UTC timestamps for the last confirmed reply and
+  completed refresh. Live latency validation is pending installation.
+
 ## 2026-08-24: No-car PowerOcean settings capture for issue #247
 
 The official app changed 13 settings while the upstream integration recorded

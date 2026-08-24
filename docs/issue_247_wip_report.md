@@ -231,8 +231,8 @@ bodies are not reconstructed or inferred here.
 
 ## Current state of the test implementation
 
-- Development build `0.1.0-dev13` corrects the dev12 header bug and remains
-  read-only. The parser now reads `enc_type` from field 6 and keeps field 11 as
+- Development build `0.1.0-dev14` includes the dev13 header correction and
+  remains read-only. The parser reads `enc_type` from field 6 and keeps field 11 as
   `need_ack`; acknowledgement-requesting plaintext bodies are no longer
   XOR-mutated. The upstream diagnostic confirms nested protobuf.
 - The completed live dev13 `6 A -> 7 A -> 6 A` comparison decoded path `4.4`
@@ -243,17 +243,26 @@ bodies are not reconstructed or inferred here.
   entity followed about 31 s and 36 s after the corresponding MQTT SET frames,
   demonstrating that acknowledgement latency and provider/entity refresh
   latency are separate measurements.
+- dev14 adds a two-second delayed provider read only after a `241/102` reply is
+  matched to its previously observed request by source and sequence. Duplicate,
+  unmatched, direct-device, and unrelated-command replies do not trigger it;
+  rapid requests are coalesced and the normal 30-second poll remains intact.
+- The normal Solar minimum charging current is now presented in Ampere via
+  `solarCurrentMin / 10`, while its raw diagnostic entity remains available.
+  The maximum-output-current entity defaults to zero decimal places, and the
+  screen translations now group `Screen`/`Screen brightness` and
+  `Bildschirm`/`Bildschirmhelligkeit`.
 - MQTT uses a hard `listen_only` guard; automatic get-all/stream activation and
   every other publish path are suppressed.
 - The new `Kontinuierlich laden` binary sensor was verified live in both
   directions: `switchBits=0` produced `off`, `switchBits=16` produced `on`, and
   `solarCurrentMin=60` remained stored throughout the test.
 - The parser has been exercised against live C376 frames. The current local
-  suite passes 31 tests, including XOR envelope decoding, packed phase values,
+  suite passes 35 tests, including XOR envelope decoding, packed phase values,
   command-specific `2/33` vs `2/34` routing, settings fields, matching an
   embedded PowerPulse report to its exact serial, privacy-safe `96/97` and
   `241/102` inspection, runtime-keyed opaque-field comparison, and
-  command-sequence correlation.
+  command-sequence correlation plus passive refresh gating/coalescing.
 - This is not proposed as production-ready code or as a ready-made patch for
   `ecoflow-energy-ha` yet. The useful output at this stage is the field and
   data-source evidence above.
@@ -262,9 +271,9 @@ bodies are not reconstructed or inferred here.
 
 1. Confirm session-energy field 42 across more non-zero sessions, including
    rounding and whether raw units are consistently Wh.
-2. For the next development release, show the existing maximum-output-current
-   entity with zero decimal places by default and add a normal Ampere entity for
-   `solarCurrentMin` (`raw / 10`). Keep its raw diagnostic entity separately.
+2. Validate dev14 live: verify the translated names and new Ampere sensor, then
+   repeat `6 A -> 7 A -> 6 A` and compare reply, triggered refresh and entity
+   timestamps against the previous 31-36-second delay.
 3. Pair additional app changes with provider/MQTT snapshots to separate
    `userCurrentSet`, heartbeat fields 17/18, the remaining `switchBits`, and
    `phaseSpecified` cleanly.

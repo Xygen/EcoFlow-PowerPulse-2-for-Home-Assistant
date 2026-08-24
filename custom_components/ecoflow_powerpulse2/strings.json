@@ -24,7 +24,7 @@
       "continuous_charging": {"name": "Continuous charging"},
       "plug_and_play": {"name": "Plug and play"},
       "battery_discharge_disabled": {"name": "Battery discharge disabled"},
-      "screen_enabled": {"name": "Display screen"},
+      "screen_enabled": {"name": "Screen"},
       "indicator_enabled": {"name": "LED indicator"}
     },
     "sensor": {
@@ -66,6 +66,7 @@
       "output_current_max_raw": {"name": "Maximum output current raw"},
       "user_current_set_raw": {"name": "User current setting raw"},
       "solar_current_min_raw": {"name": "Solar minimum current raw"},
+      "solar_minimum_current": {"name": "Solar minimum charging current"},
       "switch_bits_raw": {"name": "Setting flags raw"},
       "phase_specified_raw": {"name": "Selected phase raw"},
       "phase_mode": {

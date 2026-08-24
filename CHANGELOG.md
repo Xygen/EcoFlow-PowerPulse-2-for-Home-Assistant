@@ -2,17 +2,32 @@
 
 ## Unreleased
 
-- Presentation backlog for the next development release: display the existing
-  maximum-output-current entity with zero decimal places by default. Its source
-  remains the tenths-of-an-ampere value `current_limit_raw`.
-- Add a normal Ampere sensor for the Solar-mode minimum charging current used by
-  `Continuous charging`, converting `solarCurrentMin` from tenths of an ampere.
-  Retain the disabled-by-default raw diagnostic entity separately.
 - Release requirement: create and bundle a dedicated PowerPulse 2 integration
   icon no later than the first non-development release.
 - Protocol hypothesis for a future release: `session_energy_raw` may be watt-hours.
   A live value of `1815` corresponded to `1.82 kWh` in the EcoFlow app. Keep the
   raw entity unchanged until additional sessions confirm the unit and rounding.
+
+## 0.1.0-dev14
+
+- Rename the German screen switch from `Anzeigebildschirm` to `Bildschirm` and
+  the English equivalent from `Display screen` to `Screen`, grouping each with
+  its brightness entity without changing the existing unique ID.
+- Display the existing maximum-output-current entity with zero decimal places
+  by default.
+- Add a normal `Solar minimum charging current` Ampere sensor backed by
+  `solarCurrentMin / 10`, while retaining the disabled-by-default raw diagnostic
+  entity separately.
+- After an official-app `241/102` request and same-source/same-sequence reply
+  have both been observed, schedule one delayed provider read. Rapid changes
+  are coalesced and a change received during an active HTTP read permits only
+  one further delayed read.
+- Keep the regular 30-second provider poll as fallback and every MQTT publish
+  route blocked by the existing hard `listen_only` guard.
+- Increase the diagnostic capture schema to 7 and expose only identifier-free
+  refresh counters/timestamps so the live entity-update delay can be measured.
+- Extend the local suite to 35 passing tests, including unmatched, duplicate,
+  wrong-source and unrelated-command reply cases plus refresh coalescing.
 
 ## 0.1.0-dev13
 

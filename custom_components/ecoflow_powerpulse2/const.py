@@ -25,12 +25,14 @@ DOMAIN = "ecoflow_powerpulse2"
 CONF_EMAIL = "email"
 CONF_PASSWORD = "password"
 UPDATE_INTERVAL_SECONDS = 30
+SETTINGS_REFRESH_DELAY_SECONDS = 2
 
 @dataclass(frozen=True, kw_only=True)
 class PowerPulse2SensorDescription(SensorEntityDescription):
     """PowerPulse sensor metadata."""
 
     diagnostic: bool = False
+    source_key: str | None = None
     value_fn: Callable[[Any], Any] | None = None
 
 
@@ -126,7 +128,7 @@ SENSORS = (
         translation_key="maximum_output_current",
         native_unit_of_measurement=UnitOfElectricCurrent.AMPERE,
         device_class=SensorDeviceClass.CURRENT,
-        suggested_display_precision=1,
+        suggested_display_precision=0,
         value_fn=tenths_to_float,
     ),
     PowerPulse2SensorDescription(
@@ -152,6 +154,15 @@ SENSORS = (
         translation_key="solar_current_min_raw",
         diagnostic=True,
         entity_registry_enabled_default=False,
+    ),
+    PowerPulse2SensorDescription(
+        key="solar_minimum_current_a",
+        source_key="solar_current_min_raw",
+        translation_key="solar_minimum_current",
+        native_unit_of_measurement=UnitOfElectricCurrent.AMPERE,
+        device_class=SensorDeviceClass.CURRENT,
+        suggested_display_precision=0,
+        value_fn=tenths_to_float,
     ),
     PowerPulse2SensorDescription(
         key="switch_bits_raw",

@@ -12,7 +12,13 @@ from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
 from .api import PowerPulse2ApiClient
-from .const import CONF_EMAIL, CONF_PASSWORD, DOMAIN, UPDATE_INTERVAL_SECONDS
+from .const import (
+    CONF_EMAIL,
+    CONF_PASSWORD,
+    DOMAIN,
+    SETTINGS_REFRESH_DELAY_SECONDS,
+    UPDATE_INTERVAL_SECONDS,
+)
 from .data_merge import merge_snapshot_after_read
 from .ecoflow.cloud_mqtt import EcoFlowMQTTClient
 from .frame_capture import (
@@ -24,6 +30,7 @@ from .frame_capture import (
     inspect_powerpulse_accessory_reports,
 )
 from .parser import parse_powerpulse2_payload
+from .passive_refresh import ConfirmedSettingsReplyGate, DelayedRefreshCoalescer
 
 _LOGGER = logging.getLogger(__name__)
 _MAX_FRAME_BYTES = 2048
@@ -50,6 +57,16 @@ class PowerPulse2Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
         self.observer_snapshot_keys: dict[str, list[str]] = {}
         self.mqtt_clients: dict[str, EcoFlowMQTTClient] = {}
         self._frame_capture = DiagnosticFrameCapture()
+        self._settings_reply_gate = ConfirmedSettingsReplyGate()
+        self._settings_refresh = DelayedRefreshCoalescer(
+            self._async_refresh_after_settings_reply,
+            delay_seconds=SETTINGS_REFRESH_DELAY_SECONDS,
+        )
+        self._settings_reply_count = 0
+        self._settings_refresh_count = 0
+        self._last_settings_reply_at: str | None = None
+        self._last_settings_refresh_at: str | None = None
+        self._shutting_down = False
         self._initialized = False
 
     @property
@@ -71,6 +88,19 @@ class PowerPulse2Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
     def mqtt_command_correlations(self) -> list[dict[str, Any]]:
         """Return passive command requests and replies grouped by sequence."""
         return self._frame_capture.command_correlations
+
+    @property
+    def passive_settings_refresh(self) -> dict[str, Any]:
+        """Return identifier-free diagnostics for app-triggered provider reads."""
+        return {
+            "delay_seconds": SETTINGS_REFRESH_DELAY_SECONDS,
+            "confirmed_reply_count": self._settings_reply_count,
+            "completed_refresh_count": self._settings_refresh_count,
+            "active": self._settings_refresh.active,
+            "pending": self._settings_refresh.pending,
+            "last_confirmed_reply_at": self._last_settings_reply_at,
+            "last_completed_refresh_at": self._last_settings_refresh_at,
+        }
 
     async def _async_update_data(self) -> dict[str, dict[str, Any]]:
         try:
@@ -234,6 +264,20 @@ class PowerPulse2Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
             "payload_omitted": is_observer,
         }
         self._frame_capture.record(frame)
+        if not self._shutting_down and self._settings_reply_gate.observe(frame):
+            self._settings_reply_count += 1
+            self._last_settings_reply_at = frame["timestamp"]
+            self._settings_refresh.request()
+
+    async def _async_refresh_after_settings_reply(self) -> None:
+        """Refresh provider state after a confirmed official-app settings reply."""
+        try:
+            await self.async_request_refresh()
+        except Exception as exc:
+            _LOGGER.debug("Provider refresh after settings reply failed: %s", exc)
+            return
+        self._settings_refresh_count += 1
+        self._last_settings_refresh_at = datetime.now(UTC).isoformat()
 
     @property
     def _mqtt_sources(self) -> dict[str, dict[str, str]]:
@@ -249,6 +293,8 @@ class PowerPulse2Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
         return redacted
 
     async def async_shutdown(self) -> None:
+        self._shutting_down = True
+        await self._settings_refresh.async_close()
         for client in self.mqtt_clients.values():
             await self.hass.async_add_executor_job(client.disconnect)
         self.mqtt_clients.clear()

@@ -19,7 +19,7 @@
       "continuous_charging": {"name": "Kontinuierlich laden"},
       "plug_and_play": {"name": "Plug-and-Play"},
       "battery_discharge_disabled": {"name": "Batterieentladung deaktiviert"},
-      "screen_enabled": {"name": "Anzeigebildschirm"},
+      "screen_enabled": {"name": "Bildschirm"},
       "indicator_enabled": {"name": "LED-Anzeige"}
     },
     "sensor": {
@@ -61,6 +61,7 @@
       "output_current_max_raw": {"name": "Maximaler Ausgangsstrom Rohwert"},
       "user_current_set_raw": {"name": "Benutzer-Ladestrom Rohwert"},
       "solar_current_min_raw": {"name": "Solar-Mindeststrom Rohwert"},
+      "solar_minimum_current": {"name": "Solar-Mindestladestrom"},
       "switch_bits_raw": {"name": "Einstellungsflags Rohwert"},
       "phase_specified_raw": {"name": "Ausgewählte Phase Rohwert"},
       "phase_mode": {

@@ -19,7 +19,7 @@ diagnostics.
 
 ## Current scope
 
-Version `0.1.0-dev13` is deliberately read-only:
+Version `0.1.0-dev14` is deliberately read-only:
 
 - EcoFlow app-account login and PowerPulse discovery
 - listen-only cloud MQTT connection (WSS)
@@ -28,6 +28,9 @@ Version `0.1.0-dev13` is deliberately read-only:
   provider snapshot when EcoFlow reports them
 - continuous-charging state in Solar mode, decoded from the live-confirmed
   provider flag while keeping the separately stored minimum current unchanged
+- Solar minimum charging current as a normal Ampere sensor, converted from the
+  live-confirmed tenths-of-an-ampere provider value; its raw diagnostic sensor
+  remains available separately
 - maximum output current, Plug-and-Play, phase selection, battery-discharge
   blocking, screen/LED state, and both brightness settings from the live-
   confirmed CP307 settings report
@@ -48,6 +51,9 @@ Version `0.1.0-dev13` is deliberately read-only:
 - read-only provider-detail lookup on the linked PowerOcean, matched back to
   the embedded PowerPulse serial without retaining the raw provider response
 - a coordinator watchdog that retries interrupted MQTT connections
+- a delayed, coalesced provider refresh after a `241/102` settings reply has
+  been matched to its previously observed official-app request; this only reads
+  fresh state and does not publish MQTT traffic
 
 The MQTT transport contains a hard `listen_only` guard. It suppresses every
 publish path, including automatic get-all or stream requests. This lets us
