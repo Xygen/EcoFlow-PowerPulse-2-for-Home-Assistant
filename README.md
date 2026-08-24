@@ -1,8 +1,21 @@
 # EcoFlow PowerPulse 2 for Home Assistant
 
 Development-stage custom integration for EcoFlow PowerPulse 2 EV chargers.
-It follows the standalone integration structure of
+It follows the independent Home Assistant integration structure of
 [EcoFlow PowerGlow for Home Assistant](https://github.com/Xygen/EcoFlow-PowerGlow-for-Home-Assistant).
+
+## Supported installation
+
+EcoFlow PowerPulse wallboxes can in principle be operated without a
+PowerOcean inverter. This applies both to the first-generation product named
+**PowerPulse** (without a version number) and to **PowerPulse 2**.
+
+This project deliberately supports and researches only **PowerPulse 2 used
+with a linked PowerOcean inverter/system**. First-generation PowerPulse devices
+and standalone PowerPulse 2 installations are out of scope and must not be
+assumed to work with this integration. The linked PowerOcean is currently an
+essential source for the richer provider snapshot and passive protocol
+diagnostics.
 
 ## Current scope
 

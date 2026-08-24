@@ -7,6 +7,17 @@
 > from privacy-redacted captures from one live C376 charger installed alongside
 > a PowerOcean Plus, plus paired changes made in the official EcoFlow app.
 
+## Scope boundary
+
+Both the first-generation wallbox named **PowerPulse** (without a version
+number) and **PowerPulse 2** can theoretically operate standalone without a
+PowerOcean inverter. This research and its test integration intentionally cover
+only **PowerPulse 2 installed with a linked PowerOcean inverter/system**.
+First-generation PowerPulse devices and standalone PowerPulse 2 installations
+are not being tested or claimed as supported. The PowerOcean dependency in the
+implementation is therefore a deliberate project-scope choice, not a general
+hardware requirement of the wallbox.
+
 The original “prefix only, no data” situation has moved forward. We can now
 read useful C376 state from two complementary sources:
 

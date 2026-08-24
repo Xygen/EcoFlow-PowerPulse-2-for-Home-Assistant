@@ -4,6 +4,16 @@ These observations come from privacy-redacted cloud MQTT diagnostics captured
 from a live C376 charger. They document evidence only; they are not permission
 to transmit inferred commands.
 
+## Scope boundary
+
+EcoFlow's first-generation **PowerPulse** wallbox (named without a version
+number) and **PowerPulse 2** can theoretically be used without a PowerOcean
+inverter. These observations intentionally cover only **PowerPulse 2 paired
+with a PowerOcean inverter/system**. They do not establish protocol mappings or
+integration support for the first-generation PowerPulse or for a standalone
+PowerPulse 2 installation. References to the linked PowerOcean below describe
+the selected installation scope, not a universal wallbox requirement.
+
 ## 2026-08-23: Solar-mode start and stop
 
 Conditions:
