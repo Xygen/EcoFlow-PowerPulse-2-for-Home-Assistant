@@ -413,3 +413,11 @@ preserves unrelated flags and mode-specific companion fields, and requires
 both acknowledgement and direct device readback. Charging-time availability
 remains intentionally unresolved until a vehicle is available for interlock
 tests.
+
+The installed dev20 candidate also confirmed Fast, Custom, Custom 7 -> 6 A,
+Solar, and Plug-and-Play on -> off from HA with device readback. Smart mode was
+safely refused immediately after restart because the Solar-mode provider
+snapshot omitted the stored distance type/value. Entering Smart once in the app
+restored the direct 200 km block. The follow-up implementation keeps both Smart
+value controls writable in Smart mode so either can atomically establish its
+target type; type-only switching remains gated until both values are known.

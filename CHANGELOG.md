@@ -27,6 +27,10 @@
   controls remain disabled by default until charging-state interlocks can be
   tested with a connected vehicle.
 - Extend the local suite to 48 passing tests.
+- Keep both Smart target-value controls writable while Smart mode is active so
+  the inactive target can be initialised atomically with its target type after
+  a restart. Enable the separate type-only selector only when both stored target
+  values are known, avoiding a guessed fallback.
 
 ## 0.1.0-dev19
 

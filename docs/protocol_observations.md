@@ -636,3 +636,13 @@ dev20 implements these as disabled-by-default, user-triggered controls. Smart
 mode is never built from guessed defaults: the coordinator remembers the last
 device-reported ready-by and target block and refuses the write if required
 values are absent. All writes keep the existing reply and direct-readback gate.
+
+The first installed dev20 test exposed a safe bootstrap edge case. After a
+restart in Solar mode with a stored distance target, the provider supplied the
+ready-by timestamp and a zero energy target but not the target type or distance.
+The integration correctly refused to invent the missing Smart block. Once the
+app entered Smart mode, direct readback supplied distance 200 km and calculated
+energy, but no historical non-zero energy target. Both target-value controls
+therefore remain writable in Smart mode and atomically select their own type;
+the type-only selector is available only after both reusable target values have
+been observed.

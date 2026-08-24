@@ -517,6 +517,18 @@ class PowerPulse2Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
         remembered = self._last_smart_settings.setdefault(serial, {})
         remembered.update({key: values[key] for key in keys if key in values})
 
+    def remembered_smart_setting(self, serial: str, key: str) -> Any:
+        """Return a last device-reported Smart value for mode-transition controls."""
+        return self._last_smart_settings.get(serial, {}).get(key)
+
+    def smart_target_type_control_available(self, serial: str) -> bool:
+        """Require a reusable value for both target types before switching alone."""
+        smart = self._last_smart_settings.get(serial, {})
+        return all(
+            isinstance(smart.get(key), int) and smart[key] > 0
+            for key in ("smart_charge_target_wh", "smart_target_distance_km")
+        )
+
     def _smart_settings_payload(
         self, serial: str, values: dict[str, Any] | None = None
     ) -> bytes:

@@ -92,15 +92,9 @@ class PowerPulse2CurrentNumber(PowerPulse2Entity, NumberEntity):
         if self.entity_description.key == "custom_current_control":
             return values.get("work_mode") == "custom"
         if self.entity_description.key == "smart_energy_target_control":
-            return (
-                values.get("work_mode") == "smart"
-                and values.get("smart_target_type") == "energy"
-            )
+            return values.get("work_mode") == "smart"
         if self.entity_description.key == "smart_distance_target_control":
-            return (
-                values.get("work_mode") == "smart"
-                and values.get("smart_target_type") == "distance"
-            )
+            return values.get("work_mode") == "smart"
         return "output_current_max_raw" in values
 
     @property
@@ -113,6 +107,8 @@ class PowerPulse2CurrentNumber(PowerPulse2Entity, NumberEntity):
             "smart_distance_target_control": "smart_target_distance_km",
         }[self.entity_description.key]
         value = self.coordinator.data.get(self.serial, {}).get(key)
+        if value is None and self.entity_description.key.startswith("smart_"):
+            value = self.coordinator.remembered_smart_setting(self.serial, key)
         if not isinstance(value, (int, float)):
             return None
         if self.entity_description.key == "smart_energy_target_control":
