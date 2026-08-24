@@ -32,6 +32,11 @@ _PHASE_MODE_MAP = {
     3: "auto",
 }
 
+# Live paired Solar-mode tests confirmed that provider switchBits changes
+# between 0 (disabled) and 16 (enabled) while the stored 6 A minimum remains
+# unchanged. Other bits may describe unrelated settings, so isolate bit 4.
+_CONTINUOUS_CHARGING_MASK = 0x10
+
 _JSON_FIELD_MAP = {
     "chargePower": "charging_power_w",
     "chargingPower": "charging_power_w",
@@ -406,3 +411,12 @@ def _finish(result: dict[str, Any]) -> None:
     work_mode = result.pop("work_mode_raw", None)
     if isinstance(work_mode, (int, float)):
         result["work_mode"] = _WORK_MODE_MAP.get(int(work_mode), "unknown")
+    switch_bits = result.get("switch_bits_raw")
+    if (
+        isinstance(switch_bits, (int, float))
+        and math.isfinite(float(switch_bits))
+        and float(switch_bits).is_integer()
+    ):
+        result["continuous_charging"] = bool(
+            int(switch_bits) & _CONTINUOUS_CHARGING_MASK
+        )

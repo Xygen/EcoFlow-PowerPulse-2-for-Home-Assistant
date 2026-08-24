@@ -8,6 +8,14 @@
   A live value of `1815` corresponded to `1.82 kWh` in the EcoFlow app. Keep the
   raw entity unchanged until additional sessions confirm the unit and rounding.
 
+## 0.1.0-dev10
+
+- Add a read-only `Kontinuierlich laden` binary sensor for Solar mode.
+- Decode the live-confirmed `switchBits` mask `0x10`: enabled reported `16`
+  and disabled reported `0` while the separately stored 6 A minimum remained
+  unchanged.
+- Keep the setting passive; this release does not add a write command.
+
 ## 0.1.0-dev9
 
 - Read the provider detail from the linked PowerOcean instead of relying only

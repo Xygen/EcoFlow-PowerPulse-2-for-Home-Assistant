@@ -16,6 +16,7 @@
   "entity": {
     "binary_sensor": {
       "charging": {"name": "Ladevorgang"},
+      "continuous_charging": {"name": "Kontinuierlich laden"},
       "plug_and_play": {"name": "Plug-and-Play"},
       "battery_discharge_disabled": {"name": "Batterieentladung deaktiviert"},
       "screen_enabled": {"name": "Anzeigebildschirm"},

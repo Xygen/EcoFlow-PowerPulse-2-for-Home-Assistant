@@ -16,6 +16,7 @@
   "entity": {
     "binary_sensor": {
       "charging": {"name": "Charging"},
+      "continuous_charging": {"name": "Continuous charging"},
       "plug_and_play": {"name": "Plug and play"},
       "battery_discharge_disabled": {"name": "Battery discharge disabled"},
       "screen_enabled": {"name": "Display screen"},

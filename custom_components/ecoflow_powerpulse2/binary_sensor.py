@@ -16,6 +16,10 @@ from .entity import PowerPulse2Entity
 
 SETTING_BINARY_SENSORS = (
     BinarySensorEntityDescription(
+        key="continuous_charging",
+        translation_key="continuous_charging",
+    ),
+    BinarySensorEntityDescription(
         key="plug_and_play",
         translation_key="plug_and_play",
     ),

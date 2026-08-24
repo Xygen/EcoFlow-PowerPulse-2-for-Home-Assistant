@@ -6,13 +6,15 @@ It follows the standalone integration structure of
 
 ## Current scope
 
-Version `0.1.0-dev9` is deliberately read-only:
+Version `0.1.0-dev10` is deliberately read-only:
 
 - EcoFlow app-account login and PowerPulse discovery
 - listen-only cloud MQTT connection (WSS)
 - charging state and charging power from known CP307 heartbeat fields
 - operating mode, Smart ready-by time, and Smart energy target from the
   provider snapshot when EcoFlow reports them
+- continuous-charging state in Solar mode, decoded from the live-confirmed
+  provider flag while keeping the separately stored minimum current unchanged
 - maximum output current, Plug-and-Play, phase selection, battery-discharge
   blocking, screen/LED state, and both brightness settings from the live-
   confirmed CP307 settings report
