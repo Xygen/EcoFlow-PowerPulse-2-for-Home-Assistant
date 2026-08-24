@@ -173,11 +173,26 @@ changed byte fields during one HA runtime without revealing their contents.
 The existing `96/97` path keeps its stricter 16-byte limit. No MQTT publish path
 is added.
 
+The completed live dev12 `6 A -> 7 A -> 6 A` comparison produced:
+
+- sequence 88 for 7 A, with a 31-byte request, a same-sequence 23-byte reply
+  after approximately 139 ms, and provider `solarCurrentMin=70`;
+- sequence 96 for the restored 6 A, with the same sizes, a reply after
+  approximately 83 ms, and provider `solarCurrentMin=60`;
+- different runtime fingerprints for both target requests and both replies;
+- `opaque_non_protobuf` for all four decoded bodies, so no safe protobuf field
+  tree exists to compare.
+
+Solar Mode, Continuous charging, and `switchBits=16` remained unchanged. This
+confirms a reproducible acknowledged binary route, but it does not reveal a
+write payload or the changed byte position.
+
 ## Current state of the test implementation
 
-- The current development build is `0.1.0-dev12` and remains read-only. It is
-  prepared for a second controlled 6 A to 7 A to 6 A test that compares safe
-  `241/102` request and reply structures.
+- The current development build is `0.1.0-dev12` and remains read-only. Its
+  second controlled 6 A to 7 A to 6 A test is complete: `241/102` is
+  reproducibly acknowledged, but its body is proprietary binary rather than
+  valid protobuf.
 - MQTT uses a hard `listen_only` guard; automatic get-all/stream activation and
   every other publish path are suppressed.
 - The new `Kontinuierlich laden` binary sensor was verified live in both
@@ -212,10 +227,11 @@ is added.
    acknowledgement first. No PowerPulse-attributable SET or SET-reply frame was
    observed during the paired Start/Stop, mode, target, or current changes. The
    controlled current test identifies acknowledged `241/102` traffic in both
-   directions. Dev12 can compare its privacy-safe structure, but changed fields,
-   target attribution, and acknowledgement semantics still must be confirmed
-   before considering a write. Start/Stop or other settings may still use
-   different commands, the provider HTTP API, or another transport.
+   directions. Dev12 confirms that its body is not protobuf. A later diagnostic
+   must locate changing byte positions without exposing their values, and target
+   attribution plus acknowledgement semantics still must be confirmed before
+   considering a write. Start/Stop or other settings may still use different
+   commands, the provider HTTP API, or another transport.
 
 For now I would suggest treating all of this as read-support research only,
 with Start/Stop and current-setting controls explicitly out of scope until the

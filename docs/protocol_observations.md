@@ -288,11 +288,27 @@ Implementation note for `0.1.0-dev12`:
 - Diagnostic capture schema 5 adds no MQTT publish route and remains hard
   `listen_only`.
 
-The purpose of dev12 is a second controlled `6 A -> 7 A -> 6 A` comparison.
-The safe request/reply field trees and per-field runtime fingerprints should
-show which path changes with `solarCurrentMin`, while the provider snapshot
-independently confirms `60 -> 70 -> 60`. Even a matching field is evidence for
-further protocol research, not yet a reusable write template.
+Controlled dev12 result (`6 A -> 7 A -> 6 A`):
+
+- 6 A to 7 A used sequence 88. The 31-byte request received a same-sequence
+  23-byte reply after approximately 139 ms; the provider then changed
+  `solarCurrentMin` from `60` to `70`.
+- 7 A to 6 A used sequence 96. The same request/reply sizes were observed and
+  the reply followed after approximately 83 ms; the provider later returned
+  from `70` to `60`.
+- Solar Mode, Continuous charging, and `switchBits=16` remained unchanged.
+- Both request bodies and both reply bodies were classified
+  `opaque_non_protobuf`. Their runtime fingerprints differed between the two
+  target values, confirming a body change without exposing its contents.
+
+Conclusion after dev12:
+
+- The acknowledged route and bidirectional provider effect are reproducible.
+- The body is proprietary binary rather than the assumed nested protobuf, so
+  no field path or value can be assigned from this release.
+- A next diagnostic may compare runtime-keyed fingerprints by byte position or
+  small fixed chunk. It must still omit raw values and remain listen-only.
+- Neither dev12 body is a reusable write template.
 
 ## 2026-08-24: Session-energy scaling hypothesis
 

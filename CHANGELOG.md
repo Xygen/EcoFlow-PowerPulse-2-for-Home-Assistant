@@ -23,6 +23,11 @@
   MQTT remains hard `listen_only`.
 - Extend the parser/capture suite to 30 passing tests, including the `241/102`
   size bound, nested privacy rules, and cleartext/hex leak checks.
+- Confirm in a live `6 A -> 7 A -> 6 A` test that both `241/102` requests
+  received same-sequence replies and the provider returned `60 -> 70 -> 60`.
+  The 31-byte requests and 23-byte replies are not valid protobuf. Their
+  runtime fingerprints changed in both directions, but dev12 intentionally
+  exposes no byte positions or command contents.
 
 ## 0.1.0-dev11
 
