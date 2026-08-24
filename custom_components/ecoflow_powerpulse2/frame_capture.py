@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections import OrderedDict
+from struct import unpack
 from typing import Any
 
 from .ecoflow.proto_encoding import iter_protobuf_fields
@@ -65,6 +66,85 @@ def inspect_envelope_headers(payload: bytes) -> list[dict[str, int]]:
     except ValueError:
         return []
     return headers
+
+
+def inspect_powerpulse_accessory_reports(payload: bytes) -> list[dict[str, Any]]:
+    """Return privacy-safe numeric fields from PowerOcean cmd_func 209.
+
+    String and byte fields can contain serial or vehicle identifiers. They are
+    represented only by their byte length; the PowerPulse serial contributes
+    its four-character product prefix solely for matching diagnostics.
+    """
+    reports: list[dict[str, Any]] = []
+    try:
+        for field, wire, header_bytes in iter_protobuf_fields(payload):
+            if field != 1 or wire != 2 or not isinstance(header_bytes, bytes):
+                continue
+            header_fields = list(iter_protobuf_fields(header_bytes))
+            varints = {
+                inner_field: inner_value
+                for inner_field, inner_wire, inner_value in header_fields
+                if inner_wire == 0 and isinstance(inner_value, int)
+            }
+            if varints.get(8) != 209:
+                continue
+            pdata_values = [
+                inner_value
+                for inner_field, inner_wire, inner_value in header_fields
+                if inner_field == 1
+                and inner_wire == 2
+                and isinstance(inner_value, bytes)
+            ]
+            for pdata in pdata_values:
+                if varints.get(11) == 1 and isinstance(varints.get(14), int):
+                    key = varints[14] & 0xFF
+                    pdata = bytes(byte ^ key for byte in pdata)
+                report = _summarize_accessory_report(pdata)
+                if report:
+                    report["cmd_id"] = varints.get(9)
+                    reports.append(report)
+    except ValueError:
+        return []
+    return reports
+
+
+def _summarize_accessory_report(payload: bytes) -> dict[str, Any]:
+    """Summarize an EVChargingParamReport without retaining identifiers."""
+    numeric_fields: dict[str, int | float] = {}
+    byte_field_sizes: dict[str, int] = {}
+    target_prefix = ""
+    try:
+        for field, wire, value in iter_protobuf_fields(payload):
+            key = str(field)
+            if wire == 0 and isinstance(value, int):
+                numeric_fields[key] = value
+            elif wire == 5 and isinstance(value, bytes):
+                if field in (8, 9):
+                    numeric_fields[key] = round(unpack("<f", value)[0], 4)
+                elif field in (15, 16):
+                    numeric_fields[key] = unpack("<I", value)[0]
+                else:
+                    byte_field_sizes[key] = len(value)
+            elif wire in (1, 2) and isinstance(value, bytes):
+                byte_field_sizes[key] = len(value)
+                if field == 1:
+                    try:
+                        target_prefix = value.decode("ascii")[:4]
+                    except UnicodeDecodeError:
+                        target_prefix = ""
+    except ValueError:
+        return {}
+
+    result: dict[str, Any] = {
+        "target_prefix": target_prefix,
+        "numeric_fields": numeric_fields,
+        "byte_field_sizes": byte_field_sizes,
+    }
+    if "10" in numeric_fields:
+        result["work_mode_raw"] = numeric_fields["10"]
+    if "18" in numeric_fields:
+        result["switch_bits_raw"] = numeric_fields["18"]
+    return result
 
 
 class DiagnosticFrameCapture:

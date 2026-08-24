@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from struct import pack
+
 from custom_components.ecoflow_powerpulse2.ecoflow.proto_encoding import (
     encode_field_bytes,
     encode_field_varint,
@@ -9,6 +11,7 @@ from custom_components.ecoflow_powerpulse2.frame_capture import (
     channel_carries_telemetry,
     classify_mqtt_topic,
     inspect_envelope_headers,
+    inspect_powerpulse_accessory_reports,
 )
 
 
@@ -60,6 +63,50 @@ def test_envelope_metadata_exposes_command_tuple() -> None:
             "actual_payload_size": len(pdata),
         }
     ]
+
+
+def test_powerocean_accessory_report_is_numeric_and_privacy_safe() -> None:
+    report = b"".join(
+        (
+            encode_field_bytes(1, b"C376-serial-secret"),
+            encode_field_varint(5, 0),
+            encode_field_varint(6, 1),
+            bytes(((8 << 3) | 5,)) + pack("<f", 0.0),
+            bytes(((9 << 3) | 5,)) + pack("<f", 1815.0),
+            encode_field_varint(10, 2),
+            encode_field_varint(18, 9),
+            encode_field_bytes(14, b"vehicle-secret"),
+        )
+    )
+    header = b"".join(
+        (
+            encode_field_bytes(1, report),
+            encode_field_varint(8, 209),
+            encode_field_varint(9, 8),
+        )
+    )
+
+    result = inspect_powerpulse_accessory_reports(encode_field_bytes(1, header))
+
+    assert result == [
+        {
+            "target_prefix": "C376",
+            "numeric_fields": {
+                "5": 0,
+                "6": 1,
+                "8": 0.0,
+                "9": 1815.0,
+                "10": 2,
+                "18": 9,
+            },
+            "byte_field_sizes": {"1": 18, "14": 14},
+            "work_mode_raw": 2,
+            "switch_bits_raw": 9,
+            "cmd_id": 8,
+        }
+    ]
+    assert "serial-secret" not in repr(result)
+    assert "vehicle-secret" not in repr(result)
 
 
 def test_command_bucket_survives_frequent_telemetry() -> None:

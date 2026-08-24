@@ -7,7 +7,7 @@ from typing import Any
 
 import aiohttp
 
-from .const import POWERPULSE_PREFIXES
+from .discovery import classify_device_records
 from .ecoflow.const import IOT_API_BASE
 from .ecoflow.enhanced_auth import enhanced_login, get_enhanced_credentials
 from .parser import parse_powerpulse2_payload
@@ -27,10 +27,16 @@ class PowerPulse2ApiClient:
         self._token = ""
         self._user_id = ""
         self._base_url = IOT_API_BASE
+        self._mqtt_observers: dict[str, dict[str, str]] = {}
 
     @property
     def user_id(self) -> str:
         return self._user_id
+
+    @property
+    def mqtt_observers(self) -> dict[str, dict[str, str]]:
+        """Return PowerOcean sources found alongside the charger."""
+        return dict(self._mqtt_observers)
 
     async def async_login(self) -> None:
         result = await enhanced_login(self._session, self._email, self._password)
@@ -56,16 +62,7 @@ class PowerPulse2ApiClient:
             response.raise_for_status()
             data = (await response.json()).get("data", {})
 
-        found: dict[str, dict[str, str]] = {}
-        for item in _iter_device_records(data):
-            serial = str(item.get("sn") or "").upper()
-            if not serial.startswith(POWERPULSE_PREFIXES):
-                continue
-            found[serial] = {
-                "serial": serial,
-                "name": str(item.get("deviceName") or item.get("productName") or "EcoFlow PowerPulse 2"),
-                "product_type": str(item.get("productType") or item.get("product_type") or ""),
-            }
+        found, self._mqtt_observers = classify_device_records(data)
         return found
 
     async def async_read(self, device: dict[str, str]) -> dict[str, Any]:
@@ -92,21 +89,3 @@ class PowerPulse2ApiClient:
         if product_type:
             headers["product-type"] = product_type
         return headers
-
-
-def _iter_device_records(value: Any):
-    """Walk EcoFlow's regional bound/share response variants."""
-    if isinstance(value, dict):
-        if "sn" in value:
-            yield value
-        for key, nested in value.items():
-            if (
-                isinstance(key, str)
-                and key.upper().startswith(POWERPULSE_PREFIXES)
-                and isinstance(nested, dict)
-            ):
-                yield {"sn": key, **nested}
-            yield from _iter_device_records(nested)
-    elif isinstance(value, list):
-        for nested in value:
-            yield from _iter_device_records(nested)

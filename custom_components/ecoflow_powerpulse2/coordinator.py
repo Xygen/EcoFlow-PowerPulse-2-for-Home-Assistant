@@ -20,6 +20,7 @@ from .frame_capture import (
     channel_carries_telemetry,
     classify_mqtt_topic,
     inspect_envelope_headers,
+    inspect_powerpulse_accessory_reports,
 )
 from .parser import parse_powerpulse2_payload
 
@@ -44,6 +45,7 @@ class PowerPulse2Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
             entry.data[CONF_PASSWORD],
         )
         self.devices: dict[str, dict[str, str]] = {}
+        self.observer_devices: dict[str, dict[str, str]] = {}
         self.mqtt_clients: dict[str, EcoFlowMQTTClient] = {}
         self._frame_capture = DiagnosticFrameCapture()
         self._initialized = False
@@ -68,6 +70,7 @@ class PowerPulse2Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
             if not self._initialized:
                 await self.api.async_login()
                 self.devices = await self.api.async_discover()
+                self.observer_devices = self.api.mqtt_observers
                 if not self.devices:
                     raise UpdateFailed("No EcoFlow PowerPulse device found")
                 try:
@@ -93,14 +96,14 @@ class PowerPulse2Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
             raise UpdateFailed(f"EcoFlow PowerPulse 2 update failed: {exc}") from exc
 
     async def _async_setup_mqtt(self) -> None:
-        """Connect one hard listen-only WSS client per discovered charger."""
+        """Connect hard listen-only WSS clients for chargers and parent sources."""
         credentials = await self.api.async_get_mqtt_credentials()
         account = credentials.get("certificateAccount") or credentials.get("userName", "")
         password = credentials.get("certificatePassword") or credentials.get("password", "")
         if not account or not password:
             raise ConnectionError("Incomplete MQTT credentials")
 
-        for serial in self.devices:
+        for serial in self._mqtt_sources:
             if serial in self.mqtt_clients:
                 continue
             client = EcoFlowMQTTClient(
@@ -126,7 +129,7 @@ class PowerPulse2Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
 
     async def _async_maintain_mqtt(self) -> None:
         """Retry missing or disconnected listen-only MQTT clients."""
-        if any(serial not in self.mqtt_clients for serial in self.devices):
+        if any(serial not in self.mqtt_clients for serial in self._mqtt_sources):
             try:
                 await self._async_setup_mqtt()
             except Exception as exc:
@@ -153,7 +156,7 @@ class PowerPulse2Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
         client = self.mqtt_clients.get(serial)
         parsed = (
             parse_powerpulse2_payload(payload)
-            if channel_carries_telemetry(channel)
+            if serial in self.devices and channel_carries_telemetry(channel)
             else {}
         )
         if parsed:
@@ -163,9 +166,14 @@ class PowerPulse2Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
             updated[serial] = values
             self.async_set_updated_data(updated)
 
+        is_observer = serial in self.observer_devices
+        accessory_reports = (
+            inspect_powerpulse_accessory_reports(payload) if is_observer else []
+        )
         frame = {
             "timestamp": datetime.now(UTC).isoformat(),
             "device_prefix": serial[:4],
+            "source_role": "powerocean_observer" if is_observer else "powerpulse",
             "channel": channel,
             "topic_pattern": (
                 client.diagnostic_topic(topic) if client is not None else "unknown"
@@ -173,14 +181,26 @@ class PowerPulse2Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
             "size": len(payload),
             "parsed_keys": sorted(parsed),
             "protocol_headers": inspect_envelope_headers(payload),
+            "powerpulse_accessory_reports": accessory_reports,
             "truncated": len(payload) > _MAX_FRAME_BYTES,
-            "redacted_hex": self._redact(payload[:_MAX_FRAME_BYTES]).hex(),
+            # A PowerOcean frame can bundle accessory, battery and vehicle
+            # identifiers unknown to this integration. Keep only the safe
+            # numeric summary above rather than exporting the parent payload.
+            "redacted_hex": (
+                "" if is_observer else self._redact(payload[:_MAX_FRAME_BYTES]).hex()
+            ),
+            "payload_omitted": is_observer,
         }
         self._frame_capture.record(frame)
 
+    @property
+    def _mqtt_sources(self) -> dict[str, dict[str, str]]:
+        """Return all device serials whose topics are observed passively."""
+        return {**self.devices, **self.observer_devices}
+
     def _redact(self, payload: bytes) -> bytes:
         redacted = payload
-        for secret in (*self.devices, self.api.user_id):
+        for secret in (*self._mqtt_sources, self.api.user_id):
             encoded = secret.encode("ascii", errors="ignore")
             if encoded:
                 redacted = redacted.replace(encoded, b"X" * len(encoded))

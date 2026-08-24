@@ -42,8 +42,29 @@ async def async_get_config_entry_diagnostics(
             }
             for serial, device in coordinator.devices.items()
         ],
+        "powerocean_observers": [
+            {
+                "serial_prefix": serial[:4],
+                "product_type": device.get("product_type", ""),
+                "mqtt_connected": bool(
+                    coordinator.mqtt_clients.get(serial)
+                    and coordinator.mqtt_clients[serial].is_connected()
+                ),
+                "mqtt_reconnect_attempts": (
+                    coordinator.mqtt_clients[serial].reconnect_attempts
+                    if serial in coordinator.mqtt_clients
+                    else 0
+                ),
+                "mqtt_subscriptions": (
+                    coordinator.mqtt_clients[serial].subscription_results
+                    if serial in coordinator.mqtt_clients
+                    else {}
+                ),
+            }
+            for serial, device in coordinator.observer_devices.items()
+        ],
         "mqtt_mode": "listen_only",
-        "mqtt_capture_schema": 2,
+        "mqtt_capture_schema": 3,
         "mqtt_frames": list(coordinator.mqtt_frames),
         "mqtt_command_frames": list(coordinator.mqtt_command_frames),
         "mqtt_frame_buckets": coordinator.mqtt_frame_buckets,

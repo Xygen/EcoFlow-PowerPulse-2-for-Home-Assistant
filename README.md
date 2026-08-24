@@ -6,7 +6,7 @@ It follows the standalone integration structure of
 
 ## Current scope
 
-Version `0.1.0-dev7` is deliberately read-only:
+Version `0.1.0-dev8` is deliberately read-only:
 
 - EcoFlow app-account login and PowerPulse discovery
 - listen-only cloud MQTT connection (WSS)
@@ -21,6 +21,9 @@ Version `0.1.0-dev7` is deliberately read-only:
 - redacted MQTT frame capture grouped by channel and `(cmd_func, cmd_id)`
 - passive observation of app-auth and device-facing SET candidate topics
 - identifier-free MQTT subscription result codes in diagnostics
+- passive discovery and observation of a linked PowerOcean MQTT source, with
+  parent payloads omitted and only privacy-safe numeric PowerPulse accessory
+  fields retained for protocol comparison
 - a coordinator watchdog that retries interrupted MQTT connections
 
 The MQTT transport contains a hard `listen_only` guard. It suppresses every
@@ -75,9 +78,11 @@ After the integration is connected, perform one action at a time:
 3. Change the charging limit once and download a third diagnostics file.
 4. Stop charging and download a final diagnostics file.
 
-Serial numbers and the EcoFlow user ID are replaced inside stored payloads.
-Review diagnostics before sharing them because reverse-engineered protocols may
-contain identifiers in fields not yet known to this project.
+Serial numbers and the EcoFlow user ID are replaced inside stored PowerPulse
+payloads. Raw PowerOcean payloads are never included in diagnostics; only
+numeric accessory fields and byte-field sizes are retained. Review diagnostics
+before sharing them because reverse-engineered protocols may still expose
+device-specific state.
 
 In diagnostics, `mqtt_command_frames` contains only observed SET traffic and
 SET replies. `mqtt_frame_buckets` preserves samples separately by channel and

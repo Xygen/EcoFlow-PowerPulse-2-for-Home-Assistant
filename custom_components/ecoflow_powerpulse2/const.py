@@ -26,22 +26,6 @@ CONF_EMAIL = "email"
 CONF_PASSWORD = "password"
 UPDATE_INTERVAL_SECONDS = 30
 
-# CP307 protocol devices observed by the EcoFlow BLE community. C37x covers
-# the European 7/11/22 kW PowerPulse 2 family; the C10x variants use the same
-# heartbeat and are retained so discovery remains useful across regions.
-POWERPULSE_PREFIXES = (
-    "C101",
-    "C102",
-    "C103",
-    "C371",
-    "C372",
-    "C373",
-    "C374",
-    "C375",
-    "C376",
-)
-
-
 @dataclass(frozen=True, kw_only=True)
 class PowerPulse2SensorDescription(SensorEntityDescription):
     """PowerPulse sensor metadata."""

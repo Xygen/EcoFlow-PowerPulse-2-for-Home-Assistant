@@ -8,6 +8,19 @@
   A live value of `1815` corresponded to `1.82 kWh` in the EcoFlow app. Keep the
   raw entity unchanged until additional sessions confirm the unit and rounding.
 
+## 0.1.0-dev8
+
+- Discover linked PowerOcean systems as passive MQTT sources without creating
+  PowerOcean devices or entities in Home Assistant.
+- Capture privacy-safe numeric fields from PowerOcean's PowerPulse accessory
+  report (`cmd_func 209`). Raw parent payloads, serials, and vehicle identifiers
+  are omitted from diagnostics.
+- Expose raw diagnostic values for the accessory report's operating mode and
+  switch bitmask so Solar/Fast/Custom/Smart and continuous-charging changes can
+  be compared against the official EcoFlow app before entity mappings are made.
+- Keep all MQTT clients hard listen-only; this release adds subscriptions only
+  and does not transmit stream activation, queries, or device commands.
+
 ## 0.1.0-dev7
 
 - Decode the XOR-protected CP307 `2/34` settings report after paired live tests.
