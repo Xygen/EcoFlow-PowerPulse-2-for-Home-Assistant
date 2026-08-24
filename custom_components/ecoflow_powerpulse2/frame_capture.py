@@ -212,6 +212,13 @@ def _summarize_command_field_list(
                 item["value_omitted"] = True
         elif isinstance(value, bytes):
             item["size"] = len(value)
+            # Top-level command field 4 is the already identified settings
+            # object. Very small non-protobuf display blocks contain numeric
+            # switches/brightness bytes, not descriptors or identifiers. Keep
+            # this narrow diagnostic view so controlled app diffs can identify
+            # their write layout without exporting any other opaque field.
+            if depth == 0 and field == 4 and len(value) <= 16:
+                item["small_settings_bytes"] = list(value)
             if recursive and fingerprint_key:
                 item["runtime_fingerprint"] = hmac.new(
                     fingerprint_key, value, sha256

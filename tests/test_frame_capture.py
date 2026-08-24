@@ -233,6 +233,7 @@ def test_241_102_need_ack_plaintext_exposes_bounded_settings_structure() -> None
                     "field": 4,
                     "wire_type": 2,
                     "size": len(settings),
+                    "small_settings_bytes": list(settings),
                     "nested_fields": [
                         {"field": 1, "wire_type": 0, "small_value": 16},
                         {"field": 2, "wire_type": 0, "small_value": 2},
@@ -247,6 +248,30 @@ def test_241_102_need_ack_plaintext_exposes_bounded_settings_structure() -> None
     ]
     assert "vehicle-secret" not in repr(result)
     assert secret.hex() not in repr(result)
+
+
+def test_241_102_exposes_only_tiny_top_level_settings_bytes() -> None:
+    secret = b"vehicle-secret"
+    display_settings = bytes((66, 7, 1, 1, 25, 25, 2, 0, 0))
+    pdata = encode_field_bytes(1, secret) + encode_field_bytes(4, display_settings)
+    header = b"".join(
+        (
+            encode_field_bytes(1, pdata),
+            encode_field_varint(8, 241),
+            encode_field_varint(9, 102),
+            encode_field_varint(14, 9),
+        )
+    )
+
+    result = inspect_observer_command_payloads(
+        encode_field_bytes(1, header), fingerprint_key=b"test-runtime-key"
+    )
+    fields = result[0]["fields"]
+
+    assert fields[0]["size"] == len(secret)
+    assert "small_settings_bytes" not in fields[0]
+    assert fields[1]["small_settings_bytes"] == list(display_settings)
+    assert "vehicle-secret" not in repr(result)
 
 
 def test_241_102_command_omits_body_over_pair_specific_limit() -> None:

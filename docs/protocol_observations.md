@@ -658,3 +658,18 @@ final HA mode write restored Solar. Together with the earlier installed tests,
 dev20 is now live-confirmed for Fast, Solar, Custom, Smart, Custom 6/7 A,
 Plug-and-Play, all Smart target controls, and ready-by transport in the
 no-vehicle state.
+
+## 2026-08-24: display-control capture requires bounded byte diagnostics
+
+A bundled app sequence confirmed screen and LED enable plus 25/50/75/100%
+brightness readback, including an additional accidental LED off/on pair before
+the final return to 25%. Eight retained `241/102` requests all received matching
+replies after approximately 72-202 ms. Unlike charging settings, their top-level
+field `4` contained a nine-byte non-numeric nested block; the privacy-safe
+inspector retained only size and runtime fingerprint, so the payload cannot yet
+be rebuilt safely.
+
+The follow-up diagnostic exposes only top-level command field `4` when it is at
+most 16 bytes, as a numeric byte list. Descriptor field `1` and every other
+opaque byte field remain hidden. A repeated app sequence can therefore isolate
+the four display bytes without weakening identifier redaction.

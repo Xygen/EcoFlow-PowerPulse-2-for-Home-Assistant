@@ -430,3 +430,12 @@ readback. The sequence ended in Solar mode with Plug-and-Play off; Custom curren
 remained restored to 6 A and the stored Smart distance remained 200 km. This
 validates the controls without a vehicle, but does not close the separate
 charging-time interlock backlog.
+
+The first bundled screen/LED write capture produced eight retained `241/102`
+requests and replies while direct entities confirmed both switches and all four
+brightness levels. These requests use a nine-byte top-level settings block that
+the existing privacy filter represented only by equality fingerprints. A narrow
+diagnostic update now exports numeric bytes only for top-level settings field
+`4` up to 16 bytes, while continuing to omit the accessory descriptor and all
+other opaque content. One repeated bundled app sequence is required before the
+four HA controls can be built from evidence rather than inferred positions.
