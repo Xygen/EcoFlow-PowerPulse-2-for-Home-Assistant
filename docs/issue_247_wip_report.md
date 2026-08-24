@@ -439,3 +439,5 @@ diagnostic update now exports numeric bytes only for top-level settings field
 `4` up to 16 bytes, while continuing to omit the accessory descriptor and all
 other opaque content. One repeated bundled app sequence is required before the
 four HA controls can be built from evidence rather than inferred positions.
+The bounded per-command sample count is increased from eight to sixteen so the
+entire repeated sequence can be retained in one run.

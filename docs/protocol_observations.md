@@ -673,3 +673,5 @@ The follow-up diagnostic exposes only top-level command field `4` when it is at
 most 16 bytes, as a numeric byte list. Descriptor field `1` and every other
 opaque byte field remain hidden. A repeated app sequence can therefore isolate
 the four display bytes without weakening identifier redaction.
+The per-command bucket is expanded from eight to sixteen bounded samples so the
+complete screen-plus-LED sequence fits in one capture.

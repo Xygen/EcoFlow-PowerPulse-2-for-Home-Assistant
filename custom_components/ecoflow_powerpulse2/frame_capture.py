@@ -365,7 +365,7 @@ class DiagnosticFrameCapture:
         max_recent: int = 40,
         max_commands: int = 24,
         max_buckets: int = 48,
-        max_samples_per_bucket: int = 8,
+        max_samples_per_bucket: int = 16,
         max_correlations: int = 48,
         fingerprint_key: bytes | None = None,
     ) -> None:
