@@ -12,13 +12,14 @@ from homeassistant.components.sensor import (
     SensorStateClass,
 )
 from homeassistant.const import (
+    PERCENTAGE,
     UnitOfElectricCurrent,
     UnitOfElectricPotential,
     UnitOfEnergy,
     UnitOfPower,
 )
 
-from .presentation import as_timestamp, format_duration
+from .presentation import as_timestamp, format_duration, tenths_to_float
 
 DOMAIN = "ecoflow_powerpulse2"
 CONF_EMAIL = "email"
@@ -138,9 +139,11 @@ SENSORS = (
     ),
     PowerPulse2SensorDescription(
         key="current_limit_raw",
-        translation_key="current_limit_raw",
-        diagnostic=True,
-        entity_registry_enabled_default=False,
+        translation_key="maximum_output_current",
+        native_unit_of_measurement=UnitOfElectricCurrent.AMPERE,
+        device_class=SensorDeviceClass.CURRENT,
+        suggested_display_precision=1,
+        value_fn=tenths_to_float,
     ),
     PowerPulse2SensorDescription(
         key="suspend_reason_raw",
@@ -177,6 +180,22 @@ SENSORS = (
         translation_key="phase_specified_raw",
         diagnostic=True,
         entity_registry_enabled_default=False,
+    ),
+    PowerPulse2SensorDescription(
+        key="phase_mode",
+        translation_key="phase_mode",
+        device_class=SensorDeviceClass.ENUM,
+        options=["unknown", "one_phase", "three_phase", "auto"],
+    ),
+    PowerPulse2SensorDescription(
+        key="screen_brightness_pct",
+        translation_key="screen_brightness",
+        native_unit_of_measurement=PERCENTAGE,
+    ),
+    PowerPulse2SensorDescription(
+        key="indicator_brightness_pct",
+        translation_key="indicator_brightness",
+        native_unit_of_measurement=PERCENTAGE,
     ),
     PowerPulse2SensorDescription(
         key="vehicle_consumption_raw",

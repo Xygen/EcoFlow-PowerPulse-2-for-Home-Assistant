@@ -14,7 +14,13 @@
     "abort": {"already_configured": "Dieses EcoFlow-Konto ist bereits eingerichtet"}
   },
   "entity": {
-    "binary_sensor": {"charging": {"name": "Ladevorgang"}},
+    "binary_sensor": {
+      "charging": {"name": "Ladevorgang"},
+      "plug_and_play": {"name": "Plug-and-Play"},
+      "battery_discharge_disabled": {"name": "Batterieentladung deaktiviert"},
+      "screen_enabled": {"name": "Anzeigebildschirm"},
+      "indicator_enabled": {"name": "LED-Anzeige"}
+    },
     "sensor": {
       "charging_power": {"name": "Ladeleistung"},
       "charging_status": {
@@ -49,12 +55,24 @@
       "session_energy_raw": {"name": "Sitzungsenergie Rohwert"},
       "charge_current_set_raw": {"name": "Ladestrom-Sollwert Rohwert"},
       "current_limit_raw": {"name": "Stromgrenze Rohwert"},
+      "maximum_output_current": {"name": "Maximaler Ausgangsstrom"},
       "suspend_reason_raw": {"name": "Pausengrund Rohwert"},
       "output_current_max_raw": {"name": "Maximaler Ausgangsstrom Rohwert"},
       "user_current_set_raw": {"name": "Benutzer-Ladestrom Rohwert"},
       "solar_current_min_raw": {"name": "Solar-Mindeststrom Rohwert"},
       "switch_bits_raw": {"name": "Einstellungsflags Rohwert"},
       "phase_specified_raw": {"name": "Ausgewählte Phase Rohwert"},
+      "phase_mode": {
+        "name": "Phaseneinstellung",
+        "state": {
+          "unknown": "Unbekannt",
+          "one_phase": "1-phasig",
+          "three_phase": "3-phasig",
+          "auto": "Auto"
+        }
+      },
+      "screen_brightness": {"name": "Bildschirmhelligkeit"},
+      "indicator_brightness": {"name": "LED-Helligkeit"},
       "vehicle_consumption_raw": {"name": "Fahrzeugverbrauch Rohwert"}
     }
   }

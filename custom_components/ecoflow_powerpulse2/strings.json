@@ -20,7 +20,11 @@
   },
   "entity": {
     "binary_sensor": {
-      "charging": {"name": "Charging"}
+      "charging": {"name": "Charging"},
+      "plug_and_play": {"name": "Plug and play"},
+      "battery_discharge_disabled": {"name": "Battery discharge disabled"},
+      "screen_enabled": {"name": "Display screen"},
+      "indicator_enabled": {"name": "LED indicator"}
     },
     "sensor": {
       "charging_power": {"name": "Charging power"},
@@ -56,12 +60,24 @@
       "session_energy_raw": {"name": "Session energy raw"},
       "charge_current_set_raw": {"name": "Charge current set raw"},
       "current_limit_raw": {"name": "Current limit raw"},
+      "maximum_output_current": {"name": "Maximum output current"},
       "suspend_reason_raw": {"name": "Suspend reason raw"},
       "output_current_max_raw": {"name": "Maximum output current raw"},
       "user_current_set_raw": {"name": "User current setting raw"},
       "solar_current_min_raw": {"name": "Solar minimum current raw"},
       "switch_bits_raw": {"name": "Setting flags raw"},
       "phase_specified_raw": {"name": "Selected phase raw"},
+      "phase_mode": {
+        "name": "Phase setting",
+        "state": {
+          "unknown": "Unknown",
+          "one_phase": "Single phase",
+          "three_phase": "Three phase",
+          "auto": "Auto"
+        }
+      },
+      "screen_brightness": {"name": "Screen brightness"},
+      "indicator_brightness": {"name": "LED brightness"},
       "vehicle_consumption_raw": {"name": "Vehicle consumption raw"}
     }
   }

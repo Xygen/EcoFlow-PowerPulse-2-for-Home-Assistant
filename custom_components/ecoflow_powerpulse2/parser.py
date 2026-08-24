@@ -26,6 +26,12 @@ _WORK_MODE_MAP = {
     4: "smart",
 }
 
+_PHASE_MODE_MAP = {
+    1: "one_phase",
+    2: "three_phase",
+    3: "auto",
+}
+
 _JSON_FIELD_MAP = {
     "chargePower": "charging_power_w",
     "chargingPower": "charging_power_w",
@@ -123,6 +129,12 @@ def _parse_powerpulse_json(value: dict[str, Any], result: dict[str, Any]) -> Non
         ):
             _copy_from_first((params, report), source, target, result)
 
+        # Live paired tests confirmed that the provider's misspelled
+        # currentOuputMax field and CP307 setting-report field 9 describe the
+        # same maximum output-current setting.
+        if "output_current_max_raw" in result:
+            result["current_limit_raw"] = result["output_current_max_raw"]
+
         vehicle = item.get("vehicleInfo")
         if isinstance(vehicle, dict):
             _copy_finite(
@@ -159,7 +171,7 @@ def _copy_finite(
 
 def _parse_proto(payload: bytes) -> dict[str, Any]:
     result: dict[str, Any] = {}
-    candidates: list[bytes] = []
+    candidates: list[tuple[str, bytes]] = []
     envelope_seen = False
     try:
         for field, wire, value in iter_protobuf_fields(payload):
@@ -211,20 +223,25 @@ def _parse_proto(payload: bytes) -> dict[str, Any]:
             if pdata_values:
                 envelope_seen = True
 
-            # CP307 status, parameter, charging-record, and acknowledgement
-            # messages reuse field numbers for different meanings. Only
-            # command 2/33 uses the heartbeat schema below. Treating the 2/34
-            # parameter report as a heartbeat can create false states/currents.
-            if (cmd_func, cmd_id) != (2, 33):
+            # CP307 status and parameter messages reuse field numbers for
+            # different meanings, so retain the command-specific schema with
+            # every decoded payload.
+            parser_kind = {
+                (2, 33): "heartbeat",
+                (2, 34): "settings",
+            }.get((cmd_func, cmd_id))
+            if parser_kind is None:
                 continue
             for inner_field, inner_wire, inner_value in header_fields:
                 if inner_field != 1 or inner_wire != 2 or not isinstance(inner_value, bytes):
                     continue
                 if enc_type == 1 and isinstance(sequence, int):
                     key = sequence & 0xFF
-                    candidates.append(bytes(byte ^ key for byte in inner_value))
+                    candidates.append(
+                        (parser_kind, bytes(byte ^ key for byte in inner_value))
+                    )
                 else:
-                    candidates.append(inner_value)
+                    candidates.append((parser_kind, inner_value))
     except ValueError:
         return {}
 
@@ -232,11 +249,61 @@ def _parse_proto(payload: bytes) -> dict[str, Any]:
     # also makes diagnostics fixtures usable, but plausibility checks below
     # prevent arbitrary envelopes from becoming entities.
     if not envelope_seen:
-        candidates.append(payload)
-    for candidate in candidates:
-        parsed = _parse_cp307_heartbeat(candidate)
+        candidates.append(("heartbeat", payload))
+    for parser_kind, candidate in candidates:
+        parsed = (
+            _parse_cp307_heartbeat(candidate)
+            if parser_kind == "heartbeat"
+            else _parse_cp307_settings(candidate)
+        )
         if parsed:
             result.update(parsed)
+    return result
+
+
+def _parse_cp307_settings(payload: bytes) -> dict[str, Any]:
+    """Parse live-confirmed fields from the CP307 2/34 settings report."""
+    try:
+        fields = {
+            field: value
+            for field, wire, value in iter_protobuf_fields(payload)
+            if wire == 0 and isinstance(value, int)
+        }
+    except ValueError:
+        return {}
+
+    # Every paired C376 settings capture used schema marker 9 in field 1.
+    # Requiring it prevents unrelated 2/34 payload variants from becoming
+    # charger settings.
+    if fields.get(1) != 9:
+        return {}
+
+    result: dict[str, Any] = {}
+    for field, key in (
+        (2, "plug_and_play"),
+        (13, "indicator_enabled"),
+        (15, "screen_enabled"),
+        (22, "battery_discharge_disabled"),
+    ):
+        if fields.get(field) in (0, 1):
+            result[key] = bool(fields[field])
+
+    current_limit = fields.get(9)
+    if isinstance(current_limit, int) and 0 <= current_limit <= 1_000:
+        result["current_limit_raw"] = current_limit
+
+    phase_mode = fields.get(11)
+    if isinstance(phase_mode, int):
+        result["phase_mode"] = _PHASE_MODE_MAP.get(phase_mode, "unknown")
+
+    for field, key in (
+        (14, "indicator_brightness_pct"),
+        (16, "screen_brightness_pct"),
+    ):
+        brightness = fields.get(field)
+        if isinstance(brightness, int) and 0 <= brightness <= 100:
+            result[key] = brightness
+
     return result
 
 

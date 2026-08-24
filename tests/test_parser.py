@@ -23,8 +23,8 @@ def _heartbeat(*, state: int = 3, power: float = 3929.0) -> bytes:
         (
             encode_field_varint(1, state),
             encode_field_varint(9, 94708),
-            encode_field_varint(17, 16),
-            encode_field_varint(18, 16),
+            encode_field_varint(17, 60),
+            encode_field_varint(18, 160),
             _fixed32_tag(28, power),
             _fixed32_tag(29, 231.4),
             _fixed32_tag(30, 17.0),
@@ -82,8 +82,8 @@ def test_cp307_xor_encoded_app_mqtt_envelope() -> None:
 
     assert result["charging_status"] == "unplugged"
     assert result["charging_power_w"] == 0.0
-    assert result["charge_current_set_raw"] == 16
-    assert result["current_limit_raw"] == 16
+    assert result["charge_current_set_raw"] == 60
+    assert result["current_limit_raw"] == 160
 
 
 def test_cp307_parameter_report_is_not_parsed_as_heartbeat() -> None:
@@ -110,6 +110,46 @@ def test_cp307_parameter_report_is_not_parsed_as_heartbeat() -> None:
     )
 
     assert parse_powerpulse2_payload(encode_field_bytes(1, header)) == {}
+
+
+def test_cp307_xor_encoded_settings_report() -> None:
+    """Decode the live-confirmed C376 2/34 setting fields."""
+    parameter_report = b"".join(
+        (
+            encode_field_varint(1, 9),
+            encode_field_varint(2, 1),
+            encode_field_varint(9, 160),
+            encode_field_varint(11, 3),
+            encode_field_varint(13, 1),
+            encode_field_varint(14, 25),
+            encode_field_varint(15, 1),
+            encode_field_varint(16, 25),
+            encode_field_varint(22, 0),
+        )
+    )
+    sequence = 5_605_587
+    key = sequence & 0xFF
+    encrypted = bytes(byte ^ key for byte in parameter_report)
+    header = b"".join(
+        (
+            encode_field_bytes(1, encrypted),
+            encode_field_varint(8, 2),
+            encode_field_varint(9, 34),
+            encode_field_varint(11, 1),
+            encode_field_varint(14, sequence),
+        )
+    )
+
+    assert parse_powerpulse2_payload(encode_field_bytes(1, header)) == {
+        "battery_discharge_disabled": False,
+        "current_limit_raw": 160,
+        "indicator_brightness_pct": 25,
+        "indicator_enabled": True,
+        "phase_mode": "auto",
+        "plug_and_play": True,
+        "screen_brightness_pct": 25,
+        "screen_enabled": True,
+    }
 
 
 def test_cp307_packed_phase_values() -> None:
@@ -172,6 +212,7 @@ def test_nested_powerpulse_provider_report() -> None:
     assert result["ready_by_timestamp"] == 1_787_528_301
     assert result["smart_charge_target_wh"] == 30_000
     assert result["output_current_max_raw"] == 160
+    assert result["current_limit_raw"] == 160
     assert result["user_current_set_raw"] == 60
     assert result["solar_current_min_raw"] == 60
     assert result["switch_bits_raw"] == 9

@@ -2,7 +2,11 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 
-from custom_components.ecoflow_powerpulse2.presentation import as_timestamp, format_duration
+from custom_components.ecoflow_powerpulse2.presentation import (
+    as_timestamp,
+    format_duration,
+    tenths_to_float,
+)
 
 
 def test_format_duration() -> None:
@@ -17,3 +21,9 @@ def test_format_duration() -> None:
 def test_as_timestamp() -> None:
     assert as_timestamp(1_787_528_301) == datetime(2026, 8, 23, 23, 38, 21, tzinfo=UTC)
     assert as_timestamp(0) is None
+
+
+def test_tenths_to_float() -> None:
+    assert tenths_to_float(160) == 16.0
+    assert tenths_to_float(65) == 6.5
+    assert tenths_to_float(None) is None

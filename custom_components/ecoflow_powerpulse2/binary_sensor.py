@@ -1,14 +1,37 @@
-"""Charging binary sensor for EcoFlow PowerPulse 2."""
+"""Read-only binary sensors for EcoFlow PowerPulse 2."""
 
 from __future__ import annotations
 
-from homeassistant.components.binary_sensor import BinarySensorDeviceClass, BinarySensorEntity
+from homeassistant.components.binary_sensor import (
+    BinarySensorDeviceClass,
+    BinarySensorEntity,
+    BinarySensorEntityDescription,
+)
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from .coordinator import PowerPulse2Coordinator
 from .entity import PowerPulse2Entity
+
+SETTING_BINARY_SENSORS = (
+    BinarySensorEntityDescription(
+        key="plug_and_play",
+        translation_key="plug_and_play",
+    ),
+    BinarySensorEntityDescription(
+        key="battery_discharge_disabled",
+        translation_key="battery_discharge_disabled",
+    ),
+    BinarySensorEntityDescription(
+        key="screen_enabled",
+        translation_key="screen_enabled",
+    ),
+    BinarySensorEntityDescription(
+        key="indicator_enabled",
+        translation_key="indicator_enabled",
+    ),
+)
 
 
 async def async_setup_entry(
@@ -17,7 +40,15 @@ async def async_setup_entry(
     async_add_entities: AddConfigEntryEntitiesCallback,
 ) -> None:
     coordinator: PowerPulse2Coordinator = entry.runtime_data
-    async_add_entities(PowerPulse2ChargingSensor(coordinator, serial) for serial in coordinator.devices)
+    async_add_entities(
+        PowerPulse2ChargingSensor(coordinator, serial)
+        for serial in coordinator.devices
+    )
+    async_add_entities(
+        PowerPulse2SettingBinarySensor(coordinator, serial, description)
+        for serial in coordinator.devices
+        for description in SETTING_BINARY_SENSORS
+    )
 
 
 class PowerPulse2ChargingSensor(PowerPulse2Entity, BinarySensorEntity):
@@ -38,3 +69,32 @@ class PowerPulse2ChargingSensor(PowerPulse2Entity, BinarySensorEntity):
     @property
     def is_on(self) -> bool:
         return self.coordinator.data.get(self.serial, {}).get("charging_status") == "charging"
+
+
+class PowerPulse2SettingBinarySensor(PowerPulse2Entity, BinarySensorEntity):
+    """A boolean setting observed in the CP307 parameter report."""
+
+    entity_description: BinarySensorEntityDescription
+
+    def __init__(
+        self,
+        coordinator: PowerPulse2Coordinator,
+        serial: str,
+        description: BinarySensorEntityDescription,
+    ) -> None:
+        super().__init__(coordinator, serial, description.key)
+        self.entity_description = description
+
+    @property
+    def available(self) -> bool:
+        return self.coordinator.last_update_success and self.entity_description.key in self.coordinator.data.get(
+            self.serial, {}
+        )
+
+    @property
+    def is_on(self) -> bool:
+        return bool(
+            self.coordinator.data.get(self.serial, {}).get(
+                self.entity_description.key
+            )
+        )

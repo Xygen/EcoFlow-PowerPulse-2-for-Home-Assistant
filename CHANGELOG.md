@@ -8,6 +8,17 @@
   A live value of `1815` corresponded to `1.82 kWh` in the EcoFlow app. Keep the
   raw entity unchanged until additional sessions confirm the unit and rounding.
 
+## 0.1.0-dev7
+
+- Decode the XOR-protected CP307 `2/34` settings report after paired live tests.
+- Add read-only entities for Plug-and-Play, phase selection (`1-phasig`,
+  `3-phasig`, `Auto`), battery-discharge blocking, screen and LED state, and
+  their four brightness levels.
+- Present the confirmed maximum-output-current value in amperes. Raw values
+  `150` and `160` matched `15 A` and `16 A` in the EcoFlow app.
+- Keep OCPP and every write/control path deferred; MQTT remains hard
+  listen-only.
+
 ## 0.1.0-dev6
 
 - Preserve MQTT telemetry received while an HTTP snapshot request is in flight.

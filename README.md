@@ -6,13 +6,16 @@ It follows the standalone integration structure of
 
 ## Current scope
 
-Version `0.1.0-dev6` is deliberately read-only:
+Version `0.1.0-dev7` is deliberately read-only:
 
 - EcoFlow app-account login and PowerPulse discovery
 - listen-only cloud MQTT connection (WSS)
 - charging state and charging power from known CP307 heartbeat fields
 - operating mode, Smart ready-by time, and Smart energy target from the
   provider snapshot when EcoFlow reports them
+- maximum output current, Plug-and-Play, phase selection, battery-discharge
+  blocking, screen/LED state, and both brightness settings from the live-
+  confirmed CP307 settings report
 - optional voltage, current, duration, and raw diagnostic values when reported
 - human-readable session duration while retaining numeric seconds internally
 - redacted MQTT frame capture grouped by channel and `(cmd_func, cmd_id)`

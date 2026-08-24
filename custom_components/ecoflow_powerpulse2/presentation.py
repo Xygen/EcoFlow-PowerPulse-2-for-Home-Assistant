@@ -31,3 +31,10 @@ def as_timestamp(value: Any) -> datetime | None:
     if not isinstance(value, (int, float)) or value <= 0:
         return None
     return datetime.fromtimestamp(value, UTC)
+
+
+def tenths_to_float(value: Any) -> float | None:
+    """Convert a confirmed tenths-scaled protocol value."""
+    if not isinstance(value, (int, float)):
+        return None
+    return round(float(value) / 10, 1)
