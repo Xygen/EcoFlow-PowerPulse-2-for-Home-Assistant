@@ -95,7 +95,7 @@ Within the matched C376 `pileChargingParamReport`:
 | `paramSet.workMode` | operating mode | Live-confirmed: `1` Fast, `2` Solar, `3` Custom, `4` Smart. |
 | `paramSet.currentOuputMax` | maximum output current, tenths of A | The misspelling is present in the provider data. Paired values match CP307 `2/34` field 9. |
 | `paramSet.userCurrentSet` | raw user-current setting | Retained raw; exact relationship to the different app current sliders is not yet established. |
-| `paramSet.solarCurrentMin` | raw Solar minimum/continuous-current setting | Retained raw pending more paired captures. |
+| `paramSet.solarCurrentMin` | Solar minimum/continuous-current setting, tenths of A | `60` matched 6 A and remained stored while Continuous charging was switched off and back on. Another current value should still be paired before treating the scaling as generally confirmed. |
 | `paramSet.switchBits` | settings bitmask | `switchBits & 0x10` is live-confirmed as the Solar-mode Continuous charging switch; other bits remain unassigned. |
 | `paramSet.phaseSpecified` | raw phase-selection field | Retained raw; the CP307 `2/34` field 11 mapping is currently better established. |
 | `paramSet.smartMode.timeToUseCar` | ready-by time | Unix timestamp. Returning to Solar Mode reset it to `0`. |
@@ -110,11 +110,23 @@ is easier to attribute safely and contains more named fields. Raw parent
 payloads are intentionally not retained because they can bundle charger,
 battery, and vehicle identifiers.
 
+Later live diagnostics also captured 24 frames on the linked PowerOcean's
+official-app property-SET topic. Their envelope headers consistently contained
+`cmd_func=96`, `cmd_id=97`, and a two-byte `pdata`; several sequences were
+repeated. No matching SET-reply bucket was present. These frames began after,
+not simultaneously with, the final Continuous-charging test, so they cannot yet
+be attributed to that setting or even to the PowerPulse. The privacy guard
+correctly omitted the parent payload. This is a candidate route for a future
+paired capture, not write-command evidence.
+
 ## Current state of the test implementation
 
-- The local WIP is `0.1.0-dev10` and remains read-only.
+- The HACS-installed live test build is `0.1.0-dev10` and remains read-only.
 - MQTT uses a hard `listen_only` guard; automatic get-all/stream activation and
   every other publish path are suppressed.
+- The new `Kontinuierlich laden` binary sensor was verified live in both
+  directions: `switchBits=0` produced `off`, `switchBits=16` produced `on`, and
+  `solarCurrentMin=60` remained stored throughout the test.
 - The parser has been exercised against live C376 frames. The current local
   suite passes 24 tests, including XOR envelope decoding, packed phase values,
   command-specific `2/33` vs `2/34` routing, settings fields, and matching an
@@ -128,8 +140,9 @@ battery, and vehicle identifiers.
 1. Confirm session-energy field 42 across more non-zero sessions, including
    rounding and whether raw units are consistently Wh.
 2. Pair additional app changes with provider/MQTT snapshots to separate
-   `userCurrentSet`, `solarCurrentMin`, heartbeat fields 17/18, the remaining
-   `switchBits`, and `phaseSpecified` cleanly.
+   `userCurrentSet`, heartbeat fields 17/18, the remaining `switchBits`, and
+   `phaseSpecified` cleanly. Confirm `solarCurrentMin` with a second current
+   value in addition to the paired `60` = 6 A observation.
 3. Locate the Smart distance target and confirm the unit/scaling of
    `currentVehicleComsumption`.
 4. Check additional operating states and map `suspend_reason` values.
@@ -139,9 +152,11 @@ battery, and vehicle identifiers.
    provider detail) to `ecoflow-energy-ha` without allowing unrelated parent
    `workMode` or other similarly named fields to leak into the charger device.
 7. For any future controls, capture the actual request envelope **and** device
-   acknowledgement first. No SET or SET-reply frame was observed on the known
-   exact or wildcard MQTT routes during Start/Stop, mode, target, or current
-   changes. Those writes may use the provider HTTP API or another transport.
+   acknowledgement first. No PowerPulse-attributable SET or SET-reply frame was
+   observed during the paired Start/Stop, mode, target, or current changes. The
+   later PowerOcean `96/97` SET traffic must be classified safely and reproduced
+   in a tightly timed one-change test before it can be considered relevant.
+   Writes may still use the provider HTTP API or another transport.
 
 For now I would suggest treating all of this as read-support research only,
 with Start/Stop and current-setting controls explicitly out of scope until the

@@ -169,6 +169,36 @@ the enable flag and its 6 A current setting are distinct fields. This mapping
 is safe for a read-only boolean sensor; it does not reveal how to write either
 setting.
 
+The `0.1.0-dev10` binary sensor was subsequently installed through HACS and
+verified in Home Assistant in both directions:
+
+- disabled: entity `off`, `switchBits=0`, `solarCurrentMin=60`
+- enabled again: entity `on`, `switchBits=16`, `solarCurrentMin=60`
+
+The charger was left in Solar Mode with Continuous charging enabled at 6 A.
+
+## 2026-08-24: Unassigned parent SET candidate `96/97`
+
+Later diagnostics captured 24 frames from the linked PowerOcean observer on
+the official-app property-SET topic. Every captured envelope contained
+`cmd_func=96`, `cmd_id=97`, and a two-byte `pdata`; several sequence values were
+repeated at short intervals. There was no corresponding SET-reply bucket.
+
+This traffic started after the final Continuous-charging state had already
+appeared in the provider snapshot. It therefore cannot be temporally assigned
+to that change, and nothing in the retained metadata proves that it targets the
+PowerPulse rather than another PowerOcean component. Raw parent payloads remain
+omitted because they may bundle device and vehicle identifiers.
+
+Conclusion:
+
+- Treat `96/97` only as a route to investigate in a new, tightly timed paired
+  test.
+- Extend passive diagnostics only with privacy-safe payload classification and
+  request/reply correlation.
+- Do not use these frames as a command template unless the exact setting
+  effect and a device acknowledgement are both reproduced.
+
 ## 2026-08-24: Session-energy scaling hypothesis
 
 A non-zero charging session reported CP307 heartbeat field 42 as `1815` while
