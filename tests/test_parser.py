@@ -174,6 +174,73 @@ def test_cp307_xor_encoded_settings_report() -> None:
     }
 
 
+def _direct_param_set_envelope(
+    *,
+    cmd_id: int = 44,
+    work_mode: int = 2,
+    solar_current_min: int = 70,
+) -> bytes:
+    param_set = b"".join(
+        (
+            encode_field_varint(1, 16),
+            encode_field_varint(2, work_mode),
+            encode_field_varint(4, 160),
+            encode_field_bytes(5, b"unknown-smart"),
+            encode_field_varint(6, solar_current_min),
+            encode_field_varint(7, 0),
+            encode_field_varint(8, 60),
+            encode_field_bytes(31, b"unknown"),
+        )
+    )
+    report = b"".join(
+        (
+            encode_field_bytes(1, b"C376TEST-DESCRIPTOR"),
+            encode_field_bytes(4, encode_field_bytes(8, param_set)),
+        )
+    )
+    plaintext = encode_field_bytes(1, report)
+    sequence = 5_636_034
+    key = sequence & 0xFF
+    encrypted = bytes(byte ^ key for byte in plaintext)
+    header = b"".join(
+        (
+            encode_field_bytes(1, encrypted),
+            encode_field_varint(6, 1),
+            encode_field_varint(8, 241),
+            encode_field_varint(9, cmd_id),
+            encode_field_varint(14, sequence),
+        )
+    )
+    return encode_field_bytes(1, header)
+
+
+def test_direct_c376_param_set_report() -> None:
+    """Decode the exact high-frequency C376 241/44 report shape."""
+    assert parse_powerpulse2_payload(_direct_param_set_envelope()) == {
+        "continuous_charging": True,
+        "current_limit_raw": 160,
+        "output_current_max_raw": 160,
+        "phase_specified_raw": 0,
+        "solar_current_min_raw": 70,
+        "switch_bits_raw": 16,
+        "user_current_set_raw": 60,
+        "work_mode": "solar",
+    }
+
+
+def test_direct_param_set_requires_exact_command() -> None:
+    assert parse_powerpulse2_payload(_direct_param_set_envelope(cmd_id=45)) == {}
+
+
+def test_direct_param_set_rejects_unknown_mode_and_current_range() -> None:
+    assert parse_powerpulse2_payload(
+        _direct_param_set_envelope(work_mode=9)
+    ) == {}
+    assert parse_powerpulse2_payload(
+        _direct_param_set_envelope(solar_current_min=20)
+    ) == {}
+
+
 def test_cp307_packed_phase_values() -> None:
     heartbeat = b"".join(
         (

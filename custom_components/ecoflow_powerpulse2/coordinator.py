@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import time
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
@@ -34,6 +35,19 @@ from .passive_refresh import ConfirmedSettingsReplyGate, DelayedRefreshCoalescer
 
 _LOGGER = logging.getLogger(__name__)
 _MAX_FRAME_BYTES = 2048
+_DIRECT_SETTINGS_FRESH_SECONDS = 10
+_DIRECT_SETTINGS_KEYS = frozenset(
+    {
+        "continuous_charging",
+        "current_limit_raw",
+        "output_current_max_raw",
+        "phase_specified_raw",
+        "solar_current_min_raw",
+        "switch_bits_raw",
+        "user_current_set_raw",
+        "work_mode",
+    }
+)
 
 
 class PowerPulse2Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
@@ -66,6 +80,7 @@ class PowerPulse2Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
         self._settings_refresh_count = 0
         self._last_settings_reply_at: str | None = None
         self._last_settings_refresh_at: str | None = None
+        self._last_direct_settings_at: dict[str, float] = {}
         self._shutting_down = False
         self._initialized = False
 
@@ -128,6 +143,7 @@ class PowerPulse2Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
                         self._async_read_combined_snapshot(device, provider)
                     ),
                     lambda serial=serial: (self.data or {}).get(serial),
+                    lambda serial=serial: self._preferred_live_settings(serial),
                 )
             return result
         except UpdateFailed:
@@ -220,11 +236,17 @@ class PowerPulse2Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
     def _record_mqtt_frame(self, serial: str, topic: str, payload: bytes) -> None:
         channel = classify_mqtt_topic(topic)
         client = self.mqtt_clients.get(serial)
+        protocol_headers = inspect_envelope_headers(payload)
         parsed = (
             parse_powerpulse2_payload(payload)
             if serial in self.devices and channel_carries_telemetry(channel)
             else {}
         )
+        if parsed and any(
+            header.get("cmd_func") == 241 and header.get("cmd_id") == 44
+            for header in protocol_headers
+        ):
+            self._last_direct_settings_at[serial] = time.monotonic()
         if parsed:
             updated = dict(self.data or {})
             values = dict(updated.get(serial, {}))
@@ -251,7 +273,7 @@ class PowerPulse2Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
             ),
             "size": len(payload),
             "parsed_keys": sorted(parsed),
-            "protocol_headers": inspect_envelope_headers(payload),
+            "protocol_headers": protocol_headers,
             "powerpulse_accessory_reports": accessory_reports,
             "observer_command_payloads": command_payloads,
             "truncated": len(payload) > _MAX_FRAME_BYTES,
@@ -268,6 +290,15 @@ class PowerPulse2Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
             self._settings_reply_count += 1
             self._last_settings_reply_at = frame["timestamp"]
             self._settings_refresh.request()
+
+    def _preferred_live_settings(self, serial: str) -> frozenset[str]:
+        """Prefer a recent direct device report over a cached provider poll."""
+        reported_at = self._last_direct_settings_at.get(serial)
+        if reported_at is None:
+            return frozenset()
+        if time.monotonic() - reported_at > _DIRECT_SETTINGS_FRESH_SECONDS:
+            return frozenset()
+        return _DIRECT_SETTINGS_KEYS
 
     async def _async_refresh_after_settings_reply(self) -> None:
         """Refresh provider state after a confirmed official-app settings reply."""

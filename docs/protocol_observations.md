@@ -464,3 +464,41 @@ A non-zero charging session reported CP307 heartbeat field 42 as `1815` while
 the EcoFlow app displayed `1.82 kWh`. This strongly suggests that field 42 is
 session energy in Wh, but the integration keeps it raw until additional
 sessions confirm the unit and app-rounding behaviour.
+
+## 2026-08-24: Direct C376 `241/44` parameter report
+
+The installed dev15 diagnostics revealed a substantially faster readback path
+than the provider snapshot. The PowerPulse 2 itself publishes an encrypted
+`cmd_func=241`, `cmd_id=44` property report on
+`/app/device/property/<device>` roughly once per second. The observed frame had
+`cmd_src=2`, `cmd_dst=32`, `enc_type=1`, a 100-byte encrypted `pdata`, and a
+sequence whose low byte correctly XOR-decodes that body.
+
+After decoding, the bounded protobuf path to the parameter object is `1.4.8`.
+The six scalar values in one live frame matched the simultaneously visible HA
+and provider state without using the official-app SET request as state:
+
+| `241/44` parameter field | Live value | Matched read-only meaning |
+| --- | ---: | --- |
+| `1` | `16` | settings bitmask; Continuous charging on |
+| `2` | `2` | Solar operating mode |
+| `4` | `160` | maximum output current, 0.1 A |
+| `6` | `70` | Solar minimum/continuous current, 0.1 A |
+| `7` | `0` | raw phase selection |
+| `8` | `60` | raw Custom/user current, 0.1 A |
+
+This is device-originated readback, unlike the `241/102` app request, and can
+therefore update those settings without waiting approximately 25-29 seconds
+for the cached provider view. dev16 accepts only this exact command and nested
+shape, requires all six fields with bounded plausible values, and ignores all
+siblings. A recent report takes precedence over provider values for ten
+seconds; after that, HTTP automatically becomes the fallback again. MQTT stays
+hard `listen_only` and no get-all or other request is transmitted.
+
+The same parameter object also contained length-delimited fields `5`, `9`,
+`21`, and `31`, sized 16, 14, 6, and 10 bytes in the inspected snapshot. Their
+contents and meanings are deliberately not retained or named. They are a
+backlog for later controlled one-setting-at-a-time comparisons, especially
+Smart-mode, vehicle, and other settings that still lack a fast confirmed
+source. No entity should be created from these fields until such a comparison
+isolates its value and unit.

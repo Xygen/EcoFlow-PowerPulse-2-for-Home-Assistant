@@ -37,6 +37,13 @@ _PHASE_MODE_MAP = {
 # unchanged. Other bits may describe unrelated settings, so isolate bit 4.
 _CONTINUOUS_CHARGING_MASK = 0x10
 
+# The direct C376 241/44 report carries the same paramSet values as the
+# provider snapshot. A live frame matched all six fields below against the
+# simultaneously visible HA/provider values. Keep the command-specific parser
+# narrow until controlled changes have identified the remaining byte fields.
+_DIRECT_PARAM_SET_COMMAND = (241, 44)
+_MAX_DIRECT_PARAM_SET_BYTES = 256
+
 _JSON_FIELD_MAP = {
     "chargePower": "charging_power_w",
     "chargingPower": "charging_power_w",
@@ -269,6 +276,7 @@ def _parse_proto(payload: bytes) -> dict[str, Any]:
             parser_kind = {
                 (2, 33): "heartbeat",
                 (2, 34): "settings",
+                _DIRECT_PARAM_SET_COMMAND: "param_set",
             }.get((cmd_func, cmd_id))
             if parser_kind is None:
                 continue
@@ -291,14 +299,78 @@ def _parse_proto(payload: bytes) -> dict[str, Any]:
     if not envelope_seen:
         candidates.append(("heartbeat", payload))
     for parser_kind, candidate in candidates:
-        parsed = (
-            _parse_cp307_heartbeat(candidate)
-            if parser_kind == "heartbeat"
-            else _parse_cp307_settings(candidate)
-        )
+        if parser_kind == "heartbeat":
+            parsed = _parse_cp307_heartbeat(candidate)
+        elif parser_kind == "settings":
+            parsed = _parse_cp307_settings(candidate)
+        else:
+            parsed = _parse_cp307_direct_param_set(candidate)
         if parsed:
             result.update(parsed)
     return result
+
+
+def _parse_cp307_direct_param_set(payload: bytes) -> dict[str, Any]:
+    """Parse the live-confirmed direct C376 241/44 paramSet report.
+
+    The decoded payload uses a fixed protobuf path: ``1.4.8``. Sibling byte
+    fields can contain identifiers or still-unknown settings and are ignored.
+    Requiring the complete six-value shape and bounded ranges prevents another
+    241/44 variant from being accepted merely because some field numbers match.
+    """
+    if len(payload) > _MAX_DIRECT_PARAM_SET_BYTES:
+        return {}
+    try:
+        level_one = _protobuf_bytes_at(payload, 1)
+        level_four = _protobuf_bytes_at(level_one, 4)
+        param_set = _protobuf_bytes_at(level_four, 8)
+        fields = {
+            field: value
+            for field, wire, value in iter_protobuf_fields(param_set)
+            if wire == 0 and isinstance(value, int)
+        }
+    except (LookupError, ValueError):
+        return {}
+
+    required = (1, 2, 4, 6, 7, 8)
+    if any(field not in fields for field in required):
+        return {}
+    if fields[2] not in _WORK_MODE_MAP:
+        return {}
+    if not 0 <= fields[1] <= 0xFFFF:
+        return {}
+    if not 60 <= fields[4] <= 320:
+        return {}
+    if not 60 <= fields[6] <= 160:
+        return {}
+    if not 0 <= fields[7] <= 3:
+        return {}
+    if not 60 <= fields[8] <= 160:
+        return {}
+
+    result = {
+        "switch_bits_raw": fields[1],
+        "work_mode_raw": fields[2],
+        "output_current_max_raw": fields[4],
+        "current_limit_raw": fields[4],
+        "solar_current_min_raw": fields[6],
+        "phase_specified_raw": fields[7],
+        "user_current_set_raw": fields[8],
+    }
+    _finish(result)
+    return result
+
+
+def _protobuf_bytes_at(payload: bytes, field_number: int) -> bytes:
+    """Return one unambiguous length-delimited protobuf field."""
+    matches = [
+        value
+        for field, wire, value in iter_protobuf_fields(payload)
+        if field == field_number and wire == 2 and isinstance(value, bytes)
+    ]
+    if len(matches) != 1 or len(matches[0]) > _MAX_DIRECT_PARAM_SET_BYTES:
+        raise LookupError(field_number)
+    return matches[0]
 
 
 def _parse_cp307_settings(payload: bytes) -> dict[str, Any]:

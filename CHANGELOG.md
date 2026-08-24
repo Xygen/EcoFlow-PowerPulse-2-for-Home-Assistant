@@ -8,6 +8,23 @@
   A live value of `1815` corresponded to `1.82 kWh` in the EcoFlow app. Keep the
   raw entity unchanged until additional sessions confirm the unit and rounding.
 
+## 0.1.0-dev16
+
+- Decode the direct, XOR-encrypted C376 `241/44` parameter report observed
+  roughly once per second. Its fixed protobuf path `1.4.8` now supplies the
+  live-confirmed settings bitmask, operating mode, maximum output current,
+  Solar minimum current, raw phase selection, and Custom current.
+- Require the exact `241/44` command, complete six-field shape, bounded payload
+  sizes, valid mode, and plausible current/range values before accepting the
+  report. Unknown length-delimited fields remain ignored and are documented for
+  later controlled investigation rather than exposed by guesswork.
+- Prefer only these confirmed direct settings over an HTTP snapshot while the
+  device report is no more than ten seconds old. If MQTT becomes stale, the
+  existing provider polling and 20-second confirmed-reply refresh resume as the
+  authoritative fallback.
+- Keep MQTT hard `listen_only`, retain diagnostic schema 7, and extend the
+  local suite to 39 passing tests.
+
 ## 0.1.0-dev15
 
 - Record from the live dev14 test that the same-sequence `241/102` replies

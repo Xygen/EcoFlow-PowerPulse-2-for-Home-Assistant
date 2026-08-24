@@ -231,10 +231,20 @@ bodies are not reconstructed or inferred here.
 
 ## Current state of the test implementation
 
-- Development build `0.1.0-dev15` includes the dev13 header correction and
+- Development build `0.1.0-dev16` includes the dev13 header correction and
   remains read-only. The parser reads `enc_type` from field 6 and keeps field 11 as
   `need_ack`; acknowledgement-requesting plaintext bodies are no longer
   XOR-mutated. The upstream diagnostic confirms nested protobuf.
+- A direct C376 `241/44` parameter report was found in the installed dev15
+  diagnostics. It arrives roughly once per second, uses XOR encryption keyed by
+  the sequence low byte, and exposes its scalar parameter object at protobuf
+  path `1.4.8`. One live snapshot matched fields `1/2/4/6/7/8` to
+  `switchBits/workMode/currentOuputMax/solarCurrentMin/phaseSpecified/`
+  `userCurrentSet` as `16/2/160/70/0/60`. dev16 parses only that exact,
+  bounded six-field shape.
+- dev16 gives these direct settings priority over a cached provider snapshot
+  only while the report is at most ten seconds old. HTTP and the dev15 delayed
+  refresh remain automatic fallbacks, and no MQTT request is published.
 - The completed live dev13 `6 A -> 7 A -> 6 A` comparison decoded path `4.4`
   as `70 -> 60`, while `4.1=16` and Solar mode `4.2=2` remained stable. The
   same-sequence replies arrived after approximately 144 ms and 226 ms and
@@ -263,7 +273,9 @@ bodies are not reconstructed or inferred here.
   directions: `switchBits=0` produced `off`, `switchBits=16` produced `on`, and
   `solarCurrentMin=60` remained stored throughout the test.
 - The parser has been exercised against live C376 frames. The current local
-  suite passes 35 tests, including XOR envelope decoding, packed phase values,
+  suite passes 39 tests, including direct `241/44` parameter decoding, strict
+  command/range rejection, selected fresh-MQTT merge priority, XOR envelope
+  decoding, packed phase values,
   command-specific `2/33` vs `2/34` routing, settings fields, matching an
   embedded PowerPulse report to its exact serial, privacy-safe `96/97` and
   `241/102` inspection, runtime-keyed opaque-field comparison, and
@@ -276,20 +288,25 @@ bodies are not reconstructed or inferred here.
 
 1. Confirm session-energy field 42 across more non-zero sessions, including
    rounding and whether raw units are consistently Wh.
-2. Validate dev15 live by restoring 6 A and confirm whether the 20-second
-   refresh returns the new value before the regular poll.
-3. Pair additional app changes with provider/MQTT snapshots to separate
+2. Validate dev16 live by restoring 6 A and confirm that direct `241/44` field
+   6 and the HA entity change from `70`/7 A to `60`/6 A within the expected
+   approximately one-second report interval. Record the provider fallback
+   timing separately rather than conflating it with MQTT readback.
+3. Investigate the currently unnamed length-delimited `241/44` parameter
+   fields `5`, `9`, `21`, and `31` using controlled one-setting-at-a-time
+   comparisons. Their observed sizes alone are not semantic evidence.
+4. Pair additional app changes with provider/MQTT snapshots to separate
    `userCurrentSet`, heartbeat fields 17/18, the remaining `switchBits`, and
    `phaseSpecified` cleanly.
-4. Locate the Smart distance target and confirm the unit/scaling of
+5. Locate the Smart distance target and confirm the unit/scaling of
    `currentVehicleComsumption`.
-5. Check additional operating states and map `suspend_reason` values.
-6. Decide how best to represent the three individual phase voltages/currents
+6. Check additional operating states and map `suspend_reason` values.
+7. Decide how best to represent the three individual phase voltages/currents
    upstream instead of only exposing an aggregate maximum.
-7. Keep upstream proposals on the existing PowerOcean path. Direct C376 MQTT
+8. Keep upstream proposals on the existing PowerOcean path. Direct C376 MQTT
    and developer-key-only provider detail are useful research evidence but are
    not proposed as duplicate production sources.
-8. For any future controls, retain the captured request **and** same-sequence
+9. For any future controls, retain the captured request **and** same-sequence
    reply evidence, but separately confirm target attribution, acknowledgement
    semantics, complete value mappings and safety constraints. `241/102` is an
    observed app-write path, not a readback source. Start/Stop may still use a

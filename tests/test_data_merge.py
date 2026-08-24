@@ -30,3 +30,22 @@ async def test_merge_uses_mqtt_values_received_during_http_poll() -> None:
         "charging_power_w": 222.0,
         "phase_voltage_v": 230.4,
     }
+
+
+@pytest.mark.asyncio
+async def test_merge_can_prefer_selected_recent_mqtt_values() -> None:
+    latest = {"charging_power_w": 111.0, "solar_current_min_raw": 70}
+
+    async def read_snapshot() -> dict[str, float]:
+        return {"charging_power_w": 222.0, "solar_current_min_raw": 60}
+
+    result = await merge_snapshot_after_read(
+        read_snapshot,
+        lambda: latest,
+        lambda: {"solar_current_min_raw"},
+    )
+
+    assert result == {
+        "charging_power_w": 222.0,
+        "solar_current_min_raw": 70,
+    }
