@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- Presentation backlog for the next development release: display the existing
+  maximum-output-current entity with zero decimal places by default. Its source
+  remains the tenths-of-an-ampere value `current_limit_raw`.
+- Add a normal Ampere sensor for the Solar-mode minimum charging current used by
+  `Continuous charging`, converting `solarCurrentMin` from tenths of an ampere.
+  Retain the disabled-by-default raw diagnostic entity separately.
 - Release requirement: create and bundle a dedicated PowerPulse 2 integration
   icon no later than the first non-development release.
 - Protocol hypothesis for a future release: `session_energy_raw` may be watt-hours.

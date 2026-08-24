@@ -162,6 +162,12 @@ Confirmed or currently retained provider fields:
   `vehicleInfo.currentVehicleComsumption`: retained raw pending further paired
   tests
 
+Presentation backlog: expose `solarCurrentMin` additionally as a normal Ampere
+sensor for the Solar-mode minimum current used when Continuous charging is
+enabled (`raw / 10`), while retaining the raw diagnostic entity. The existing
+maximum-output-current entity should default to zero decimal places because the
+confirmed app setting uses whole amperes.
+
 The linked PowerOcean MQTT stream also emits a PowerPulse accessory report
 under `cmd_func=209` (observed with `cmd_id=8` during an earlier charging
 session). Earlier notes assigned body field 10 to operating mode and field 18
