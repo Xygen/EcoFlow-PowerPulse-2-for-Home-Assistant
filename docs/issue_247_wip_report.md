@@ -257,6 +257,12 @@ bodies are not reconstructed or inferred here.
   SET requests after approximately 1.47 s and 1.69 s. This bidirectionally
   confirms bit `0x02`; dev17 uses it for the existing Plug-and-Play binary
   sensor without adding a publish path.
+- Installed dev17 was verified after restart: regular 100-byte `241/44` frames
+  parsed `plug_and_play`, and HA showed Plug-and-Play off, `switchBits=16`,
+  Continuous charging on, Solar mode, and 6 A. An intermittent 105-byte variant
+  of the same tuple did not match the strict six-scalar shape and was ignored;
+  normal frames continued roughly once per second and MQTT remained
+  `listen_only`.
 - The completed live dev13 `6 A -> 7 A -> 6 A` comparison decoded path `4.4`
   as `70 -> 60`, while `4.1=16` and Solar mode `4.2=2` remained stable. The
   same-sequence replies arrived after approximately 144 ms and 226 ms and

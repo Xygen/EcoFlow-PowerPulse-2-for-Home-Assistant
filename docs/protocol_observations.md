@@ -534,6 +534,16 @@ Plug-and-Play. dev17 derives the existing binary sensor from this bit and adds
 it to the recent-direct-value preference set. This is readback only and adds
 no MQTT publish path.
 
+The installed dev17 build was verified after a Home Assistant restart. Regular
+100-byte `241/44` reports included `plug_and_play` among their parsed keys, and
+HA showed Plug-and-Play off with `switchBits=16`, Continuous charging on, Solar
+mode, and a 6 A Solar minimum. MQTT diagnostics still reported `listen_only`.
+An occasional 105-byte `241/44` variant in the same observation did not match
+the required nested six-scalar shape and was therefore rejected with no parsed
+keys. Normal 100-byte reports continued roughly once per second, so this did
+not make the entities unavailable. The rejected variant remains unassigned
+rather than being widened into the parser without controlled evidence.
+
 The same parameter object also contained length-delimited fields `5`, `9`,
 `21`, and `31`, sized 16, 14, 6, and 10 bytes in the inspected snapshot. Their
 contents and meanings are deliberately not retained or named. They are a
