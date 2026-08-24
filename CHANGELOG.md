@@ -8,6 +8,18 @@
   A live value of `1815` corresponded to `1.82 kWh` in the EcoFlow app. Keep the
   raw entity unchanged until additional sessions confirm the unit and rounding.
 
+## 0.1.0-dev11
+
+- Add privacy-safe structural inspection for the live-observed PowerOcean
+  `96/97` SET candidate. Only the exact tuple and payloads up to 16 decoded
+  bytes are considered; opaque bytes and larger numeric values remain omitted.
+- Group passive SET requests, retries, and replies by source and sequence in a
+  bounded diagnostic view.
+- Increase the diagnostic capture schema to 4 without adding any publish path;
+  MQTT remains hard `listen_only`.
+- Extend the parser/capture suite to 27 passing tests, including privacy,
+  XOR-decoding, tuple allow-listing, and request/reply correlation checks.
+
 ## 0.1.0-dev10
 
 - Add a read-only `Kontinuierlich laden` binary sensor for Solar mode.

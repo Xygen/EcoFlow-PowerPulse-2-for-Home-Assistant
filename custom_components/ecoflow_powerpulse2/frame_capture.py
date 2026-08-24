@@ -9,6 +9,9 @@ from typing import Any
 from .ecoflow.proto_encoding import iter_protobuf_fields
 
 COMMAND_CHANNELS = frozenset({"observed_set", "set_reply"})
+_SAFE_OBSERVER_COMMAND_PAIRS = frozenset({(96, 97)})
+_MAX_SAFE_COMMAND_PAYLOAD_BYTES = 16
+_MAX_SAFE_SMALL_VARINT = 255
 
 
 def classify_mqtt_topic(topic: str) -> str:
@@ -66,6 +69,92 @@ def inspect_envelope_headers(payload: bytes) -> list[dict[str, int]]:
     except ValueError:
         return []
     return headers
+
+
+def inspect_observer_command_payloads(payload: bytes) -> list[dict[str, Any]]:
+    """Summarize the small, live-observed PowerOcean 96/97 command body.
+
+    Parent payloads can contain identifiers belonging to the charger, battery,
+    or vehicle. This helper therefore accepts only the exact candidate command
+    tuple and a very small decoded body. Small protobuf varints are retained;
+    opaque fields expose their size only, and larger numbers are omitted.
+    """
+    summaries: list[dict[str, Any]] = []
+    try:
+        for field, wire, header_bytes in iter_protobuf_fields(payload):
+            if field != 1 or wire != 2 or not isinstance(header_bytes, bytes):
+                continue
+            header_fields = list(iter_protobuf_fields(header_bytes))
+            varints = {
+                inner_field: inner_value
+                for inner_field, inner_wire, inner_value in header_fields
+                if inner_wire == 0 and isinstance(inner_value, int)
+            }
+            command_pair = (varints.get(8), varints.get(9))
+            if command_pair not in _SAFE_OBSERVER_COMMAND_PAIRS:
+                continue
+
+            for inner_field, inner_wire, pdata in header_fields:
+                if inner_field != 1 or inner_wire != 2 or not isinstance(pdata, bytes):
+                    continue
+                summary: dict[str, Any] = {
+                    "cmd_func": command_pair[0],
+                    "cmd_id": command_pair[1],
+                    "decoded_size": len(pdata),
+                }
+                sequence = varints.get(14)
+                if isinstance(sequence, int):
+                    summary["sequence"] = sequence
+
+                if varints.get(11) == 1:
+                    if not isinstance(sequence, int):
+                        summary["classification"] = "missing_xor_sequence"
+                        summaries.append(summary)
+                        continue
+                    key = sequence & 0xFF
+                    pdata = bytes(byte ^ key for byte in pdata)
+                    summary["xor_decoded"] = True
+                else:
+                    summary["xor_decoded"] = False
+
+                if len(pdata) > _MAX_SAFE_COMMAND_PAYLOAD_BYTES:
+                    summary["classification"] = "omitted_size_limit"
+                else:
+                    summary.update(_summarize_safe_command_fields(pdata))
+                summaries.append(summary)
+    except ValueError:
+        return []
+    return summaries
+
+
+def _summarize_safe_command_fields(payload: bytes) -> dict[str, Any]:
+    """Describe protobuf structure without retaining opaque command bytes."""
+    fields: list[dict[str, Any]] = []
+    contains_opaque = False
+    contains_omitted_number = False
+    try:
+        for field, wire, value in iter_protobuf_fields(payload):
+            item: dict[str, Any] = {"field": field, "wire_type": wire}
+            if wire == 0 and isinstance(value, int):
+                if value <= _MAX_SAFE_SMALL_VARINT:
+                    item["small_value"] = value
+                else:
+                    item["value_omitted"] = True
+                    contains_omitted_number = True
+            elif isinstance(value, bytes):
+                item["size"] = len(value)
+                contains_opaque = True
+            fields.append(item)
+    except ValueError:
+        return {"classification": "invalid_protobuf", "fields": []}
+
+    if not fields:
+        classification = "empty"
+    elif contains_opaque or contains_omitted_number:
+        classification = "structured_opaque"
+    else:
+        classification = "small_numeric_only"
+    return {"classification": classification, "fields": fields}
 
 
 def inspect_powerpulse_accessory_reports(payload: bytes) -> list[dict[str, Any]]:
@@ -157,14 +246,17 @@ class DiagnosticFrameCapture:
         max_commands: int = 24,
         max_buckets: int = 48,
         max_samples_per_bucket: int = 8,
+        max_correlations: int = 48,
     ) -> None:
         self._max_recent = max_recent
         self._max_commands = max_commands
         self._max_buckets = max_buckets
         self._max_samples_per_bucket = max_samples_per_bucket
+        self._max_correlations = max_correlations
         self._recent: list[dict[str, Any]] = []
         self._commands: list[dict[str, Any]] = []
         self._buckets: OrderedDict[str, dict[str, Any]] = OrderedDict()
+        self._correlations: OrderedDict[str, dict[str, Any]] = OrderedDict()
 
     def record(self, frame: dict[str, Any]) -> None:
         """Record one already-redacted frame in all applicable views."""
@@ -174,6 +266,7 @@ class DiagnosticFrameCapture:
         channel = str(stored.get("channel", "other"))
         if channel in COMMAND_CHANNELS:
             self._append_bounded(self._commands, stored, self._max_commands)
+            self._record_command_correlations(stored)
 
         bucket_key = _bucket_key(stored)
         bucket = self._buckets.get(bucket_key)
@@ -219,6 +312,68 @@ class DiagnosticFrameCapture:
             }
             for key, bucket in self._buckets.items()
         }
+
+    @property
+    def command_correlations(self) -> list[dict[str, Any]]:
+        """Return bounded request/reply groups matched by source and sequence."""
+        return [
+            {
+                **correlation,
+                "status": (
+                    "matched"
+                    if correlation["request_count"] and correlation["reply_count"]
+                    else "reply_only"
+                    if correlation["reply_count"]
+                    else "request_only"
+                ),
+            }
+            for correlation in self._correlations.values()
+        ]
+
+    def _record_command_correlations(self, frame: dict[str, Any]) -> None:
+        channel = str(frame.get("channel", "other"))
+        count_key = "reply_count" if channel == "set_reply" else "request_count"
+        pairs_key = "reply_pairs" if channel == "set_reply" else "request_pairs"
+        headers = frame.get("protocol_headers")
+        if not isinstance(headers, list):
+            return
+
+        for header in headers:
+            if not isinstance(header, dict):
+                continue
+            sequence = header.get("sequence")
+            if not isinstance(sequence, int):
+                continue
+            device_prefix = str(frame.get("device_prefix", ""))
+            source_role = str(frame.get("source_role", "unknown"))
+            key = f"{source_role}:{device_prefix}:{sequence}"
+            correlation = self._correlations.get(key)
+            if correlation is None:
+                if len(self._correlations) >= self._max_correlations:
+                    self._correlations.popitem(last=False)
+                correlation = {
+                    "device_prefix": device_prefix,
+                    "source_role": source_role,
+                    "sequence": sequence,
+                    "first_timestamp": frame.get("timestamp"),
+                    "last_timestamp": frame.get("timestamp"),
+                    "request_count": 0,
+                    "reply_count": 0,
+                    "request_pairs": [],
+                    "reply_pairs": [],
+                }
+                self._correlations[key] = correlation
+            else:
+                self._correlations.move_to_end(key)
+
+            correlation[count_key] += 1
+            correlation["last_timestamp"] = frame.get("timestamp")
+            cmd_func = header.get("cmd_func")
+            cmd_id = header.get("cmd_id")
+            if isinstance(cmd_func, int) and isinstance(cmd_id, int):
+                pair = f"{cmd_func}/{cmd_id}"
+                if pair not in correlation[pairs_key]:
+                    correlation[pairs_key].append(pair)
 
     @staticmethod
     def _append_bounded(items: list[Any], item: Any, maximum: int) -> None:

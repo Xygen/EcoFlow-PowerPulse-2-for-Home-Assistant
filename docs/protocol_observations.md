@@ -194,10 +194,24 @@ Conclusion:
 
 - Treat `96/97` only as a route to investigate in a new, tightly timed paired
   test.
-- Extend passive diagnostics only with privacy-safe payload classification and
-  request/reply correlation.
+- Passive diagnostics may classify only the exact candidate with strict
+  privacy limits and request/reply correlation.
 - Do not use these frames as a command template unless the exact setting
   effect and a device acknowledgement are both reproduced.
+
+Implementation note for `0.1.0-dev11`:
+
+- Only `cmd_func=96`, `cmd_id=97` is eligible for parent-command inspection.
+- XOR-decoded bodies longer than 16 bytes are omitted.
+- Small protobuf varints are retained; opaque fields expose only their length,
+  and larger numeric values are not retained.
+- Requests, retries, and replies are grouped by source and sequence in a
+  bounded diagnostic view.
+- Diagnostic capture schema 4 adds no publish path and remains hard
+  `listen_only`.
+
+The live 6 A to 7 A to 6 A comparison is still pending. Until that test shows
+a time-aligned field change and acknowledgement, `96/97` remains unassigned.
 
 ## 2026-08-24: Session-energy scaling hypothesis
 

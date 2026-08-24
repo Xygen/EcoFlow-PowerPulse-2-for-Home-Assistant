@@ -119,18 +119,28 @@ be attributed to that setting or even to the PowerPulse. The privacy guard
 correctly omitted the parent payload. This is a candidate route for a future
 paired capture, not write-command evidence.
 
+Development build `0.1.0-dev11` adds a deliberately narrow diagnostic for this
+candidate. It XOR-decodes only the exact `96/97` tuple when the decoded body is
+at most 16 bytes. Small protobuf varints can be retained for comparison;
+opaque fields expose only their length, larger numeric values are omitted, and
+no decoded or raw bytes are stored. A separate bounded view groups requests,
+retries, and replies by source and sequence. This instrumentation still does
+not attribute the tuple to the PowerPulse and never publishes MQTT traffic.
+
 ## Current state of the test implementation
 
-- The HACS-installed live test build is `0.1.0-dev10` and remains read-only.
+- The current development build is `0.1.0-dev11` and remains read-only. Its
+  passive `96/97` diagnostic awaits the controlled 6 A to 7 A to 6 A test.
 - MQTT uses a hard `listen_only` guard; automatic get-all/stream activation and
   every other publish path are suppressed.
 - The new `Kontinuierlich laden` binary sensor was verified live in both
   directions: `switchBits=0` produced `off`, `switchBits=16` produced `on`, and
   `solarCurrentMin=60` remained stored throughout the test.
 - The parser has been exercised against live C376 frames. The current local
-  suite passes 24 tests, including XOR envelope decoding, packed phase values,
-  command-specific `2/33` vs `2/34` routing, settings fields, and matching an
-  embedded PowerPulse report to its exact serial.
+  suite passes 27 tests, including XOR envelope decoding, packed phase values,
+  command-specific `2/33` vs `2/34` routing, settings fields, matching an
+  embedded PowerPulse report to its exact serial, privacy-safe `96/97`
+  inspection, and command-sequence correlation.
 - This is not proposed as production-ready code or as a ready-made patch for
   `ecoflow-energy-ha` yet. The useful output at this stage is the field and
   data-source evidence above.
@@ -154,9 +164,10 @@ paired capture, not write-command evidence.
 7. For any future controls, capture the actual request envelope **and** device
    acknowledgement first. No PowerPulse-attributable SET or SET-reply frame was
    observed during the paired Start/Stop, mode, target, or current changes. The
-   later PowerOcean `96/97` SET traffic must be classified safely and reproduced
-   in a tightly timed one-change test before it can be considered relevant.
-   Writes may still use the provider HTTP API or another transport.
+   later PowerOcean `96/97` SET traffic is now classified only through the
+   narrow dev11 diagnostic and must still be reproduced in a tightly timed
+   one-change test before it can be considered relevant. Writes may still use
+   the provider HTTP API or another transport.
 
 For now I would suggest treating all of this as read-support research only,
 with Start/Stop and current-setting controls explicitly out of scope until the

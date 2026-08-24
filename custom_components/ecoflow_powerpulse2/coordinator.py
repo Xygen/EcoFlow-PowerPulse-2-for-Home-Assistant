@@ -16,10 +16,12 @@ from .const import CONF_EMAIL, CONF_PASSWORD, DOMAIN, UPDATE_INTERVAL_SECONDS
 from .data_merge import merge_snapshot_after_read
 from .ecoflow.cloud_mqtt import EcoFlowMQTTClient
 from .frame_capture import (
+    COMMAND_CHANNELS,
     DiagnosticFrameCapture,
     channel_carries_telemetry,
     classify_mqtt_topic,
     inspect_envelope_headers,
+    inspect_observer_command_payloads,
     inspect_powerpulse_accessory_reports,
 )
 from .parser import parse_powerpulse2_payload
@@ -65,6 +67,11 @@ class PowerPulse2Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
     def mqtt_frame_buckets(self) -> dict[str, dict[str, Any]]:
         """Return frames grouped by channel and protocol command tuple."""
         return self._frame_capture.bucket_snapshot()
+
+    @property
+    def mqtt_command_correlations(self) -> list[dict[str, Any]]:
+        """Return passive command requests and replies grouped by sequence."""
+        return self._frame_capture.command_correlations
 
     async def _async_update_data(self) -> dict[str, dict[str, Any]]:
         try:
@@ -200,6 +207,11 @@ class PowerPulse2Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
         accessory_reports = (
             inspect_powerpulse_accessory_reports(payload) if is_observer else []
         )
+        command_payloads = (
+            inspect_observer_command_payloads(payload)
+            if is_observer and channel in COMMAND_CHANNELS
+            else []
+        )
         frame = {
             "timestamp": datetime.now(UTC).isoformat(),
             "device_prefix": serial[:4],
@@ -212,6 +224,7 @@ class PowerPulse2Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
             "parsed_keys": sorted(parsed),
             "protocol_headers": inspect_envelope_headers(payload),
             "powerpulse_accessory_reports": accessory_reports,
+            "observer_command_payloads": command_payloads,
             "truncated": len(payload) > _MAX_FRAME_BYTES,
             # A PowerOcean frame can bundle accessory, battery and vehicle
             # identifiers unknown to this integration. Keep only the safe

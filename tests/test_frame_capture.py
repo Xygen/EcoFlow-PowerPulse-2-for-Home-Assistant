@@ -11,6 +11,7 @@ from custom_components.ecoflow_powerpulse2.frame_capture import (
     channel_carries_telemetry,
     classify_mqtt_topic,
     inspect_envelope_headers,
+    inspect_observer_command_payloads,
     inspect_powerpulse_accessory_reports,
 )
 
@@ -109,6 +110,68 @@ def test_powerocean_accessory_report_is_numeric_and_privacy_safe() -> None:
     assert "vehicle-secret" not in repr(result)
 
 
+def test_small_observer_command_is_xor_decoded_without_raw_bytes() -> None:
+    pdata = encode_field_varint(1, 7)
+    sequence = 185
+    key = sequence & 0xFF
+    encrypted = bytes(byte ^ key for byte in pdata)
+    header = b"".join(
+        (
+            encode_field_bytes(1, encrypted),
+            encode_field_varint(8, 96),
+            encode_field_varint(9, 97),
+            encode_field_varint(11, 1),
+            encode_field_varint(14, sequence),
+        )
+    )
+
+    assert inspect_observer_command_payloads(encode_field_bytes(1, header)) == [
+        {
+            "cmd_func": 96,
+            "cmd_id": 97,
+            "decoded_size": 2,
+            "sequence": sequence,
+            "xor_decoded": True,
+            "classification": "small_numeric_only",
+            "fields": [{"field": 1, "wire_type": 0, "small_value": 7}],
+        }
+    ]
+
+
+def test_observer_command_omits_opaque_content_and_other_tuples() -> None:
+    secret = b"vehicle-secret"
+    safe_header = b"".join(
+        (
+            encode_field_bytes(1, encode_field_bytes(2, secret)),
+            encode_field_varint(8, 96),
+            encode_field_varint(9, 97),
+        )
+    )
+    unrelated_header = b"".join(
+        (
+            encode_field_bytes(1, encode_field_varint(1, 7)),
+            encode_field_varint(8, 2),
+            encode_field_varint(9, 81),
+        )
+    )
+
+    result = inspect_observer_command_payloads(
+        encode_field_bytes(1, safe_header) + encode_field_bytes(1, unrelated_header)
+    )
+
+    assert result == [
+        {
+            "cmd_func": 96,
+            "cmd_id": 97,
+            "decoded_size": len(secret) + 2,
+            "xor_decoded": False,
+            "classification": "structured_opaque",
+            "fields": [{"field": 2, "wire_type": 2, "size": len(secret)}],
+        }
+    ]
+    assert "vehicle-secret" not in repr(result)
+
+
 def test_command_bucket_survives_frequent_telemetry() -> None:
     capture = DiagnosticFrameCapture(max_recent=3, max_commands=3, max_samples_per_bucket=2)
     capture.record(_frame("observed_set", 2, 81, "command"))
@@ -129,4 +192,47 @@ def test_command_bucket_survives_frequent_telemetry() -> None:
     assert [sample["timestamp"] for sample in buckets["property:2/33"]["samples"]] == [
         "telemetry-8",
         "telemetry-9",
+    ]
+
+
+def test_command_correlation_counts_retries_and_reply_by_sequence() -> None:
+    capture = DiagnosticFrameCapture(max_correlations=2)
+    request = _frame("observed_set", 96, 97, "request")
+    request.update(
+        {
+            "device_prefix": "HJ31",
+            "source_role": "powerocean_observer",
+            "protocol_headers": [
+                {"cmd_func": 96, "cmd_id": 97, "sequence": 185}
+            ],
+        }
+    )
+    reply = _frame("set_reply", 96, 97, "reply")
+    reply.update(
+        {
+            "device_prefix": "HJ31",
+            "source_role": "powerocean_observer",
+            "protocol_headers": [
+                {"cmd_func": 96, "cmd_id": 97, "sequence": 185}
+            ],
+        }
+    )
+
+    capture.record(request)
+    capture.record(request)
+    capture.record(reply)
+
+    assert capture.command_correlations == [
+        {
+            "device_prefix": "HJ31",
+            "source_role": "powerocean_observer",
+            "sequence": 185,
+            "first_timestamp": "request",
+            "last_timestamp": "reply",
+            "request_count": 2,
+            "reply_count": 1,
+            "request_pairs": ["96/97"],
+            "reply_pairs": ["96/97"],
+            "status": "matched",
+        }
     ]
