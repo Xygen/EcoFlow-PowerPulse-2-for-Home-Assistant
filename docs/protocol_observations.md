@@ -330,9 +330,30 @@ Implementation note for `0.1.0-dev13`:
 - Regression tests cover both directions: `enc_type=1` still XOR-decodes, while
   `need_ack=1` without field 6 leaves a plaintext protobuf unchanged.
 
-A live dev13 `6 A -> 7 A -> 6 A` check should now expose the safe settings path
-inside top-level field 4 and confirm whether path `4.4` follows `60 -> 70 -> 60`
-in the same acknowledged request/reply sequence.
+A live dev13 `6 A -> 7 A -> 6 A` check completed the corrected structural
+comparison:
+
+- Saving 7 A produced sequence 68 at `16:57:16.655` Europe/Berlin. The
+  31-byte `241/102` request decoded without XOR and contained `4.1=16`,
+  `4.2=2`, and `4.4=70`. Its 23-byte same-sequence reply arrived approximately
+  144 ms later.
+- Restoring 6 A produced sequence 80 at `16:59:06.257`. The same request
+  structure contained `4.1=16`, `4.2=2`, and `4.4=60`; the 23-byte reply
+  arrived approximately 226 ms later.
+- In both directions the request and reply carried the same top-level field-1
+  accessory descriptor within the running HA instance. The replies contained
+  that descriptor but no top-level field-4 settings object. They therefore
+  confirm matching transport/target correlation, not explicit value readback.
+- The independent provider snapshot changed the HA raw Solar-minimum-current
+  entity to `70` at `16:57:48.103` and back to `60` at `16:59:42.151`, about
+  31 and 36 seconds after the respective SET requests. Continuous charging
+  remained enabled and `switchBits=16` throughout.
+
+This confirms path `4.4` as the Solar continuous/minimum-current value in
+tenths of an ampere for the tested 6 A and 7 A values. It also separates the
+fast same-sequence acknowledgement from the slower provider-backed readback;
+the current integration intentionally continues to expose only the latter as
+entity state.
 
 ## 2026-08-24: No-car PowerOcean settings capture for issue #247
 

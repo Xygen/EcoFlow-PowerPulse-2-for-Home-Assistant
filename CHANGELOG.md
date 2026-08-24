@@ -18,6 +18,14 @@
   metadata.
 - Preserve `need_ack` separately in diagnostics and inspect the bounded nested
   `241/102` protobuf structure without retaining raw byte or text contents.
+- Confirm the corrected decoder live with a controlled `6 A -> 7 A -> 6 A`
+  Solar-minimum-current test. The acknowledged requests exposed
+  `4.4=70 -> 60`, while `4.1=16` and `4.2=2` remained stable; independent
+  provider readback later reported `70 -> 60`.
+- Record that the same-sequence replies arrived after approximately 144 ms and
+  226 ms but echoed only the accessory descriptor, not the settings object.
+  The provider-backed Home Assistant entity followed approximately 31 s and
+  36 s after the corresponding SET requests.
 - Increase the diagnostic capture schema to 6 without adding any MQTT publish
   route; the integration remains hard `listen_only`.
 - Extend the suite to 31 passing tests, including regressions proving that

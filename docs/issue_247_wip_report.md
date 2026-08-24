@@ -235,13 +235,21 @@ bodies are not reconstructed or inferred here.
   read-only. The parser now reads `enc_type` from field 6 and keeps field 11 as
   `need_ack`; acknowledgement-requesting plaintext bodies are no longer
   XOR-mutated. The upstream diagnostic confirms nested protobuf.
+- The completed live dev13 `6 A -> 7 A -> 6 A` comparison decoded path `4.4`
+  as `70 -> 60`, while `4.1=16` and Solar mode `4.2=2` remained stable. The
+  same-sequence replies arrived after approximately 144 ms and 226 ms and
+  contained the matching accessory descriptor but no settings readback.
+- Independent provider snapshots confirmed `solarCurrentMin=70 -> 60`. The HA
+  entity followed about 31 s and 36 s after the corresponding MQTT SET frames,
+  demonstrating that acknowledgement latency and provider/entity refresh
+  latency are separate measurements.
 - MQTT uses a hard `listen_only` guard; automatic get-all/stream activation and
   every other publish path are suppressed.
 - The new `Kontinuierlich laden` binary sensor was verified live in both
   directions: `switchBits=0` produced `off`, `switchBits=16` produced `on`, and
   `solarCurrentMin=60` remained stored throughout the test.
 - The parser has been exercised against live C376 frames. The current local
-  suite passes 30 tests, including XOR envelope decoding, packed phase values,
+  suite passes 31 tests, including XOR envelope decoding, packed phase values,
   command-specific `2/33` vs `2/34` routing, settings fields, matching an
   embedded PowerPulse report to its exact serial, privacy-safe `96/97` and
   `241/102` inspection, runtime-keyed opaque-field comparison, and
@@ -265,10 +273,7 @@ bodies are not reconstructed or inferred here.
 6. Keep upstream proposals on the existing PowerOcean path. Direct C376 MQTT
    and developer-key-only provider detail are useful research evidence but are
    not proposed as duplicate production sources.
-7. Validate dev13 live with a controlled `6 A -> 7 A -> 6 A` comparison and
-   confirm that safe path `4.4` follows `60 -> 70 -> 60` in the acknowledged
-   `241/102` requests.
-8. For any future controls, retain the captured request **and** same-sequence
+7. For any future controls, retain the captured request **and** same-sequence
    reply evidence, but separately confirm target attribution, acknowledgement
    semantics, complete value mappings and safety constraints. `241/102` is an
    observed app-write path, not a readback source. Start/Stop may still use a
