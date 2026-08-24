@@ -10,7 +10,7 @@ import aiohttp
 from .discovery import classify_device_records
 from .ecoflow.const import IOT_API_BASE
 from .ecoflow.enhanced_auth import enhanced_login, get_enhanced_credentials
-from .parser import parse_powerpulse2_payload
+from .parser import parse_powerpulse2_accessory_payloads, parse_powerpulse2_payload
 
 _LOGGER = logging.getLogger(__name__)
 _DEVICE_LIST_PATH = "/iot-service/user/device"
@@ -67,6 +67,20 @@ class PowerPulse2ApiClient:
 
     async def async_read(self, device: dict[str, str]) -> dict[str, Any]:
         """Read a best-effort provider snapshot without making device changes."""
+        body = await self._async_read_detail(device)
+        return parse_powerpulse2_payload(body) if body is not None else {}
+
+    async def async_read_accessories(
+        self, device: dict[str, str]
+    ) -> dict[str, dict[str, Any]]:
+        """Read PowerPulse reports embedded in a parent PowerOcean detail."""
+        body = await self._async_read_detail(device)
+        return parse_powerpulse2_accessory_payloads(body) if body is not None else {}
+
+    async def _async_read_detail(
+        self, device: dict[str, str]
+    ) -> dict[str, Any] | None:
+        """Fetch one provider detail response without retaining raw data."""
         headers = self._headers(device.get("product_type", ""))
         for base_url in dict.fromkeys((self._base_url, IOT_API_BASE, "https://api-a.ecoflow.com")):
             try:
@@ -79,10 +93,10 @@ class PowerPulse2ApiClient:
                     response.raise_for_status()
                     body = await response.json()
                 if str(body.get("code", "0")) == "0":
-                    return parse_powerpulse2_payload(body)
+                    return body
             except (aiohttp.ClientError, TimeoutError, ValueError) as exc:
                 _LOGGER.debug("PowerPulse detail request failed via %s: %s", base_url, exc)
-        return {}
+        return None
 
     def _headers(self, product_type: str = "") -> dict[str, str]:
         headers = {"Authorization": f"Bearer {self._token}"}

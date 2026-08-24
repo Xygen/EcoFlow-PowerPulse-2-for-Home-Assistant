@@ -66,6 +66,41 @@ def parse_powerpulse2_payload(payload: bytes | dict[str, Any]) -> dict[str, Any]
     return _parse_json(value) if isinstance(value, dict) else {}
 
 
+def parse_powerpulse2_accessory_payloads(
+    payload: bytes | dict[str, Any],
+) -> dict[str, dict[str, Any]]:
+    """Return PowerPulse provider reports keyed by their embedded serial."""
+    if isinstance(payload, bytes):
+        try:
+            value = json.loads(payload)
+        except (json.JSONDecodeError, UnicodeDecodeError):
+            return {}
+    else:
+        value = payload
+    if not isinstance(value, dict):
+        return {}
+
+    reports: dict[str, dict[str, Any]] = {}
+    for item in _iter_dicts(value):
+        if not isinstance(item.get("pileChargingParamReport"), dict):
+            continue
+        dev_info = item.get("devInfo")
+        serial = ""
+        if isinstance(dev_info, dict):
+            serial = str(dev_info.get("devSn") or "").upper()
+        if not serial:
+            serial = str(item.get("devSn") or "").upper()
+        if not serial:
+            continue
+
+        result: dict[str, Any] = {}
+        _parse_powerpulse_json(item, result)
+        _finish(result)
+        if result:
+            reports.setdefault(serial, {}).update(result)
+    return reports
+
+
 def _parse_json(value: dict[str, Any]) -> dict[str, Any]:
     result: dict[str, Any] = {}
     for item in _iter_dicts(value):

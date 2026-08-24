@@ -8,6 +8,17 @@
   A live value of `1815` corresponded to `1.82 kWh` in the EcoFlow app. Keep the
   raw entity unchanged until additional sessions confirm the unit and rounding.
 
+## 0.1.0-dev9
+
+- Read the provider detail from the linked PowerOcean instead of relying only
+  on the PowerPulse's mostly empty device-detail endpoint.
+- Match embedded `pileChargingParamReport` objects back to the exact PowerPulse
+  serial before merging their read-only mode, Smart and raw setting values.
+- Retain only matched field names in diagnostics; raw provider responses and
+  identifiers are not stored.
+- Preserve the MQTT-vs-HTTP race protection by combining parent data before the
+  coordinator's final merge with the latest live charger state.
+
 ## 0.1.0-dev8
 
 - Discover linked PowerOcean systems as passive MQTT sources without creating

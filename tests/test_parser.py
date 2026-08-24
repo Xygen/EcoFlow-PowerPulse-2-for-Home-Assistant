@@ -7,7 +7,10 @@ from custom_components.ecoflow_powerpulse2.ecoflow.proto_encoding import (
     encode_field_bytes,
     encode_field_varint,
 )
-from custom_components.ecoflow_powerpulse2.parser import parse_powerpulse2_payload
+from custom_components.ecoflow_powerpulse2.parser import (
+    parse_powerpulse2_accessory_payloads,
+    parse_powerpulse2_payload,
+)
 
 
 def _fixed32_tag(field: int, value: float) -> bytes:
@@ -218,6 +221,38 @@ def test_nested_powerpulse_provider_report() -> None:
     assert result["switch_bits_raw"] == 9
     assert result["phase_specified_raw"] == 0
     assert result["vehicle_consumption_raw"] == 175
+
+
+def test_parent_provider_reports_are_keyed_by_embedded_wallbox_serial() -> None:
+    report = {
+        "devInfo": {"devSn": "c376test"},
+        "pileChargingParamReport": {
+            "chargingPwr": 0,
+            "chargingStatus": 1,
+            "paramSet": {
+                "workMode": 2,
+                "solarCurrentMin": 60,
+                "switchBits": 9,
+            },
+        },
+    }
+    payload = {
+        "data": {
+            "quota": {
+                "device_EDEV_PARAM_REPORT": {"C376TEST": json.dumps(report)}
+            }
+        }
+    }
+
+    assert parse_powerpulse2_accessory_payloads(payload) == {
+        "C376TEST": {
+            "charging_power_w": 0,
+            "charging_status": "unplugged",
+            "solar_current_min_raw": 60,
+            "switch_bits_raw": 9,
+            "work_mode": "solar",
+        }
+    }
 
 
 def test_powerpulse_provider_report_distance_target() -> None:

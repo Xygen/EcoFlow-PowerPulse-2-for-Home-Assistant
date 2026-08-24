@@ -6,7 +6,7 @@ It follows the standalone integration structure of
 
 ## Current scope
 
-Version `0.1.0-dev8` is deliberately read-only:
+Version `0.1.0-dev9` is deliberately read-only:
 
 - EcoFlow app-account login and PowerPulse discovery
 - listen-only cloud MQTT connection (WSS)
@@ -24,6 +24,8 @@ Version `0.1.0-dev8` is deliberately read-only:
 - passive discovery and observation of a linked PowerOcean MQTT source, with
   parent payloads omitted and only privacy-safe numeric PowerPulse accessory
   fields retained for protocol comparison
+- read-only provider-detail lookup on the linked PowerOcean, matched back to
+  the embedded PowerPulse serial without retaining the raw provider response
 - a coordinator watchdog that retries interrupted MQTT connections
 
 The MQTT transport contains a hard `listen_only` guard. It suppresses every

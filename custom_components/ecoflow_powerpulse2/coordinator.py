@@ -46,6 +46,7 @@ class PowerPulse2Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
         )
         self.devices: dict[str, dict[str, str]] = {}
         self.observer_devices: dict[str, dict[str, str]] = {}
+        self.observer_snapshot_keys: dict[str, list[str]] = {}
         self.mqtt_clients: dict[str, EcoFlowMQTTClient] = {}
         self._frame_capture = DiagnosticFrameCapture()
         self._initialized = False
@@ -83,10 +84,13 @@ class PowerPulse2Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
             else:
                 await self._async_maintain_mqtt()
 
+            provider_updates = await self._async_read_parent_accessories()
             result: dict[str, dict[str, Any]] = {}
             for serial, device in self.devices.items():
                 result[serial] = await merge_snapshot_after_read(
-                    lambda device=device: self.api.async_read(device),
+                    lambda device=device, provider=provider_updates.get(serial, {}): (
+                        self._async_read_combined_snapshot(device, provider)
+                    ),
                     lambda serial=serial: (self.data or {}).get(serial),
                 )
             return result
@@ -94,6 +98,32 @@ class PowerPulse2Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
             raise
         except Exception as exc:
             raise UpdateFailed(f"EcoFlow PowerPulse 2 update failed: {exc}") from exc
+
+    async def _async_read_parent_accessories(self) -> dict[str, dict[str, Any]]:
+        """Read embedded wallbox snapshots once per discovered PowerOcean."""
+        updates: dict[str, dict[str, Any]] = {}
+        snapshot_keys: dict[str, list[str]] = {}
+        for source_serial, device in self.observer_devices.items():
+            reports = await self.api.async_read_accessories(device)
+            matched_keys: set[str] = set()
+            for target_serial, values in reports.items():
+                if target_serial not in self.devices:
+                    continue
+                updates.setdefault(target_serial, {}).update(values)
+                matched_keys.update(values)
+            snapshot_keys[source_serial] = sorted(matched_keys)
+        self.observer_snapshot_keys = snapshot_keys
+        return updates
+
+    async def _async_read_combined_snapshot(
+        self,
+        device: dict[str, str],
+        provider: dict[str, Any],
+    ) -> dict[str, Any]:
+        """Combine direct and already-fetched parent data before race-safe merge."""
+        snapshot = await self.api.async_read(device)
+        snapshot.update(provider)
+        return snapshot
 
     async def _async_setup_mqtt(self) -> None:
         """Connect hard listen-only WSS clients for chargers and parent sources."""

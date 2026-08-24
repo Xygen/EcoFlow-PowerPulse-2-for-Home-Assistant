@@ -46,6 +46,9 @@ async def async_get_config_entry_diagnostics(
             {
                 "serial_prefix": serial[:4],
                 "product_type": device.get("product_type", ""),
+                "matched_accessory_data_keys": coordinator.observer_snapshot_keys.get(
+                    serial, []
+                ),
                 "mqtt_connected": bool(
                     coordinator.mqtt_clients.get(serial)
                     and coordinator.mqtt_clients[serial].is_connected()
