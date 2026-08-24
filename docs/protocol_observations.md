@@ -495,6 +495,23 @@ siblings. A recent report takes precedence over provider values for ten
 seconds; after that, HTTP automatically becomes the fallback again. MQTT stays
 hard `listen_only` and no get-all or other request is transmitted.
 
+The installed dev16 build was then validated live by restoring the Solar
+minimum current from 7 A to 6 A while Continuous charging remained enabled:
+
+- the official-app `241/102` SET carrying `4.4=60` was observed at
+  `18:22:22.169` Europe/Berlin;
+- its same-sequence reply arrived approximately 152 ms later;
+- the HA raw and converted entities changed to `60` and `6.0 A` at
+  `18:22:23.935`, approximately 1.77 seconds after the SET request and 1.61
+  seconds after its reply;
+- the coalesced provider fallback completed only about 20.26 seconds after the
+  SET, so it was not responsible for the entity update.
+
+This confirms that device-originated `241/44` readback, rather than an
+optimistic application of the observed request, now provides the fast HA state
+for this setting. The measured delay is consistent with the report's roughly
+one-second cadence plus coordinator processing.
+
 The same parameter object also contained length-delimited fields `5`, `9`,
 `21`, and `31`, sized 16, 14, 6, and 10 bytes in the inspected snapshot. Their
 contents and meanings are deliberately not retained or named. They are a

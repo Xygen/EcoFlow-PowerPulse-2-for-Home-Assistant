@@ -245,6 +245,12 @@ bodies are not reconstructed or inferred here.
 - dev16 gives these direct settings priority over a cached provider snapshot
   only while the report is at most ten seconds old. HTTP and the dev15 delayed
   refresh remain automatic fallbacks, and no MQTT request is published.
+- The installed dev16 build was validated live by restoring the Solar minimum
+  current from 7 A to 6 A. The app SET carrying `4.4=60` was acknowledged after
+  approximately 152 ms, and the HA entities changed to `60`/`6.0 A`
+  approximately 1.77 seconds after the SET. The provider fallback did not
+  complete until about 20.26 seconds after the SET, independently confirming
+  that direct `241/44` readback produced the fast entity update.
 - The completed live dev13 `6 A -> 7 A -> 6 A` comparison decoded path `4.4`
   as `70 -> 60`, while `4.1=16` and Solar mode `4.2=2` remained stable. The
   same-sequence replies arrived after approximately 144 ms and 226 ms and
@@ -288,25 +294,21 @@ bodies are not reconstructed or inferred here.
 
 1. Confirm session-energy field 42 across more non-zero sessions, including
    rounding and whether raw units are consistently Wh.
-2. Validate dev16 live by restoring 6 A and confirm that direct `241/44` field
-   6 and the HA entity change from `70`/7 A to `60`/6 A within the expected
-   approximately one-second report interval. Record the provider fallback
-   timing separately rather than conflating it with MQTT readback.
-3. Investigate the currently unnamed length-delimited `241/44` parameter
+2. Investigate the currently unnamed length-delimited `241/44` parameter
    fields `5`, `9`, `21`, and `31` using controlled one-setting-at-a-time
    comparisons. Their observed sizes alone are not semantic evidence.
-4. Pair additional app changes with provider/MQTT snapshots to separate
+3. Pair additional app changes with provider/MQTT snapshots to separate
    `userCurrentSet`, heartbeat fields 17/18, the remaining `switchBits`, and
    `phaseSpecified` cleanly.
-5. Locate the Smart distance target and confirm the unit/scaling of
+4. Locate the Smart distance target and confirm the unit/scaling of
    `currentVehicleComsumption`.
-6. Check additional operating states and map `suspend_reason` values.
-7. Decide how best to represent the three individual phase voltages/currents
+5. Check additional operating states and map `suspend_reason` values.
+6. Decide how best to represent the three individual phase voltages/currents
    upstream instead of only exposing an aggregate maximum.
-8. Keep upstream proposals on the existing PowerOcean path. Direct C376 MQTT
+7. Keep upstream proposals on the existing PowerOcean path. Direct C376 MQTT
    and developer-key-only provider detail are useful research evidence but are
    not proposed as duplicate production sources.
-9. For any future controls, retain the captured request **and** same-sequence
+8. For any future controls, retain the captured request **and** same-sequence
    reply evidence, but separately confirm target attribution, acknowledgement
    semantics, complete value mappings and safety constraints. `241/102` is an
    observed app-write path, not a readback source. Start/Stop may still use a
