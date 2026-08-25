@@ -98,7 +98,7 @@ class PowerPulse2CurrentNumber(PowerPulse2Entity, NumberEntity):
 
     @property
     def available(self) -> bool:
-        if not self.coordinator.phase_control_available(self.serial):
+        if not self.coordinator.settings_control_available(self.serial):
             return False
         values = self.coordinator.data.get(self.serial, {})
         if self.entity_description.key == "solar_minimum_current_control":

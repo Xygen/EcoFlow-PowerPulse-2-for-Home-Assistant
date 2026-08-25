@@ -63,7 +63,7 @@ class PowerPulse2SettingsSwitch(PowerPulse2Entity, SwitchEntity):
 
     @property
     def available(self) -> bool:
-        if not self.coordinator.phase_control_available(self.serial):
+        if not self.coordinator.settings_control_available(self.serial):
             return False
         values = self.coordinator.data.get(self.serial, {})
         if self.entity_description.key == "continuous_charging_control":

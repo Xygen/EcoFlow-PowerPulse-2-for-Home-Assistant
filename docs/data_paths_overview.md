@@ -7,8 +7,10 @@ chronological evidence in [protocol_observations.md](protocol_observations.md).
 The tables distinguish device readback from app-write observations. A fast
 acknowledgement of an app request is not automatically a trustworthy state
 value. Read entities therefore use confirmed device or provider reports. The
-dev22 controls are evidence-gated and require acknowledgement plus either
+dev23 controls are evidence-gated and require acknowledgement plus either
 fresh direct device readback or a post-command raw provider confirmation.
+Phase selection is narrower: provider `phaseSpecified` has no confirmed mapping,
+so that control requires a fresh direct `phase_mode` report.
 
 `—` means that no value has been identified on that path. Values marked
 **raw** are intentionally not assigned a final unit or complete semantic
@@ -33,7 +35,7 @@ mapping yet.
 | Maximum output current | Field `18` as current limit | Field `9`; `160` = 16 A | `1.4.8.4`; `160` = 16 A | `paramSet.currentOuputMax` |
 | Solar minimum current | — | — | `1.4.8.6`; `70` = 7 A and `60` = 6 A | `paramSet.solarCurrentMin` |
 | Custom/user current | — | — | `1.4.8.8`; `60` = 6 A and `110` = 11 A | `paramSet.userCurrentSet` |
-| Phase selection | — | Field `11`: `1` one phase, `2` three phase, `3` auto | `1.4.8.7`: `0` auto, `1` one phase, `2` three phase | `paramSet.phaseSpecified`, raw |
+| Phase selection | — | Field `11`: `1` one phase, `2` three phase, `3` auto | `1.4.8.7`: `0` auto, `1` one phase, `2` three phase | `paramSet.phaseSpecified`, raw and not suitable for confirmation yet |
 | Plug-and-Play | — | Field `2`: `0`/`1` | Bit `0x02` in `1.4.8.1`; confirmed by `16 -> 18 -> 16` | Bit `0x02` in `paramSet.switchBits` |
 | LED enabled | — | Field `13`: `0`/`1` | — | — |
 | LED brightness | — | Field `14`, percent | — | — |
@@ -72,7 +74,7 @@ authoritative Home Assistant state.
 | Observed response | Same-sequence reply after about 50-226 ms | Unknown | No assigned reply |
 | Suitable as HA state | No; SET observations are not state. Controls require separate fresh direct or provider readback | Still under investigation | No current evidence |
 
-dev22 uses confirmed app-write fields only for disabled-by-default controls:
+dev23 uses confirmed app-write fields only for disabled-by-default controls:
 `4.1` for battery, Plug-and-Play, and Continuous flags; `4.2` for all four
 operating modes; `4.3` for maximum current; `4.4` for Solar minimum current;
 `4.5` for phase selection; `4.6` for Custom current; and nested `4.7` for Smart
@@ -81,6 +83,14 @@ their 25/50/75/100% brightness. Every write requires a same-sequence reply and
 then either matching direct `241/44` readback or a post-command raw provider
 snapshot that explicitly contains the expected key and value. Cached merged
 state alone never confirms a write.
+
+The 2026-08-26 idle test showed why the paths cannot share one blanket rule.
+Mode and flag updates appeared in the provider snapshot about 12–15 seconds
+after their SETs, so dev23 checks that strict raw path through approximately 20
+seconds. Two acknowledged phase SETs produced no direct phase report, and the
+provider exposed only the unconfirmed raw `phaseSpecified` field. dev23 therefore
+keeps the other controls usable with provider fallback but makes phase selection
+unavailable whenever recent direct `phase_mode` readback is absent.
 
 ## Fast-path coverage and unresolved fields
 

@@ -15,13 +15,14 @@ Any upstream proposal must follow the upstream maintainer's chosen architecture.
 This integration's direct C376 MQTT path with bounded PowerOcean HTTP fallback
 is project evidence, not a prescription for another repository.
 
-Current implementation baseline: `0.1.0-dev22`.
+Current implementation baseline: `0.1.0-dev23`.
 
 ## Live validation and control safety
 
 | ID | Priority | Open work | Completion evidence |
 | --- | --- | --- | --- |
-| `LIVE-01` | Next | Re-test the dev22 provider-readback fallback after a genuine multi-hour idle period. | A HA-originated write is acknowledged without fresh direct `241/44` readback, then confirmed by a post-command raw provider snapshot; diagnostics identify the provider path and no false failure occurs. |
+| `LIVE-01` | Next | Live-validate the extended dev23 provider-readback window after another genuine multi-hour idle period. | Mode, battery, and Continuous writes without fresh direct `241/44` readback are confirmed by post-command raw provider snapshots without a false HA failure; the new attempt trace identifies when the match arrived. |
+| `PHASE-01` | Research | Establish the provider `phaseSpecified` mapping through controlled app changes so phase writes can eventually be confirmed while the direct path sleeps. Until then dev23 exposes phase control only with fresh direct `phase_mode` readback. | Auto, one-phase, and three-phase changes isolate every provider value and agree with independent app/device state before provider phase confirmation is implemented. |
 | `CTRL-01` | Blocked by vehicle availability | Capture and implement Start and Stop separately, both without a connected vehicle and with one connected. | Official-app request/reply frames, exact target attribution, independent charger-state readback, and reversible HA tests distinguish unplugged, plugged-in, charging, paused, completed, and rejected outcomes where observed. |
 | `SAFE-01` | Blocked by vehicle availability | Establish the charging-time interlock matrix for every writable setting. Operating mode and phase selection are already known to be locked while charging; the remaining controls are unclassified. | Each control has an idle/charging result and HA prevents predictably invalid MQTT publication through availability or local validation. |
 | `CTRL-02` | After `SAFE-01` | Investigate dynamic charging-current or power control during an active session separately from the stored maximum-current setting. | A captured official-app command, acknowledgement, physical readback, limits, and charging-state constraints are confirmed before exposing a control. |

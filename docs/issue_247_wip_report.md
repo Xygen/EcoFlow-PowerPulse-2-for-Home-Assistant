@@ -457,3 +457,28 @@ and no active or pending delayed refresh. The PowerPulse direct path had been
 awakened by the restart, so this run did not exercise provider-fallback
 confirmation. The remaining live validation is tracked in the
 [project backlog](backlog.md).
+
+## dev23 extended idle confirmation and phase safety (2026-08-26)
+
+The genuine idle test produced the evidence dev22 was designed to collect. The
+fast `241/44` settings report was absent while MQTT remained connected. Fifteen
+acknowledged HA writes were reported as unconfirmed between 00:05 and 00:19
+local time. Mode and flag changes nevertheless appeared in HA roughly 12–15
+seconds after their SETs, usually 3–6 seconds after dev22 had already returned
+its error at about 9 seconds. Diagnostics also retained four successful provider
+confirmations, proving that the fallback path works but has variable latency.
+
+dev23 keeps the same strict post-command raw-key/value requirement and extends
+the bounded provider checks through approximately 20 seconds. It additionally
+records a 32-entry identifier-free attempt trace containing the retry number,
+delay, refresh result, expected-key presence, post-command freshness, and match
+result.
+
+Phase selection is a separate case. Two HA phase SETs at 00:19:10 and 00:19:45
+received replies in about 142 ms and 62 ms, but neither produced direct phase
+readback or a normal phase-state change. The provider currently retains only
+raw `phaseSpecified`; it does not supply the confirmed `phase_mode` expected by
+the control. dev23 therefore separates general settings availability from phase
+availability: provider-backed controls remain usable after idle, while phase is
+available only during a fresh direct `241/44` phase report. Provider phase
+mapping remains an explicit controlled-research item in the central backlog.

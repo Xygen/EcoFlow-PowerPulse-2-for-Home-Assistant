@@ -70,7 +70,7 @@ class PowerPulse2ModeSelect(PowerPulse2Entity, SelectEntity):
 
     @property
     def available(self) -> bool:
-        return self.coordinator.phase_control_available(self.serial)
+        return self.coordinator.settings_control_available(self.serial)
 
     @property
     def current_option(self) -> str | None:
@@ -95,7 +95,7 @@ class PowerPulse2SmartTargetSelect(PowerPulse2Entity, SelectEntity):
     def available(self) -> bool:
         values = self.coordinator.data.get(self.serial, {})
         return (
-            self.coordinator.phase_control_available(self.serial)
+            self.coordinator.settings_control_available(self.serial)
             and values.get("work_mode") == "smart"
             and self.coordinator.smart_target_type_control_available(self.serial)
         )

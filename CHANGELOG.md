@@ -13,6 +13,23 @@ Current outstanding work is maintained only in
   phase field `7`, and Custom-current field `8` are resolved; older dev-stage
   statements remain explicitly historical evidence.
 
+## 0.1.0-dev23
+
+- Extend strict provider confirmation from roughly 9 seconds to bounded checks
+  through roughly 20 seconds after an acknowledged SET. The idle test showed
+  valid mode/flag snapshots arriving about 12–15 seconds after publication.
+- Retain the requirement for a fresh raw provider key/value match; neither the
+  SET reply nor merged cached state can confirm a write.
+- Add a bounded identifier-free diagnostic trace for every provider attempt,
+  including delay, expected-key presence, post-command freshness, and match
+  result.
+- Split general settings-transport availability from phase availability. Other
+  controls keep their provider fallback after idle, while phase selection is
+  unavailable without a fresh direct `241/44` phase mapping because provider
+  `phaseSpecified` remains raw and cannot confirm `phase_mode` safely.
+- Add helper coverage for fresh direct phase availability and provider lag vs
+  missing-key diagnostics; extend the local suite to 55 passing tests.
+
 ## 0.1.0-dev22
 
 - Fix false write failures after an idle period: after the acknowledged SET,

@@ -719,3 +719,31 @@ passive refresh was left active or pending, confirming that integration-owned
 replies do not duplicate the new synchronous verification. The direct device
 was awake during this test, so it did not exercise the provider fallback. That
 remaining validation is tracked in the [project backlog](backlog.md).
+
+## 2026-08-26: genuine idle test and dev23 readback boundary
+
+After several idle hours, the PowerPulse MQTT connection and PowerOcean command
+path were still live, but the direct `241/44` settings bucket was absent. Every
+retained `241/102` request in the inspected sequence had a matching reply. The
+integration nevertheless logged fifteen readback failures between 00:05 and
+00:19 local time.
+
+The timing isolates provider propagation rather than command transport as the
+cause for mode and flag controls. Representative requests were acknowledged in
+about 60–236 ms; dev22 returned its readback error approximately 9.1 seconds
+after publication, while HA received the requested mode or bitmask after about
+12.2–14.9 seconds. Four earlier writes in the same runtime had already completed
+through provider confirmation. dev23 therefore preserves the raw, post-command
+key/value test but adds bounded provider checks at approximately 2, 5, 10, 15,
+and 20 seconds after publication. A 32-entry identifier-free trace records each
+attempt without serials or expected values.
+
+Phase cannot safely use that fallback yet. The requests at 00:19:10 and
+00:19:45 received matching replies after about 142 ms and 62 ms, but no direct
+phase report or normal phase-state transition followed. The provider parser
+retains `phaseSpecified` only as `phase_specified_raw`; its value mapping is not
+confirmed and it cannot satisfy an expected `phase_mode`. dev23 therefore makes
+phase control available only while a recent direct `241/44` report supplies one
+of the confirmed `auto`/`one_phase`/`three_phase` values. All other settings
+controls continue to use the general acknowledged transport plus direct-or-raw-
+provider confirmation.

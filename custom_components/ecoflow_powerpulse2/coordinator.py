@@ -1,10 +1,11 @@
-"""Read-only PowerPulse 2 cloud coordinator."""
+"""PowerPulse 2 cloud coordinator with evidence-gated user controls."""
 
 from __future__ import annotations
 
 import asyncio
 import logging
 import time
+from collections import deque
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
@@ -22,7 +23,12 @@ from .const import (
     SETTINGS_REFRESH_DELAY_SECONDS,
     UPDATE_INTERVAL_SECONDS,
 )
-from .control_readback import fresh_polled_value_matches, matching_readback_source
+from .control_readback import (
+    fresh_direct_value_available,
+    fresh_polled_value_matches,
+    matching_readback_source,
+    provider_readback_attempt_details,
+)
 from .data_merge import merge_snapshot_after_read
 from .ecoflow.cloud_mqtt import EcoFlowMQTTClient
 from .ecoflow.energy_stream import (
@@ -44,8 +50,9 @@ _LOGGER = logging.getLogger(__name__)
 _MAX_FRAME_BYTES = 2048
 _DIRECT_SETTINGS_FRESH_SECONDS = 10
 _CONTROL_DIRECT_WAIT_SECONDS = 2
-_CONTROL_PROVIDER_RETRY_DELAYS = (0, 2, 5)
+_CONTROL_PROVIDER_RETRY_DELAYS = (0, 3, 5, 5, 5)
 _CONTROL_NOOP_FRESH_SECONDS = UPDATE_INTERVAL_SECONDS * 2
+_CONTROL_DIAGNOSTIC_ATTEMPTS = 32
 _DIRECT_SETTINGS_KEYS = frozenset(
     {
         "continuous_charging",
@@ -104,6 +111,9 @@ class PowerPulse2Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
         self._control_readback_counts = {"direct": 0, "provider": 0, "noop": 0}
         self._last_control_readback_source: str | None = None
         self._last_control_readback_at: str | None = None
+        self._control_provider_attempts: deque[dict[str, Any]] = deque(
+            maxlen=_CONTROL_DIAGNOSTIC_ATTEMPTS
+        )
         self._accessory_descriptors: dict[str, bytes] = {}
         self._reply_waiters: dict[tuple[str, int], asyncio.Future[None]] = {}
         self._control_lock = asyncio.Lock()
@@ -145,6 +155,7 @@ class PowerPulse2Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
             "control_readback_counts": dict(self._control_readback_counts),
             "last_control_readback_source": self._last_control_readback_source,
             "last_control_readback_at": self._last_control_readback_at,
+            "recent_provider_attempts": list(self._control_provider_attempts),
         }
 
     async def _async_update_data(self) -> dict[str, dict[str, Any]]:
@@ -375,13 +386,24 @@ class PowerPulse2Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
         self._settings_refresh_count += 1
         self._last_settings_refresh_at = datetime.now(UTC).isoformat()
 
-    def phase_control_available(self, serial: str) -> bool:
-        """Return whether the evidence-gated phase control can be used."""
+    def settings_control_available(self, serial: str) -> bool:
+        """Return whether the captured settings transport can be used."""
         if serial not in self._accessory_descriptors or len(self.observer_devices) != 1:
             return False
         observer_serial = next(iter(self.observer_devices))
         client = self.mqtt_clients.get(observer_serial)
         return client is not None and client.is_connected()
+
+    def phase_control_available(self, serial: str) -> bool:
+        """Return whether phase control also has a confirmable direct readback."""
+        return self.settings_control_available(serial) and fresh_direct_value_available(
+            current_values=(self.data or {}).get(serial, {}),
+            direct_reported_at=self._last_direct_settings_at.get(serial, 0),
+            now=time.monotonic(),
+            max_age=_DIRECT_SETTINGS_FRESH_SECONDS,
+            key="phase_mode",
+            allowed_values={"auto", "one_phase", "three_phase"},
+        )
 
     async def async_set_phase_mode(self, serial: str, option: str) -> None:
         """Send a user-requested phase SET and require reply plus device readback."""
@@ -390,7 +412,7 @@ class PowerPulse2Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
             raise HomeAssistantError(f"Unsupported phase option: {option}")
         if not self.phase_control_available(serial):
             raise HomeAssistantError(
-                "Phase control is unavailable until a direct device settings report "
+                "Phase control is unavailable until fresh direct phase readback "
                 "and exactly one connected PowerOcean source are available"
             )
 
@@ -709,7 +731,7 @@ class PowerPulse2Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
         expected_key: str,
         expected_value: Any,
     ) -> None:
-        """Publish one settings command and require reply plus direct readback."""
+        """Publish one settings command and require reply plus confirmed readback."""
         async with self._control_lock:
             await self._async_write_settings_locked(
                 serial,
@@ -726,7 +748,7 @@ class PowerPulse2Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
         expected_key: str,
         expected_value: Any,
     ) -> None:
-        if not self.phase_control_available(serial):
+        if not self.settings_control_available(serial):
             raise HomeAssistantError(
                 "Control is unavailable until a direct device settings report "
                 "and exactly one connected PowerOcean source are available"
@@ -773,13 +795,24 @@ class PowerPulse2Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
             self._record_control_readback(source)
             return
 
-        for delay in _CONTROL_PROVIDER_RETRY_DELAYS:
+        for attempt, delay in enumerate(_CONTROL_PROVIDER_RETRY_DELAYS, start=1):
             if delay:
                 await asyncio.sleep(delay)
+            refresh_succeeded = True
             try:
                 await self.async_request_refresh()
             except Exception as exc:
+                refresh_succeeded = False
                 _LOGGER.debug("Provider readback after settings write failed: %s", exc)
+            self._record_provider_readback_attempt(
+                serial,
+                issued_at=issued_at,
+                expected_key=expected_key,
+                expected_value=expected_value,
+                attempt=attempt,
+                delay=delay,
+                refresh_succeeded=refresh_succeeded,
+            )
             source = self._control_readback_source(
                 serial, issued_at, expected_key, expected_value
             )
@@ -833,6 +866,36 @@ class PowerPulse2Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
         self._control_readback_counts[source] += 1
         self._last_control_readback_source = source
         self._last_control_readback_at = datetime.now(UTC).isoformat()
+
+    def _record_provider_readback_attempt(
+        self,
+        serial: str,
+        *,
+        issued_at: float,
+        expected_key: str,
+        expected_value: Any,
+        attempt: int,
+        delay: int,
+        refresh_succeeded: bool,
+    ) -> None:
+        """Retain a bounded, identifier-free provider qualification trace."""
+        details = provider_readback_attempt_details(
+            polled_values=self._last_polled_settings.get(serial, {}),
+            polled_at=self._last_polled_settings_at.get(serial, 0),
+            issued_at=issued_at,
+            expected_key=expected_key,
+            expected_value=expected_value,
+        )
+        self._control_provider_attempts.append(
+            {
+                "timestamp": datetime.now(UTC).isoformat(),
+                "attempt": attempt,
+                "delay_seconds": delay,
+                "expected_key": expected_key,
+                "refresh_succeeded": refresh_succeeded,
+                **details,
+            }
+        )
 
     @property
     def _mqtt_sources(self) -> dict[str, dict[str, str]]:

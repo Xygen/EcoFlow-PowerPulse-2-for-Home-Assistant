@@ -30,7 +30,7 @@ diagnostics.
 
 ## Current scope
 
-Version `0.1.0-dev22` keeps automatic MQTT activity listen-only and provides
+Version `0.1.0-dev23` keeps automatic MQTT activity listen-only and provides
 disabled-by-default, user-triggered controls:
 
 - EcoFlow app-account login and PowerPulse discovery
@@ -93,7 +93,9 @@ one connected PowerOcean source, and reports success only after both a matching
 accept whole values from 6 through 16 A; Solar, Custom, and Smart controls
 additionally enforce their applicable operating-mode conditions. Smart-mode
 selection requires previously read device settings, avoiding guessed timestamps
-or targets.
+or targets. Phase selection is additionally available only while a fresh direct
+`241/44` phase value exists, because the provider phase mapping is not yet
+confirmed.
 
 ## Open work
 
@@ -130,9 +132,10 @@ Use a development/test Home Assistant instance. The telemetry parser has been
 validated against live C376 MQTT frames, but the integration is not ready for
 general use. All settings controls exposed through dev21 have completed
 reversible live tests from HA with SET acknowledgement and matching readback
-while no vehicle was connected. Dev22 additionally introduces raw provider
-readback as a bounded fallback after idle periods. Its current live-validation
-status is tracked in the [project backlog](docs/backlog.md).
+while no vehicle was connected. dev23 extends strict raw-provider confirmation
+to cover the 12–15 second propagation observed after an idle period and records
+privacy-safe details for each attempt. Its live-validation status is tracked in
+the [project backlog](docs/backlog.md).
 
 ## Diagnostic capture workflow
 

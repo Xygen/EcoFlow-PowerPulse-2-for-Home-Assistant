@@ -38,7 +38,7 @@ class PowerPulse2ReadyByDateTime(PowerPulse2Entity, DateTimeEntity):
     def available(self) -> bool:
         values = self.coordinator.data.get(self.serial, {})
         return (
-            self.coordinator.phase_control_available(self.serial)
+            self.coordinator.settings_control_available(self.serial)
             and values.get("work_mode") == "smart"
             and isinstance(values.get("ready_by_timestamp"), int)
         )
