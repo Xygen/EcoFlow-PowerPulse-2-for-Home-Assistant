@@ -72,13 +72,15 @@ authoritative Home Assistant state.
 | Observed response | Same-sequence reply after about 50-226 ms | Unknown | No assigned reply |
 | Suitable as HA state | No; controls require separate direct device readback | Still under investigation | No current evidence |
 
-dev21 uses confirmed app-write fields only for disabled-by-default controls:
+dev22 uses confirmed app-write fields only for disabled-by-default controls:
 `4.1` for battery, Plug-and-Play, and Continuous flags; `4.2` for all four
 operating modes; `4.3` for maximum current; `4.4` for Solar minimum current;
 `4.5` for phase selection; `4.6` for Custom current; and nested `4.7` for Smart
 ready-by and target settings; nested `4.21` controls screen and LED state plus
 their 25/50/75/100% brightness. Every write requires a same-sequence reply and
-matching `241/44` readback.
+then either matching direct `241/44` readback or a post-command raw provider
+snapshot that explicitly contains the expected key and value. Cached merged
+state alone never confirms a write.
 
 ## Fast-path coverage and next candidates
 

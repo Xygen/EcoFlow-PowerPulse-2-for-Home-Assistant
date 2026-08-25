@@ -454,3 +454,17 @@ screen 25 -> 50 -> 25%, LED off/on, and LED 25 -> 50 -> 25%, including
 matching binary/sensor readback. Each brightness Number correctly became
 unavailable while its display was off. Both displays were restored to on at
 25% after the test.
+
+## dev22 idle readback correction (2026-08-25)
+
+Live diagnostics captured two false failures after several idle hours. Both
+`4.1=19` SETs received matching replies in under 100 ms, MQTT was connected,
+and the delayed provider poll subsequently confirmed bitmask 19. dev21 had
+required a new direct `241/44` report within five seconds and ignored that
+authoritative provider result.
+
+dev22 retains the direct path first, then performs bounded immediate provider
+reads. Only a post-command raw snapshot containing the expected key/value can
+confirm the write; merged cache values are excluded. Fresh already-matching
+provider values avoid redundant SETs. Readback source counts are included in
+privacy-safe diagnostics for the next live validation.

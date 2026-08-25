@@ -693,3 +693,21 @@ Assistant. Screen off/on, screen 25 -> 50 -> 25%, LED off/on, and LED
 readback. When either display was off, its corresponding Number entity became
 unavailable and returned when switched on. Final state was restored to screen
 on at 25% and LED on at 25%.
+
+## 2026-08-25: idle-period readback false negative and dev22
+
+After several idle hours, two HA writes sent `241/102 -> 4.1=19` at
+04:26:49 and 04:27:06 UTC. Both received same-sequence replies in 89-93 ms,
+while MQTT remained connected without a reconnect. dev21 nevertheless raised
+its readback error because no fresh direct `241/44` report arrived inside five
+seconds. The coalesced provider refresh completed at 04:27:09 and independently
+confirmed settings bitmask 19, proving the writes had succeeded.
+
+dev22 keeps direct device readback as the preferred confirmation, waits briefly
+for it, and then actively requests provider snapshots. A provider confirmation
+is accepted only when a snapshot completed after the SET and its raw response
+actually contains the expected key and value; a value preserved only by the
+merge cache cannot confirm a write. Up to three bounded provider attempts cover
+cloud propagation delay. A recent raw provider match also makes an already-met
+request a no-op. Integration-owned replies no longer cause a redundant delayed
+passive refresh, and diagnostics count direct, provider, and no-op outcomes.

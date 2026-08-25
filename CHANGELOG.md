@@ -13,6 +13,21 @@
   known to be locked during an active charging session; further controls still
   need classification.
 
+## 0.1.0-dev22
+
+- Fix false write failures after an idle period: after the acknowledged SET,
+  first retain direct MQTT readback, then actively request a fresh provider
+  snapshot and accept it only when its raw response contains the expected key
+  and value.
+- Avoid unnecessary SET commands when a provider value no older than two poll
+  intervals already confirms the requested state.
+- Do not schedule the separate delayed passive-app refresh for an integration-
+  owned SET reply; its synchronous provider verification replaces that read.
+- Add privacy-safe diagnostics for direct/provider/no-op confirmation counts.
+- Document the live incident in which two acknowledged `4.1=19` commands were
+  reported as failures before the delayed provider refresh confirmed value 19.
+- Extend the local suite to 53 passing tests.
+
 ## 0.1.0-dev21
 
 - Add disabled-by-default controls for the screen, LED indicator, and their

@@ -22,6 +22,7 @@ from .const import (
     SETTINGS_REFRESH_DELAY_SECONDS,
     UPDATE_INTERVAL_SECONDS,
 )
+from .control_readback import fresh_polled_value_matches, matching_readback_source
 from .data_merge import merge_snapshot_after_read
 from .ecoflow.cloud_mqtt import EcoFlowMQTTClient
 from .ecoflow.energy_stream import (
@@ -42,6 +43,9 @@ from .passive_refresh import ConfirmedSettingsReplyGate, DelayedRefreshCoalescer
 _LOGGER = logging.getLogger(__name__)
 _MAX_FRAME_BYTES = 2048
 _DIRECT_SETTINGS_FRESH_SECONDS = 10
+_CONTROL_DIRECT_WAIT_SECONDS = 2
+_CONTROL_PROVIDER_RETRY_DELAYS = (0, 2, 5)
+_CONTROL_NOOP_FRESH_SECONDS = UPDATE_INTERVAL_SECONDS * 2
 _DIRECT_SETTINGS_KEYS = frozenset(
     {
         "continuous_charging",
@@ -95,6 +99,11 @@ class PowerPulse2Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
         self._last_settings_reply_at: str | None = None
         self._last_settings_refresh_at: str | None = None
         self._last_direct_settings_at: dict[str, float] = {}
+        self._last_polled_settings_at: dict[str, float] = {}
+        self._last_polled_settings: dict[str, dict[str, Any]] = {}
+        self._control_readback_counts = {"direct": 0, "provider": 0, "noop": 0}
+        self._last_control_readback_source: str | None = None
+        self._last_control_readback_at: str | None = None
         self._accessory_descriptors: dict[str, bytes] = {}
         self._reply_waiters: dict[tuple[str, int], asyncio.Future[None]] = {}
         self._control_lock = asyncio.Lock()
@@ -133,6 +142,9 @@ class PowerPulse2Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
             "pending": self._settings_refresh.pending,
             "last_confirmed_reply_at": self._last_settings_reply_at,
             "last_completed_refresh_at": self._last_settings_refresh_at,
+            "control_readback_counts": dict(self._control_readback_counts),
+            "last_control_readback_source": self._last_control_readback_source,
+            "last_control_readback_at": self._last_control_readback_at,
         }
 
     async def _async_update_data(self) -> dict[str, dict[str, Any]]:
@@ -158,7 +170,7 @@ class PowerPulse2Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
             for serial, device in self.devices.items():
                 result[serial] = await merge_snapshot_after_read(
                     lambda device=device, provider=provider_updates.get(serial, {}): (
-                        self._async_read_combined_snapshot(device, provider)
+                        self._async_read_combined_snapshot(serial, device, provider)
                     ),
                     lambda serial=serial: (self.data or {}).get(serial),
                     lambda serial=serial: self._preferred_live_settings(serial),
@@ -188,12 +200,15 @@ class PowerPulse2Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
 
     async def _async_read_combined_snapshot(
         self,
+        serial: str,
         device: dict[str, str],
         provider: dict[str, Any],
     ) -> dict[str, Any]:
         """Combine direct and already-fetched parent data before race-safe merge."""
         snapshot = await self.api.async_read(device)
         snapshot.update(provider)
+        self._last_polled_settings[serial] = dict(snapshot)
+        self._last_polled_settings_at[serial] = time.monotonic()
         return snapshot
 
     async def _async_setup_mqtt(self) -> None:
@@ -324,6 +339,7 @@ class PowerPulse2Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
             "payload_omitted": is_observer,
         }
         self._frame_capture.record(frame)
+        own_settings_reply = False
         if channel == "set_reply":
             for header in protocol_headers:
                 if (header.get("cmd_func"), header.get("cmd_id")) != (241, 102):
@@ -332,11 +348,13 @@ class PowerPulse2Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
                 if isinstance(sequence, int):
                     waiter = self._reply_waiters.pop((serial, sequence), None)
                     if waiter is not None and not waiter.done():
+                        own_settings_reply = True
                         waiter.set_result(None)
         if not self._shutting_down and self._settings_reply_gate.observe(frame):
             self._settings_reply_count += 1
             self._last_settings_reply_at = frame["timestamp"]
-            self._settings_refresh.request()
+            if not own_settings_reply:
+                self._settings_refresh.request()
 
     def _preferred_live_settings(self, serial: str) -> frozenset[str]:
         """Prefer a recent direct device report over a cached provider poll."""
@@ -713,6 +731,17 @@ class PowerPulse2Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
                 "Control is unavailable until a direct device settings report "
                 "and exactly one connected PowerOcean source are available"
             )
+        now = time.monotonic()
+        if fresh_polled_value_matches(
+            polled_values=self._last_polled_settings.get(serial, {}),
+            polled_at=self._last_polled_settings_at.get(serial, 0),
+            now=now,
+            max_age=_CONTROL_NOOP_FRESH_SECONDS,
+            expected_key=expected_key,
+            expected_value=expected_value,
+        ):
+            self._record_control_readback("noop")
+            return
         observer_serial = next(iter(self.observer_devices))
         client = self.mqtt_clients[observer_serial]
         payload, sequence = build_powerpulse_settings_payload(
@@ -733,19 +762,77 @@ class PowerPulse2Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
             self._reply_waiters.pop((observer_serial, sequence), None)
             raise HomeAssistantError("No EcoFlow SET reply was received") from exc
 
-        deadline = time.monotonic() + 5
-        while time.monotonic() < deadline:
-            direct_at = self._last_direct_settings_at.get(serial, 0)
-            if (
-                direct_at > issued_at
-                and (self.data or {}).get(serial, {}).get(expected_key)
-                == expected_value
-            ):
-                return
-            await asyncio.sleep(0.2)
-        raise HomeAssistantError(
-            "EcoFlow acknowledged the command, but device readback did not confirm it"
+        source = await self._async_wait_for_control_readback(
+            serial,
+            issued_at=issued_at,
+            expected_key=expected_key,
+            expected_value=expected_value,
+            timeout=_CONTROL_DIRECT_WAIT_SECONDS,
         )
+        if source is not None:
+            self._record_control_readback(source)
+            return
+
+        for delay in _CONTROL_PROVIDER_RETRY_DELAYS:
+            if delay:
+                await asyncio.sleep(delay)
+            try:
+                await self.async_request_refresh()
+            except Exception as exc:
+                _LOGGER.debug("Provider readback after settings write failed: %s", exc)
+            source = self._control_readback_source(
+                serial, issued_at, expected_key, expected_value
+            )
+            if source is not None:
+                self._record_control_readback(source)
+                return
+        raise HomeAssistantError(
+            "EcoFlow acknowledged the command, but neither direct nor provider "
+            "readback confirmed it"
+        )
+
+    async def _async_wait_for_control_readback(
+        self,
+        serial: str,
+        *,
+        issued_at: float,
+        expected_key: str,
+        expected_value: Any,
+        timeout: float,
+    ) -> str | None:
+        deadline = time.monotonic() + timeout
+        while time.monotonic() < deadline:
+            source = self._control_readback_source(
+                serial, issued_at, expected_key, expected_value
+            )
+            if source is not None:
+                return source
+            await asyncio.sleep(0.2)
+        return self._control_readback_source(
+            serial, issued_at, expected_key, expected_value
+        )
+
+    def _control_readback_source(
+        self,
+        serial: str,
+        issued_at: float,
+        expected_key: str,
+        expected_value: Any,
+    ) -> str | None:
+        return matching_readback_source(
+            current_values=(self.data or {}).get(serial, {}),
+            direct_reported_at=self._last_direct_settings_at.get(serial, 0),
+            polled_values=self._last_polled_settings.get(serial, {}),
+            polled_at=self._last_polled_settings_at.get(serial, 0),
+            issued_at=issued_at,
+            expected_key=expected_key,
+            expected_value=expected_value,
+        )
+
+    def _record_control_readback(self, source: str) -> None:
+        self._control_readback_counts[source] += 1
+        self._last_control_readback_source = source
+        self._last_control_readback_at = datetime.now(UTC).isoformat()
 
     @property
     def _mqtt_sources(self) -> dict[str, dict[str, str]]:
