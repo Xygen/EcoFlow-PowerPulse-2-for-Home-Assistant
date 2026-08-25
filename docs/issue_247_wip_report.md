@@ -305,6 +305,12 @@ bodies are not reconstructed or inferred here.
 
 ## Still to do
 
+- Cosmetic entity naming: show the diagnostic `switch_bits_raw` entity as
+  `Plug-and-Play Rohwert` in German in a future release. This is a display-name
+  change only; protocol documentation must continue to identify the value as
+  the complete settings bitmask because bits `0x01`, `0x02`, and `0x10` are
+  already assigned to separate settings.
+
 1. Confirm session-energy field 42 across more non-zero sessions, including
    rounding and whether raw units are consistently Wh.
 2. Investigate the currently unnamed length-delimited `241/44` parameter

@@ -12,6 +12,10 @@
   writes before publishing. Operating mode and phase selection are already
   known to be locked during an active charging session; further controls still
   need classification.
+- Cosmetic backlog: rename the German diagnostic display name
+  `Einstellungsflags Rohwert` to `Plug-and-Play Rohwert` in a future release.
+  The underlying `switch_bits_raw` remains the shared bitmask for battery
+  blocking, Plug-and-Play, Continuous charging, and still-unassigned flags.
 
 ## 0.1.0-dev22
 
