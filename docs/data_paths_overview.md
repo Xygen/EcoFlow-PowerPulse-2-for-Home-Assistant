@@ -7,8 +7,8 @@ chronological evidence in [protocol_observations.md](protocol_observations.md).
 The tables distinguish device readback from app-write observations. A fast
 acknowledgement of an app request is not automatically a trustworthy state
 value. Read entities therefore use confirmed device or provider reports. The
-dev18 phase control is separately evidence-gated and requires acknowledgement
-plus device readback.
+dev22 controls are evidence-gated and require acknowledgement plus either
+fresh direct device readback or a post-command raw provider confirmation.
 
 `—` means that no value has been identified on that path. Values marked
 **raw** are intentionally not assigned a final unit or complete semantic
@@ -68,9 +68,9 @@ authoritative Home Assistant state.
 | Phase selection | `4.5` | Not confirmed | — |
 | Custom-mode current | `4.6`, 0.1 A | Not confirmed | — |
 | Smart settings | Nested block `4.7` | Not confirmed | — |
-| Screen/LED settings | Nested bytes `4.21`: LED enable, screen enable, LED %, screen %, `0`, `0` | Provider fields `13`-`16` supply readback | — |
+| Screen/LED settings | Nested bytes `4.21`: LED enable, screen enable, LED %, screen %, `0`, `0` | Not confirmed | — |
 | Observed response | Same-sequence reply after about 50-226 ms | Unknown | No assigned reply |
-| Suitable as HA state | No; controls require separate direct device readback | Still under investigation | No current evidence |
+| Suitable as HA state | No; SET observations are not state. Controls require separate fresh direct or provider readback | Still under investigation | No current evidence |
 
 dev22 uses confirmed app-write fields only for disabled-by-default controls:
 `4.1` for battery, Plug-and-Play, and Continuous flags; `4.2` for all four
@@ -98,7 +98,6 @@ used by at least one Home Assistant entity:
 
 The unnamed byte fields `5`, `9`, and `21` are the remaining candidates
 for additional fast values. Controlled one-setting-at-a-time comparisons are
-needed before parsing them. Smart ready-by/target settings are the strongest
-first test because they are already known on the slower provider path and can
-be compared without guessing. Screen, LED, battery, vehicle, and other values
-may or may not be present in those blocks.
+needed before parsing them. Field `31` is already decoded as the Smart block.
+The six-byte field `21` is the strongest next candidate because the matching
+app-write display block is now known; fields `5` and `9` remain unassigned.

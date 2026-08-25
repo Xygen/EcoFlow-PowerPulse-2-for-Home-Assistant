@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Reconcile the documentation with the dev22 implementation: mark Smart field
+  `31`, phase field `7`, and Custom-current field `8` as resolved, remove them
+  from the open investigation list, and preserve older dev-stage statements as
+  explicitly historical evidence.
 - Release requirement: create and bundle a dedicated PowerPulse 2 integration
   icon no later than the first non-development release.
 - Protocol hypothesis for a future release: `session_energy_raw` may be watt-hours.

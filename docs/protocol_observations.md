@@ -544,13 +544,12 @@ keys. Normal 100-byte reports continued roughly once per second, so this did
 not make the entities unavailable. The rejected variant remains unassigned
 rather than being widened into the parser without controlled evidence.
 
-The same parameter object also contained length-delimited fields `5`, `9`,
-`21`, and `31`, sized 16, 14, 6, and 10 bytes in the inspected snapshot. Their
-contents and meanings are deliberately not retained or named. They are a
-backlog for later controlled one-setting-at-a-time comparisons, especially
-Smart-mode, vehicle, and other settings that still lack a fast confirmed
-source. No entity should be created from these fields until such a comparison
-isolates its value and unit.
+At the dev17 stage, the same parameter object also contained unresolved
+length-delimited fields `5`, `9`, `21`, and `31`, sized 16, 14, 6, and 10 bytes
+in the inspected snapshot. The later controlled comparisons below resolve
+field `31` as the Smart block. Fields `5` and `9` remain unnamed. Field `21`
+remains a strong fast display-settings candidate, but it must be paired against
+controlled screen/LED changes before being decoded as readback.
 
 ## 2026-08-24: dev18 bundled mappings and experimental phase control
 
@@ -575,8 +574,10 @@ choice. It uses only the captured `241/102 -> 4.5` route. The command is sent
 through the single linked PowerOcean client, reuses the opaque 21-byte
 accessory descriptor learned from the direct device report, and requires both
 a same-sequence `set_reply` and matching direct `241/44` phase readback. This
-is the first HA-originated write implementation and remains pending live
-hardware validation; Start/Stop and all other controls remain unimplemented.
+was the first HA-originated write implementation and was pending live hardware
+validation at the dev18 candidate stage. The following section records its
+successful live validation; later sections add the other captured settings
+controls. Start/Stop remains unimplemented.
 
 ## 2026-08-24: live HA phase writes and battery flag
 

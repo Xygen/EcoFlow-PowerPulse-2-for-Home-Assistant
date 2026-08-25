@@ -1,12 +1,15 @@
 # WIP findings for C376 / PowerPulse 2
 
-> **WORK IN PROGRESS — please do not treat these mappings as complete or as a request to implement controls yet.**
+> **WORK IN PROGRESS — mappings and controls remain development-stage and are
+> not production-ready.**
 >
-> This is an interim report from a separate, deliberately read-only test
-> integration. An earlier summary has been posted to upstream issue #247. The
-> results below come from privacy-redacted captures from one live C376 charger
-> installed alongside a PowerOcean Plus, plus paired changes made in the
-> official EcoFlow app.
+> This report began with a deliberately read-only test integration. Later
+> development builds add only evidence-gated, user-triggered controls whose
+> official-app request shapes, replies, and independent readback were captured.
+> An earlier summary has been posted to upstream issue #247. The results below
+> come from privacy-redacted captures from one live C376 charger installed
+> alongside a PowerOcean Plus, plus paired changes made in the official EcoFlow
+> app and reversible Home Assistant tests.
 
 ## Scope boundary
 
@@ -229,10 +232,10 @@ Plug-and-Play-off, Continuous-charging-on or one-phase changes. Their frames
 contribute to the seen counts but were removed by sampling, so those missing
 bodies are not reconstructed or inferred here.
 
-## Current state of the test implementation
+## Historical implementation state through dev17
 
-- Development build `0.1.0-dev17` includes the dev13 header correction and
-  remains read-only. The parser reads `enc_type` from field 6 and keeps field 11 as
+- At the dev17 stage, automatic MQTT operation remained read-only. The parser
+  reads `enc_type` from field 6 and keeps field 11 as
   `need_ack`; acknowledgement-requesting plaintext bodies are no longer
   XOR-mutated. The upstream diagnostic confirms nested protobuf.
 - A direct C376 `241/44` parameter report was found in the installed dev15
@@ -290,8 +293,8 @@ bodies are not reconstructed or inferred here.
 - The new `Kontinuierlich laden` binary sensor was verified live in both
   directions: `switchBits=0` produced `off`, `switchBits=16` produced `on`, and
   `solarCurrentMin=60` remained stored throughout the test.
-- The parser has been exercised against live C376 frames. The current local
-  suite passes 40 tests, including direct `241/44` parameter decoding,
+- The parser had been exercised against live C376 frames. That stage passed 40
+  tests, including direct `241/44` parameter decoding,
   Plug-and-Play bit derivation, strict
   command/range rejection, selected fresh-MQTT merge priority, XOR envelope
   decoding, packed phase values,
@@ -308,31 +311,38 @@ bodies are not reconstructed or inferred here.
 1. Confirm session-energy field 42 across more non-zero sessions, including
    rounding and whether raw units are consistently Wh.
 2. Investigate the currently unnamed length-delimited `241/44` parameter
-   fields `5`, `9`, `21`, and `31` using controlled one-setting-at-a-time
-   comparisons. Their observed sizes alone are not semantic evidence.
+   fields `5`, `9`, and `21` using controlled one-setting-at-a-time
+   comparisons. Field `31` is resolved as the Smart block. The six-byte fast
+   field `21` is a strong display-settings candidate because app-write field
+   `4.21` is mapped, but that relationship still needs a paired direct-report
+   comparison.
 3. Pair additional app changes with provider/MQTT snapshots to separate
-   `userCurrentSet`, heartbeat fields 17/18, the remaining unassigned
-   `switchBits`, and `phaseSpecified` cleanly.
-4. Locate the Smart distance target and confirm the unit/scaling of
-   `currentVehicleComsumption`.
+   heartbeat fields 17/18 and the remaining unassigned `switchBits`. Custom
+   current is resolved as fast field `8` in 0.1 A and phase selection as fast
+   field `7` (`0` auto, `1` one phase, `2` three phase).
+4. Confirm the unit/scaling of `currentVehicleComsumption` across additional
+   targets or vehicles. The Smart distance target itself is resolved as fast
+   field `31.4` in kilometres.
 5. Check additional operating states and map `suspend_reason` values.
 6. Decide how best to represent the three individual phase voltages/currents
    upstream instead of only exposing an aggregate maximum.
 7. Keep upstream proposals aligned with the maintainer's selected architecture.
-   The latest diagnostic showed no PowerPulse 2 readback on the PowerOcean in
-   the no-car state, so direct C376 MQTT is now being considered as the only
-   observed hardware-readback source rather than a duplicate source. The
-   provider-detail path remains research and fallback evidence unless the
-   maintainer explicitly chooses to include HTTP polling.
-8. For any future controls, retain the captured request **and** same-sequence
-   reply evidence, but separately confirm target attribution, acknowledgement
-   semantics, complete value mappings and safety constraints. `241/102` is an
-   observed app-write path, not a readback source. Start/Stop may still use a
-   different command or transport.
+   This standalone integration uses direct C376 MQTT as its preferred fast
+   source and PowerOcean HTTP as a bounded fallback; that does not prescribe an
+   upstream architecture.
+8. Capture and implement Start/Stop separately, then establish the complete
+   charging-time interlock matrix with a connected vehicle. `241/102` is an
+   observed settings-write path, not evidence for the still-unknown Start/Stop
+   transport.
+9. Re-test dev22 after a genuine multi-hour idle period so the provider
+   readback fallback, rather than the normally active direct path, is exercised.
 
-For now I would suggest treating all of this as read-support research only,
-with Start/Stop and current-setting controls explicitly out of scope until the
-write path is observed rather than inferred.
+Current dev22 already implements and live-validates operating mode, phase,
+maximum/Solar/Custom current settings, battery blocking, Plug-and-Play,
+Continuous charging, Smart targets/ready-by, and screen/LED controls. Automatic
+MQTT activity remains listen-only; only explicit HA actions use the captured
+settings commands. Start/Stop and charging-time interlocks remain intentionally
+unimplemented.
 
 ## dev18 candidate update (2026-08-24)
 
