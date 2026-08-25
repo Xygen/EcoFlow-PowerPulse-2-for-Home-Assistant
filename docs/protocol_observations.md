@@ -747,3 +747,12 @@ phase control available only while a recent direct `241/44` report supplies one
 of the confirmed `auto`/`one_phase`/`three_phase` values. All other settings
 controls continue to use the general acknowledged transport plus direct-or-raw-
 provider confirmation.
+
+Post-install verification loaded manifest version `0.1.0-dev23` and exposed the
+new, initially empty `recent_provider_attempts` diagnostic list. Restart also
+awakened direct reporting: the phase Select and normal sensor both became
+`one_phase`, while the raw direct field was `1`. This independently confirms
+that an earlier acknowledged phase command had reached the charger even though
+no acceptable readback arrived before dev22 returned its error. The verification
+itself performed no write and therefore does not resolve provider
+`phaseSpecified` semantics.

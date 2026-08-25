@@ -91,6 +91,9 @@ seconds. Two acknowledged phase SETs produced no direct phase report, and the
 provider exposed only the unconfirmed raw `phaseSpecified` field. dev23 therefore
 keeps the other controls usable with provider fallback but makes phase selection
 unavailable whenever recent direct `phase_mode` readback is absent.
+After installing dev23 and restarting HA, the revived direct path reported
+`one_phase`, proving that at least one earlier acknowledged phase SET had been
+applied. This does not establish the provider `phaseSpecified` mapping.
 
 ## Fast-path coverage and unresolved fields
 

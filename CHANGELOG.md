@@ -29,6 +29,10 @@ Current outstanding work is maintained only in
   `phaseSpecified` remains raw and cannot confirm `phase_mode` safely.
 - Add helper coverage for fresh direct phase availability and provider lag vs
   missing-key diagnostics; extend the local suite to 55 passing tests.
+- Installed validation confirms manifest version `0.1.0-dev23`, the new empty
+  provider-attempt trace after restart, and fresh direct phase readback of
+  `one_phase`. This proves an earlier acknowledged phase SET was applied even
+  though dev22 could not confirm it while the direct path slept.
 
 ## 0.1.0-dev22
 

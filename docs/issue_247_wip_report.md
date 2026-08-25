@@ -482,3 +482,10 @@ the control. dev23 therefore separates general settings availability from phase
 availability: provider-backed controls remain usable after idle, while phase is
 available only during a fresh direct `241/44` phase report. Provider phase
 mapping remains an explicit controlled-research item in the central backlog.
+
+The installed dev23 manifest and HACS state both reported the new build. Its
+fresh diagnostics contained the new empty `recent_provider_attempts` list. The
+direct path awakened during restart and reported `phase_mode=one_phase` through
+the Select, normal sensor, and raw field `1`. At least one earlier acknowledged
+phase SET therefore did apply; dev22's failure was lack of confirmable readback,
+not proof of device rejection. No setting was changed during this verification.
