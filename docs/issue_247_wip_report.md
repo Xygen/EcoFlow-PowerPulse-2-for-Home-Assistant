@@ -468,3 +468,10 @@ reads. Only a post-command raw snapshot containing the expected key/value can
 confirm the write; merged cache values are excluded. Fresh already-matching
 provider values avoid redundant SETs. Readback source counts are included in
 privacy-safe diagnostics for the next live validation.
+
+The installed build retained the fast path: two acknowledged same-state writes
+were each confirmed by fresh direct readback within roughly 0.4-0.6 seconds.
+Diagnostics showed two direct confirmations, zero provider/no-op confirmations,
+and no active or pending delayed refresh. The PowerPulse direct path had been
+awakened by the restart, so the provider fallback still needs a repeat test only
+after another multi-hour idle interval.

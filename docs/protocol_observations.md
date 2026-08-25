@@ -711,3 +711,11 @@ merge cache cannot confirm a write. Up to three bounded provider attempts cover
 cloud propagation delay. A recent raw provider match also makes an already-met
 request a no-op. Integration-owned replies no longer cause a redundant delayed
 passive refresh, and diagnostics count direct, provider, and no-op outcomes.
+
+The first installed dev22 check issued the already-requested battery-blocking
+state twice. Both commands received matching replies and fresh direct readback
+in about 0.4-0.6 seconds, with `control_readback_counts.direct=2`. No delayed
+passive refresh was left active or pending, confirming that integration-owned
+replies do not duplicate the new synchronous verification. The direct device
+was awake during this test; confirmation through the provider fallback remains
+explicitly pending after the next multi-hour idle period.

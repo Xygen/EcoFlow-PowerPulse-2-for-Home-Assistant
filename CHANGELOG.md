@@ -24,6 +24,9 @@
 - Do not schedule the separate delayed passive-app refresh for an integration-
   owned SET reply; its synchronous provider verification replaces that read.
 - Add privacy-safe diagnostics for direct/provider/no-op confirmation counts.
+- Initial installed validation confirms two successful direct-readback writes
+  and that integration-owned replies no longer schedule a delayed refresh;
+  provider-fallback validation remains pending after a new idle period.
 - Document the live incident in which two acknowledged `4.1=19` commands were
   reported as failures before the delayed provider refresh confirmed value 19.
 - Extend the local suite to 53 passing tests.
