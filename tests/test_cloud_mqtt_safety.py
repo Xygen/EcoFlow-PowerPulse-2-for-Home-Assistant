@@ -91,6 +91,35 @@ def test_listen_only_connect_only_subscribes() -> None:
     }
 
 
+def test_data_resubscribe_never_publishes_and_only_renews_read_topics() -> None:
+    client = _client()
+    paho_client = _ExplicitPublisher()
+    client.client = paho_client
+    client.connected = True
+
+    results = client.resubscribe_data_topics()
+
+    assert results == {
+        "quota": 0,
+        "device_property": 0,
+        "app_get_reply": 0,
+    }
+    assert paho_client.published == []
+    assert paho_client.subscriptions == [
+        ("/open/account-secret/C376-secret/quota", 1),
+        ("/app/device/property/C376-secret", 0),
+        ("/app/user-secret/C376-secret/thing/property/get_reply", 1),
+    ]
+
+
+def test_data_resubscribe_requires_connected_client() -> None:
+    client = _client()
+    client.client = _ExplicitPublisher()
+    client.connected = False
+
+    assert client.resubscribe_data_topics() == {}
+
+
 def test_mqtt_topic_log_masking() -> None:
     client = _client()
 

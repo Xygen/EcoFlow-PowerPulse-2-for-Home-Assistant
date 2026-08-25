@@ -16,11 +16,15 @@
   "entity": {
     "binary_sensor": {
       "charging": {"name": "Ladevorgang"},
+      "direct_data_stream": {"name": "Direkter Datenstrom"},
       "continuous_charging": {"name": "Kontinuierlich laden"},
       "plug_and_play": {"name": "Plug-and-Play"},
       "battery_discharge_disabled": {"name": "Batterieentladung deaktiviert"},
       "screen_enabled": {"name": "Bildschirm"},
       "indicator_enabled": {"name": "LED-Anzeige"}
+    },
+    "button": {
+      "reactivate_direct_data_stream": {"name": "Direkten Datenstrom reaktivieren"}
     },
     "sensor": {
       "charging_power": {"name": "Ladeleistung"},

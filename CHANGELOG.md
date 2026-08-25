@@ -13,6 +13,22 @@ Current outstanding work is maintained only in
   phase field `7`, and Custom-current field `8` are resolved; older dev-stage
   statements remain explicitly historical evidence.
 
+## 0.1.0-dev24
+
+- Add a disabled-by-default diagnostic button that renews only the existing
+  direct C376 MQTT data subscriptions. It never publishes a device command and
+  waits up to ten seconds for a new `241/44` report.
+- Add a disabled-by-default connectivity binary sensor for direct-stream
+  freshness plus a bounded identifier-free trace of reactivation attempts,
+  local subscription results, outcome, and confirmation latency.
+- Classify official-app GET topics separately from telemetry and retain them in
+  a dedicated bounded diagnostic view. JSON operation metadata and generic
+  Protobuf routing fields are summarized without raw payloads or request IDs.
+- Document the parallel `ecoflow_energy` Enhanced cloud connection to the
+  PowerOcean and the local Modbus integration so later app-open tests can
+  separate their effects.
+- Extend the local test suite to 60 passing tests.
+
 ## 0.1.0-dev23
 
 - Extend strict provider confirmation from roughly 9 seconds to bounded checks

@@ -192,6 +192,43 @@ class EcoFlowMQTTClient:
             self._subscription_results[label] = -1
             self._log_issue("warning", "MQTT subscription failed for %s: %s", label, exc)
 
+    def _subscribe_data_topics(self, client: mqtt.Client) -> None:
+        """Subscribe to the read-only data topics for this device."""
+        if not self._subscribe_data:
+            return
+
+        self._subscribe(
+            client,
+            f"/open/{self._cert_account}/{self._device_sn}/quota",
+            1,
+            "quota",
+        )
+        self._subscribe(
+            client,
+            f"/app/device/property/{self._device_sn}",
+            0,
+            "device_property",
+        )
+        if self._user_id:
+            self._subscribe(
+                client,
+                f"/app/{self._user_id}/{self._device_sn}/thing/property/get_reply",
+                1,
+                "app_get_reply",
+            )
+
+    def resubscribe_data_topics(self) -> dict[str, int]:
+        """Renew only data subscriptions without publishing a device command."""
+        with self._client_lock:
+            if self.client is None or not self.is_connected():
+                return {}
+            self._subscribe_data_topics(self.client)
+            return {
+                label: self._subscription_results[label]
+                for label in ("quota", "device_property", "app_get_reply")
+                if label in self._subscription_results
+            }
+
     def create_client(self) -> bool:
         """Create and configure the Paho MQTT client."""
         with self._client_lock:
@@ -291,21 +328,18 @@ class EcoFlowMQTTClient:
 
             if self._subscribe_data:
                 # Subscribe to data topics (Enhanced Mode: MQTT is primary data source)
-                topic_json = f"/open/{self._cert_account}/{self._device_sn}/quota"
-                topic_pb = f"/app/device/property/{self._device_sn}"
-                self._subscribe(client, topic_json, 1, "quota")
-                self._subscribe(client, topic_pb, 0, "device_property")
-
-                if self._user_id:
-                    topic_reply = f"/app/{self._user_id}/{self._device_sn}/thing/property/get_reply"
-                    self._subscribe(client, topic_reply, 1, "app_get_reply")
+                self._subscribe_data_topics(client)
 
                 if not self._notified_connected:
                     self._notified_connected = True
                     _LOGGER.debug(
                         "MQTT connected — data topics: %s | %s | app replies",
-                        self._masked_topic(topic_json),
-                        self._masked_topic(topic_pb),
+                        self._masked_topic(
+                            f"/open/{self._cert_account}/{self._device_sn}/quota"
+                        ),
+                        self._masked_topic(
+                            f"/app/device/property/{self._device_sn}"
+                        ),
                     )
             else:
                 # Standard Mode: no data subscriptions, MQTT is for SET commands only

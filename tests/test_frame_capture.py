@@ -11,6 +11,7 @@ from custom_components.ecoflow_powerpulse2.frame_capture import (
     channel_carries_telemetry,
     classify_mqtt_topic,
     inspect_envelope_headers,
+    inspect_get_request,
     inspect_observer_command_payloads,
     inspect_powerpulse_accessory_reports,
 )
@@ -31,10 +32,54 @@ def test_command_channels_are_not_telemetry() -> None:
     assert classify_mqtt_topic("/app/device/property/sn/set") == "observed_set"
     assert classify_mqtt_topic("/app/u/sn/thing/property/set_reply") == "set_reply"
     assert classify_mqtt_topic("/app/u/sn/thing/property/get_reply") == "get_reply"
+    assert classify_mqtt_topic("/app/u/sn/thing/property/get") == "observed_get"
+    assert classify_mqtt_topic("/open/account/sn/get") == "observed_get"
     assert not channel_carries_telemetry("observed_set")
     assert not channel_carries_telemetry("set_reply")
+    assert not channel_carries_telemetry("observed_get")
     assert channel_carries_telemetry("property")
     assert channel_carries_telemetry("get_reply")
+
+
+def test_json_get_request_summary_omits_ids_and_parameter_values() -> None:
+    payload = (
+        b'{"from":"Android","id":"secret-request-id","moduleType":0,'
+        b'"operateType":"latestQuotas","params":{"secret":"hidden"},'
+        b'"version":"1.0"}'
+    )
+
+    result = inspect_get_request(payload)
+
+    assert result == {
+        "classification": "json",
+        "operate_type": "latestQuotas",
+        "source": "Android",
+        "module_type": 0,
+        "version": "1.0",
+        "parameter_keys": ["secret"],
+    }
+    assert "request-id" not in repr(result)
+    assert "hidden" not in repr(result)
+
+
+def test_protobuf_get_all_summary_retains_only_routing_metadata() -> None:
+    header = b"".join(
+        (
+            encode_field_varint(2, 32),
+            encode_field_varint(3, 32),
+            encode_field_varint(14, 12345),
+            encode_field_bytes(23, b"app"),
+            encode_field_bytes(24, b"secret"),
+        )
+    )
+
+    assert inspect_get_request(encode_field_bytes(1, header)) == {
+        "classification": "protobuf",
+        "cmd_src": 32,
+        "cmd_dst": 32,
+        "sequence": 12345,
+        "source": "app",
+    }
 
 
 def test_envelope_metadata_exposes_command_tuple() -> None:
@@ -347,6 +392,17 @@ def test_command_bucket_survives_frequent_telemetry() -> None:
         "telemetry-8",
         "telemetry-9",
     ]
+
+
+def test_get_request_view_survives_frequent_telemetry() -> None:
+    capture = DiagnosticFrameCapture(max_recent=3, max_requests=2)
+    capture.record(_frame("observed_get", 0, 0, "get-1"))
+    capture.record(_frame("observed_get", 0, 0, "get-2"))
+    for index in range(10):
+        capture.record(_frame("property", 2, 33, f"telemetry-{index}"))
+
+    assert [frame["timestamp"] for frame in capture.requests] == ["get-1", "get-2"]
+    assert capture.bucket_snapshot()["observed_get:0/0"]["count"] == 2
 
 
 def test_command_correlation_counts_retries_and_reply_by_sequence() -> None:

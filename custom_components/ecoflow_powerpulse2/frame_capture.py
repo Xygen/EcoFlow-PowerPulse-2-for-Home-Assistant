@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hmac
+import json
 from collections import OrderedDict
 from hashlib import sha256
 from secrets import token_bytes
@@ -12,6 +13,8 @@ from typing import Any
 from .ecoflow.proto_encoding import iter_protobuf_fields
 
 COMMAND_CHANNELS = frozenset({"observed_set", "set_reply"})
+REQUEST_CHANNELS = frozenset({"observed_get"})
+NON_TELEMETRY_CHANNELS = COMMAND_CHANNELS | REQUEST_CHANNELS
 _SAFE_OBSERVER_COMMAND_LIMITS = {
     (96, 97): 16,
     (241, 102): 64,
@@ -33,6 +36,8 @@ def classify_mqtt_topic(topic: str) -> str:
         return "observed_set"
     if topic.endswith("/set"):
         return "observed_set"
+    if topic.endswith("/thing/property/get") or topic.endswith("/get"):
+        return "observed_get"
     if "/app/device/property/" in topic:
         return "property"
     return "other"
@@ -40,7 +45,63 @@ def classify_mqtt_topic(topic: str) -> str:
 
 def channel_carries_telemetry(channel: str) -> bool:
     """Return whether a channel may safely update entity state."""
-    return channel not in COMMAND_CHANNELS
+    return channel not in NON_TELEMETRY_CHANNELS
+
+
+def inspect_get_request(payload: bytes) -> dict[str, Any]:
+    """Summarize an app GET without retaining identifiers or raw content."""
+    try:
+        decoded = json.loads(payload.decode("utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError):
+        decoded = None
+    if isinstance(decoded, dict):
+        summary: dict[str, Any] = {"classification": "json"}
+        operate_type = decoded.get("operateType")
+        if isinstance(operate_type, str) and operate_type.isascii() and len(operate_type) <= 64:
+            summary["operate_type"] = operate_type
+        source = decoded.get("from")
+        if source in {"Android", "iOS", "Web"}:
+            summary["source"] = source
+        module_type = decoded.get("moduleType")
+        if isinstance(module_type, int) and 0 <= module_type <= 255:
+            summary["module_type"] = module_type
+        version = decoded.get("version")
+        if isinstance(version, str) and version.isascii() and len(version) <= 16:
+            summary["version"] = version
+        params = decoded.get("params")
+        if isinstance(params, dict):
+            summary["parameter_keys"] = sorted(
+                key
+                for key in params
+                if isinstance(key, str) and key.isascii() and len(key) <= 32
+            )[:16]
+        return summary
+
+    try:
+        for field, wire, header_bytes in iter_protobuf_fields(payload):
+            if field != 1 or wire != 2 or not isinstance(header_bytes, bytes):
+                continue
+            summary = {"classification": "protobuf"}
+            recognized = False
+            for inner_field, inner_wire, value in iter_protobuf_fields(header_bytes):
+                if inner_wire == 0 and isinstance(value, int):
+                    if inner_field == 2:
+                        summary["cmd_src"] = value
+                        recognized = True
+                    elif inner_field == 3:
+                        summary["cmd_dst"] = value
+                        recognized = True
+                    elif inner_field == 14:
+                        summary["sequence"] = value
+                        recognized = True
+                elif inner_field == 23 and inner_wire == 2 and value == b"app":
+                    summary["source"] = "app"
+                    recognized = True
+            if recognized:
+                return summary
+    except ValueError:
+        pass
+    return {"classification": "opaque", "size": len(payload)}
 
 
 def inspect_envelope_headers(payload: bytes) -> list[dict[str, int]]:
@@ -364,6 +425,7 @@ class DiagnosticFrameCapture:
         *,
         max_recent: int = 40,
         max_commands: int = 24,
+        max_requests: int = 24,
         max_buckets: int = 48,
         max_samples_per_bucket: int = 16,
         max_correlations: int = 48,
@@ -371,12 +433,14 @@ class DiagnosticFrameCapture:
     ) -> None:
         self._max_recent = max_recent
         self._max_commands = max_commands
+        self._max_requests = max_requests
         self._max_buckets = max_buckets
         self._max_samples_per_bucket = max_samples_per_bucket
         self._max_correlations = max_correlations
         self._fingerprint_key = fingerprint_key or token_bytes(32)
         self._recent: list[dict[str, Any]] = []
         self._commands: list[dict[str, Any]] = []
+        self._requests: list[dict[str, Any]] = []
         self._buckets: OrderedDict[str, dict[str, Any]] = OrderedDict()
         self._correlations: OrderedDict[str, dict[str, Any]] = OrderedDict()
 
@@ -397,6 +461,8 @@ class DiagnosticFrameCapture:
         if channel in COMMAND_CHANNELS:
             self._append_bounded(self._commands, stored, self._max_commands)
             self._record_command_correlations(stored)
+        if channel in REQUEST_CHANNELS:
+            self._append_bounded(self._requests, stored, self._max_requests)
 
         bucket_key = _bucket_key(stored)
         bucket = self._buckets.get(bucket_key)
@@ -432,6 +498,11 @@ class DiagnosticFrameCapture:
     def commands(self) -> list[dict[str, Any]]:
         """Return the bounded official-app command/reply view."""
         return [dict(frame) for frame in self._commands]
+
+    @property
+    def requests(self) -> list[dict[str, Any]]:
+        """Return the bounded official-app GET request view."""
+        return [dict(frame) for frame in self._requests]
 
     def bucket_snapshot(self) -> dict[str, dict[str, Any]]:
         """Return per-channel and per-command samples for diagnostics."""

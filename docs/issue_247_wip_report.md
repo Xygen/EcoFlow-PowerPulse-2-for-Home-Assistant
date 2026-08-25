@@ -489,3 +489,29 @@ direct path awakened during restart and reported `phase_mode=one_phase` through
 the Select, normal sensor, and raw field `1`. At least one earlier acknowledged
 phase SET therefore did apply; dev22's failure was lack of confirmable readback,
 not proof of device rejection. No setting was changed during this verification.
+
+## dev24 direct-stream wake investigation (2026-08-26)
+
+Live inspection separated three concurrent paths. The PowerPulse integration
+held connected listen-only MQTT clients for the C376 and linked HJ31 without
+reconnect attempts. A separate installed `ecoflow_energy` 1.18.0 entry ran in
+Enhanced cloud-push mode for the HJ31, while the PowerOcean Modbus integration
+used only local TCP port 502. Regular `96/97` EnergyStreamSwitch requests on the
+HJ31 SET topic therefore cannot originate from the hard-listen-only PowerPulse
+client or the local Modbus connection; the exact cloud publisher identity is
+not carried by the shared MQTT topic.
+
+The HA restart had reconnected both cloud integrations at nearly the same time,
+so the subsequently revived C376 `241/44` stream does not yet prove whether a
+C376 subscription, a PowerOcean initial request, or another cloud-session event
+caused it. dev24 adds a narrower controlled experiment: a disabled-by-default
+button renews only the C376 quota, property, and GET-reply subscriptions and
+never calls an MQTT publish path. It records whether a new direct settings
+report arrives within ten seconds. A companion diagnostic binary sensor exposes
+stream freshness.
+
+dev24 also classifies app GET topics as `observed_get` and retains them in a
+separate bounded view so frequent property telemetry cannot evict the evidence.
+Only safe JSON operation metadata or generic Protobuf routing fields survive;
+raw GET bodies and request IDs are omitted. The required stale-stream live test
+remains centralized in the project backlog.

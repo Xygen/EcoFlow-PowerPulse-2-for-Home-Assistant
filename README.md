@@ -30,7 +30,7 @@ diagnostics.
 
 ## Current scope
 
-Version `0.1.0-dev23` keeps automatic MQTT activity listen-only and provides
+Version `0.1.0-dev24` keeps automatic MQTT activity listen-only and provides
 disabled-by-default, user-triggered controls:
 
 - EcoFlow app-account login and PowerPulse discovery
@@ -65,6 +65,8 @@ disabled-by-default, user-triggered controls:
 - human-readable session duration while retaining numeric seconds internally
 - redacted MQTT frame capture grouped by channel and `(cmd_func, cmd_id)`
 - passive observation of app-auth and device-facing SET candidate topics
+- separate bounded capture of app-auth GET requests, retaining only safe JSON
+  operation metadata or Protobuf routing fields and never the raw GET payload
 - privacy-safe structural inspection of the small PowerOcean `96/97`
   background command and the acknowledged `241/102` Solar-current route,
   runtime-keyed opaque-field equality checks, and bounded request/retry/reply
@@ -78,6 +80,9 @@ disabled-by-default, user-triggered controls:
 - read-only provider-detail lookup on the linked PowerOcean, matched back to
   the embedded PowerPulse serial without retaining the raw provider response
 - a coordinator watchdog that retries interrupted MQTT connections
+- disabled-by-default diagnostic entities showing whether the direct C376
+  settings stream is fresh and renewing only its existing read subscriptions;
+  this experimental action sends MQTT SUBSCRIBE packets but no device publish
 - a delayed, coalesced provider refresh after a matched official-app
   `241/102` settings reply; explicit HA writes instead verify synchronously,
   preferring direct `241/44` readback and then requesting bounded fresh provider
@@ -137,6 +142,13 @@ to cover the 12–15 second propagation observed after an idle period and record
 privacy-safe details for each attempt. Its live-validation status is tracked in
 the [project backlog](docs/backlog.md).
 
+dev24 adds a separate idle-stream experiment. Its diagnostic button renews the
+three existing C376 read subscriptions and waits up to ten seconds for a new
+direct `241/44` report. It does not publish `get-all`, `latestQuotas`,
+`EnergyStreamSwitch`, or a charger setting. The result and timing are retained
+in privacy-safe diagnostics. This mechanism is not considered validated until
+it is exercised after a genuine idle period.
+
 ## Diagnostic capture workflow
 
 After the integration is connected, perform one action at a time:
@@ -153,10 +165,13 @@ before sharing them because reverse-engineered protocols may still expose
 device-specific state.
 
 In diagnostics, `mqtt_command_frames` contains only observed SET traffic and
-SET replies. `mqtt_frame_buckets` preserves samples separately by channel and
+SET replies. `mqtt_request_frames` separately retains observed GET requests;
+raw request bodies and request IDs are omitted. `mqtt_frame_buckets` preserves
+samples separately by channel and
 command tuple so frequent heartbeat frames cannot evict a rare command. The
-`mqtt_subscriptions` result codes show whether the broker accepted each
-identifier-free subscription label; a value of `0` means accepted.
+`mqtt_subscriptions` result codes show whether the local MQTT client accepted
+each identifier-free subscription request for transmission; a value of `0`
+does not independently prove a later broker SUBACK.
 
 ## Acknowledgements and license
 

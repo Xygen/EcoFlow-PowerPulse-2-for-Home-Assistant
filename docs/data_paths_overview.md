@@ -7,7 +7,7 @@ chronological evidence in [protocol_observations.md](protocol_observations.md).
 The tables distinguish device readback from app-write observations. A fast
 acknowledgement of an app request is not automatically a trustworthy state
 value. Read entities therefore use confirmed device or provider reports. The
-dev23 controls are evidence-gated and require acknowledgement plus either
+dev24 settings controls are evidence-gated and require acknowledgement plus either
 fresh direct device readback or a post-command raw provider confirmation.
 Phase selection is narrower: provider `phaseSpecified` has no confirmed mapping,
 so that control requires a fresh direct `phase_mode` report.
@@ -94,6 +94,20 @@ unavailable whenever recent direct `phase_mode` readback is absent.
 After installing dev23 and restarting HA, the revived direct path reported
 `one_phase`, proving that at least one earlier acknowledged phase SET had been
 applied. This does not establish the provider `phaseSpecified` mapping.
+
+dev24 distinguishes the still-connected MQTT transport from freshness of the
+direct report. A diagnostic binary sensor marks `241/44` fresh for ten seconds
+after its latest frame. A separate disabled-by-default action can renew the
+existing C376 quota, property, and GET-reply subscriptions without publishing
+any device command. The result is not yet evidence that re-subscribing wakes a
+sleeping stream; that controlled idle test is tracked only in the
+[project backlog](backlog.md).
+
+Official-app GET publishes now form a separate `observed_get` diagnostic path.
+The capture retains a bounded summary of JSON operation metadata or generic
+Protobuf routing fields, but omits raw request bodies and request IDs. This is
+intended to distinguish an app GET from the possibility that merely opening
+and subscribing in the app reactivates server-side delivery.
 
 ## Fast-path coverage and unresolved fields
 

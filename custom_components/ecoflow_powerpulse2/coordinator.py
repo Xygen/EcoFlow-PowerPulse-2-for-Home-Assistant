@@ -41,6 +41,7 @@ from .frame_capture import (
     channel_carries_telemetry,
     classify_mqtt_topic,
     inspect_envelope_headers,
+    inspect_get_request,
     inspect_powerpulse_accessory_reports,
 )
 from .parser import extract_powerpulse_accessory_descriptor, parse_powerpulse2_payload
@@ -53,6 +54,8 @@ _CONTROL_DIRECT_WAIT_SECONDS = 2
 _CONTROL_PROVIDER_RETRY_DELAYS = (0, 3, 5, 5, 5)
 _CONTROL_NOOP_FRESH_SECONDS = UPDATE_INTERVAL_SECONDS * 2
 _CONTROL_DIAGNOSTIC_ATTEMPTS = 32
+_DIRECT_STREAM_CONFIRM_SECONDS = 10
+_DIRECT_STREAM_DIAGNOSTIC_ATTEMPTS = 16
 _DIRECT_SETTINGS_KEYS = frozenset(
     {
         "continuous_charging",
@@ -106,6 +109,7 @@ class PowerPulse2Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
         self._last_settings_reply_at: str | None = None
         self._last_settings_refresh_at: str | None = None
         self._last_direct_settings_at: dict[str, float] = {}
+        self._last_direct_settings_utc: dict[str, str] = {}
         self._last_polled_settings_at: dict[str, float] = {}
         self._last_polled_settings: dict[str, dict[str, Any]] = {}
         self._control_readback_counts = {"direct": 0, "provider": 0, "noop": 0}
@@ -114,9 +118,13 @@ class PowerPulse2Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
         self._control_provider_attempts: deque[dict[str, Any]] = deque(
             maxlen=_CONTROL_DIAGNOSTIC_ATTEMPTS
         )
+        self._direct_stream_attempts: deque[dict[str, Any]] = deque(
+            maxlen=_DIRECT_STREAM_DIAGNOSTIC_ATTEMPTS
+        )
         self._accessory_descriptors: dict[str, bytes] = {}
         self._reply_waiters: dict[tuple[str, int], asyncio.Future[None]] = {}
         self._control_lock = asyncio.Lock()
+        self._direct_stream_lock = asyncio.Lock()
         self._last_smart_settings: dict[str, dict[str, Any]] = {}
         self._shutting_down = False
         self._initialized = False
@@ -130,6 +138,11 @@ class PowerPulse2Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
     def mqtt_command_frames(self) -> list[dict[str, Any]]:
         """Return official-app SET and SET-reply diagnostic frames."""
         return self._frame_capture.commands
+
+    @property
+    def mqtt_request_frames(self) -> list[dict[str, Any]]:
+        """Return official-app GET request diagnostic frames."""
+        return self._frame_capture.requests
 
     @property
     def mqtt_frame_buckets(self) -> dict[str, dict[str, Any]]:
@@ -156,6 +169,18 @@ class PowerPulse2Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
             "last_control_readback_source": self._last_control_readback_source,
             "last_control_readback_at": self._last_control_readback_at,
             "recent_provider_attempts": list(self._control_provider_attempts),
+            "direct_stream": {
+                "fresh_seconds": _DIRECT_SETTINGS_FRESH_SECONDS,
+                "confirmation_timeout_seconds": _DIRECT_STREAM_CONFIRM_SECONDS,
+                "last_reports": [
+                    {
+                        "device_prefix": serial[:4],
+                        "timestamp": timestamp,
+                    }
+                    for serial, timestamp in self._last_direct_settings_utc.items()
+                ],
+                "recent_reactivation_attempts": list(self._direct_stream_attempts),
+            },
         }
 
     async def _async_update_data(self) -> dict[str, dict[str, Any]]:
@@ -296,6 +321,7 @@ class PowerPulse2Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
             for header in protocol_headers
         ):
             self._last_direct_settings_at[serial] = time.monotonic()
+            self._last_direct_settings_utc[serial] = datetime.now(UTC).isoformat()
         if parsed:
             self._remember_smart_settings(serial, parsed)
             updated = dict(self.data or {})
@@ -340,14 +366,19 @@ class PowerPulse2Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
             "protocol_headers": protocol_headers,
             "powerpulse_accessory_reports": accessory_reports,
             "observer_command_payloads": command_payloads,
+            "get_request": (
+                inspect_get_request(payload) if channel == "observed_get" else {}
+            ),
             "truncated": len(payload) > _MAX_FRAME_BYTES,
             # A PowerOcean frame can bundle accessory, battery and vehicle
             # identifiers unknown to this integration. Keep only the safe
             # numeric summary above rather than exporting the parent payload.
             "redacted_hex": (
-                "" if is_observer else self._redact(payload[:_MAX_FRAME_BYTES]).hex()
+                ""
+                if is_observer or channel == "observed_get"
+                else self._redact(payload[:_MAX_FRAME_BYTES]).hex()
             ),
-            "payload_omitted": is_observer,
+            "payload_omitted": is_observer or channel == "observed_get",
         }
         self._frame_capture.record(frame)
         own_settings_reply = False
@@ -393,6 +424,81 @@ class PowerPulse2Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
         observer_serial = next(iter(self.observer_devices))
         client = self.mqtt_clients.get(observer_serial)
         return client is not None and client.is_connected()
+
+    def direct_stream_active(self, serial: str) -> bool:
+        """Return whether the direct settings stream reported recently."""
+        reported_at = self._last_direct_settings_at.get(serial)
+        return bool(
+            reported_at is not None
+            and time.monotonic() - reported_at <= _DIRECT_SETTINGS_FRESH_SECONDS
+        )
+
+    def direct_stream_available(self, serial: str) -> bool:
+        """Return whether a direct MQTT client can renew its subscriptions."""
+        client = self.mqtt_clients.get(serial)
+        return serial in self.devices and client is not None and client.is_connected()
+
+    def direct_stream_diagnostics(self, serial: str) -> dict[str, Any]:
+        """Return safe per-device stream state for diagnostic entities."""
+        latest = next(
+            (
+                dict(attempt)
+                for attempt in reversed(self._direct_stream_attempts)
+                if attempt.get("device_prefix") == serial[:4]
+            ),
+            None,
+        )
+        return {
+            "last_direct_report": self._last_direct_settings_utc.get(serial),
+            "last_reactivation": latest,
+        }
+
+    async def async_reactivate_direct_stream(self, serial: str) -> None:
+        """Renew C376 data subscriptions and observe whether reports resume."""
+        if serial not in self.devices:
+            raise HomeAssistantError("Unknown PowerPulse device")
+        client = self.mqtt_clients.get(serial)
+        if client is None or not client.is_connected():
+            raise HomeAssistantError("Direct PowerPulse MQTT is not connected")
+
+        async with self._direct_stream_lock:
+            requested_at = time.monotonic()
+            attempt: dict[str, Any] = {
+                "timestamp": datetime.now(UTC).isoformat(),
+                "device_prefix": serial[:4],
+                "direct_was_fresh": self.direct_stream_active(serial),
+            }
+            if attempt["direct_was_fresh"]:
+                attempt["status"] = "already_active"
+                self._direct_stream_attempts.append(attempt)
+                self.async_update_listeners()
+                return
+
+            results = await self.hass.async_add_executor_job(
+                client.resubscribe_data_topics
+            )
+            attempt["subscription_results"] = results
+            if not results or any(result != 0 for result in results.values()):
+                attempt["status"] = "subscription_failed"
+                self._direct_stream_attempts.append(attempt)
+                self.async_update_listeners()
+                raise HomeAssistantError("Direct MQTT subscription renewal failed")
+
+            deadline = requested_at + _DIRECT_STREAM_CONFIRM_SECONDS
+            while time.monotonic() < deadline:
+                reported_at = self._last_direct_settings_at.get(serial, 0)
+                if reported_at > requested_at:
+                    attempt["status"] = "confirmed"
+                    attempt["seconds_to_direct_report"] = round(
+                        reported_at - requested_at, 3
+                    )
+                    break
+                await asyncio.sleep(0.25)
+            else:
+                attempt["status"] = "no_direct_report"
+
+            self._direct_stream_attempts.append(attempt)
+            self.async_update_listeners()
 
     def phase_control_available(self, serial: str) -> bool:
         """Return whether phase control also has a confirmable direct readback."""

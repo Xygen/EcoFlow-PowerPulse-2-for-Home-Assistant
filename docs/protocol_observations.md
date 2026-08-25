@@ -756,3 +756,32 @@ that an earlier acknowledged phase command had reached the charger even though
 no acceptable readback arrived before dev22 returned its error. The verification
 itself performed no write and therefore does not resolve provider
 `phaseSpecified` semantics.
+
+## 2026-08-26: dev24 subscription-renewal and app-GET instrumentation
+
+The idle symptom is narrower than an MQTT disconnect. During the inspected
+runtime both C376 and HJ31 clients remained connected with zero reconnect
+attempts, while earlier evidence showed that direct C376 `241/44` reporting can
+still disappear. A separate installed `ecoflow_energy` 1.18.0 integration was
+live in Enhanced WSS mode for the HJ31, and a local Modbus integration addressed
+the inverter at TCP port 502. Repeated HJ31 `96/97` EnergyStreamSwitch requests
+are therefore external to this integration's listen-only MQTT clients; MQTT
+does not expose which other account client published them.
+
+Because restarting HA reconnects several cloud clients simultaneously, restart
+recovery cannot isolate the wake trigger. dev24 provides a no-publish test path:
+it sends fresh MQTT SUBSCRIBE packets only for the existing direct C376 quota,
+property, and GET-reply topics. If the stream was stale, the coordinator waits
+ten seconds for a later `241/44` frame and records `confirmed`,
+`no_direct_report`, or `subscription_failed` with safe local result codes and
+confirmation latency. A fresh stream produces `already_active` and no renewal,
+preventing an inconclusive action during normal reporting.
+
+App GET publishes are now classified separately as `observed_get`, excluded
+from telemetry parsing, and retained in `mqtt_request_frames`. JSON requests
+expose only an allow-listed source, operation type, module type, version, and
+parameter key names; generic Protobuf GETs expose only source/destination,
+sequence, and the literal `app` marker. Raw request content and request IDs are
+always omitted. This instrumentation does not yet establish a wake command; the
+controlled stale-stream result remains an open evidence item in the canonical
+backlog.
