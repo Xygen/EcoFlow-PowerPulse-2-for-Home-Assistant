@@ -82,22 +82,22 @@ then either matching direct `241/44` readback or a post-command raw provider
 snapshot that explicitly contains the expected key and value. Cached merged
 state alone never confirms a write.
 
-## Fast-path coverage and next candidates
+## Fast-path coverage and unresolved fields
 
 Every confirmed scalar currently decoded from `241/44 -> 1.4.8` is already
 used by at least one Home Assistant entity:
 
-| Fast field | Current HA use | Further useful work |
+| Fast field | Current HA use | Mapping status |
 | --- | --- | --- |
-| `1` settings bitmask | Continuous-charging and Plug-and-Play binary sensors plus the raw settings-flags sensor | Investigate only the remaining unassigned bits through controlled comparisons |
+| `1` settings bitmask | Continuous-charging and Plug-and-Play binary sensors plus the raw settings-flags sensor | Some bits remain unassigned |
 | `2` operating mode | Operating-mode enum sensor | Already fully used for the four confirmed modes |
 | `4` maximum output current | Normal Ampere sensor plus disabled-by-default raw sensor | Already fully used |
 | `6` Solar minimum current | Normal Ampere sensor plus disabled-by-default raw sensor | Already fully used and live-validated at 6 A and 7 A |
 | `7` phase selection | Raw sensor, fast normal enum, and disabled-by-default phase control readback | Mapping confirmed for auto, one phase, and three phase |
 | `8` Custom/user current | Raw sensor plus normal Ampere sensor | 6 A and 11 A confirmed the 0.1 A scaling |
 
-The unnamed byte fields `5`, `9`, and `21` are the remaining candidates
-for additional fast values. Controlled one-setting-at-a-time comparisons are
-needed before parsing them. Field `31` is already decoded as the Smart block.
-The six-byte field `21` is the strongest next candidate because the matching
-app-write display block is now known; fields `5` and `9` remain unassigned.
+The unnamed byte fields `5`, `9`, and `21` remain unassigned. Field `31` is
+already decoded as the Smart block. The six-byte field `21` is the strongest
+screen/LED candidate because the matching app-write display block is known,
+but no direct mapping is confirmed. Planned comparisons are tracked only in the
+[project backlog](backlog.md).

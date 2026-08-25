@@ -1,21 +1,17 @@
 # Changelog
 
+This file records delivered changes and the state of each historical build.
+Current outstanding work is maintained only in
+[the project backlog](docs/backlog.md).
+
 ## Unreleased
 
-- Reconcile the documentation with the dev22 implementation: mark Smart field
-  `31`, phase field `7`, and Custom-current field `8` as resolved, remove them
-  from the open investigation list, and preserve older dev-stage statements as
-  explicitly historical evidence.
-- Release requirement: create and bundle a dedicated PowerPulse 2 integration
-  icon no later than the first non-development release.
-- Protocol hypothesis for a future release: `session_energy_raw` may be watt-hours.
-  A live value of `1815` corresponded to `1.82 kWh` in the EcoFlow app. Keep the
-  raw entity unchanged until additional sessions confirm the unit and rounding.
-- Safety backlog: investigate Start/Stop with and without a connected vehicle.
-  Determine every setting EcoFlow locks while charging and prevent invalid HA
-  writes before publishing. Operating mode and phase selection are already
-  known to be locked during an active charging session; further controls still
-  need classification.
+- Centralize all active work in `docs/backlog.md`, replace parallel roadmap and
+  TODO lists with links, and define where completed changes and protocol
+  evidence are recorded.
+- Reconcile the documentation with the dev22 implementation: Smart field `31`,
+  phase field `7`, and Custom-current field `8` are resolved; older dev-stage
+  statements remain explicitly historical evidence.
 
 ## 0.1.0-dev22
 

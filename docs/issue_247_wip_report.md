@@ -109,7 +109,7 @@ Within the matched C376 `pileChargingParamReport`:
 | `chargingStatus` | charger state | Uses the same state interpretation listed above. |
 | `paramSet.workMode` | operating mode | Live-confirmed: `1` Fast, `2` Solar, `3` Custom, `4` Smart. |
 | `paramSet.currentOuputMax` | maximum output current, tenths of A | The misspelling is present in the provider data. Paired values match CP307 `2/34` field 9. |
-| `paramSet.userCurrentSet` | raw user-current setting | Retained raw; exact relationship to the different app current sliders is not yet established. |
+| `paramSet.userCurrentSet` | Custom-mode current, tenths of A | Later direct comparisons confirmed `60` = 6 A and `110` = 11 A. |
 | `paramSet.solarCurrentMin` | Solar minimum/continuous-current setting, tenths of A | A controlled `6 A -> 7 A -> 6 A` test produced `60 -> 70 -> 60`. The value also remained stored while Continuous charging was switched off and back on. |
 | `paramSet.switchBits` | settings bitmask | `switchBits & 0x10` is live-confirmed as the Solar-mode Continuous charging switch; other bits remain unassigned. |
 | `paramSet.phaseSpecified` | raw phase-selection field | Retained raw; the CP307 `2/34` field 11 mapping is currently better established. |
@@ -306,36 +306,11 @@ bodies are not reconstructed or inferred here.
   `ecoflow-energy-ha` yet. The useful output at this stage is the field and
   data-source evidence above.
 
-## Still to do
+## Open work
 
-1. Confirm session-energy field 42 across more non-zero sessions, including
-   rounding and whether raw units are consistently Wh.
-2. Investigate the currently unnamed length-delimited `241/44` parameter
-   fields `5`, `9`, and `21` using controlled one-setting-at-a-time
-   comparisons. Field `31` is resolved as the Smart block. The six-byte fast
-   field `21` is a strong display-settings candidate because app-write field
-   `4.21` is mapped, but that relationship still needs a paired direct-report
-   comparison.
-3. Pair additional app changes with provider/MQTT snapshots to separate
-   heartbeat fields 17/18 and the remaining unassigned `switchBits`. Custom
-   current is resolved as fast field `8` in 0.1 A and phase selection as fast
-   field `7` (`0` auto, `1` one phase, `2` three phase).
-4. Confirm the unit/scaling of `currentVehicleComsumption` across additional
-   targets or vehicles. The Smart distance target itself is resolved as fast
-   field `31.4` in kilometres.
-5. Check additional operating states and map `suspend_reason` values.
-6. Decide how best to represent the three individual phase voltages/currents
-   upstream instead of only exposing an aggregate maximum.
-7. Keep upstream proposals aligned with the maintainer's selected architecture.
-   This standalone integration uses direct C376 MQTT as its preferred fast
-   source and PowerOcean HTTP as a bounded fallback; that does not prescribe an
-   upstream architecture.
-8. Capture and implement Start/Stop separately, then establish the complete
-   charging-time interlock matrix with a connected vehicle. `241/102` is an
-   observed settings-write path, not evidence for the still-unknown Start/Stop
-   transport.
-9. Re-test dev22 after a genuine multi-hour idle period so the provider
-   readback fallback, rather than the normally active direct path, is exercised.
+Active investigations, safety tests, and release requirements are maintained
+only in the [project backlog](backlog.md). This report retains the chronological
+evidence behind those tasks rather than a second checklist.
 
 Current dev22 already implements and live-validates operating mode, phase,
 maximum/Solar/Custom current settings, battery blocking, Plug-and-Play,
@@ -383,28 +358,24 @@ Solar minimum current. All retain unrelated flags, enforce known Solar-mode
 constraints, serialize writes, and require both SET acknowledgement and direct
 device readback. Start/Stop and all remaining settings stay out of scope.
 
-The fast field `241/44.21` is separately backlogged: its observed six-byte
+At the dev19 stage, fast field `241/44.21` remained unconfirmed: its six-byte
 value `01 01 19 19 02 00` aligns with the current screen/LED enable and 25%
 brightness values plus battery blocking off, but no controlled byte-level
 comparison has confirmed those positions. It remains unparsed in dev19.
 
-## Control interlock backlog
+## Observed charging-state constraints
 
-Start and Stop charging still require controlled protocol investigation in two
-separate physical states: without a connected vehicle and with a connected
-vehicle. A successful transport acknowledgement must not be treated as proof
-that charging started or stopped; the implementation will require independent
-charger-state readback and must distinguish unplugged, plugged-in, charging,
+The captured evidence contains no official-app Start/Stop request, either
+without a connected vehicle or with one connected. A successful transport
+acknowledgement would not prove that charging started or stopped; independent
+charger-state readback must distinguish unplugged, plugged-in, charging,
 paused, completed, and rejected operations where observed.
 
 The EcoFlow app locks some settings during an active charging session. Operating
-mode and phase selection are confirmed members of that locked set; the complete
-set is not yet known. Before exposing further controls as generally available,
-each one must be tested while idle and while charging. Home Assistant should
-mark a locked control unavailable or reject it locally before MQTT publication,
-rather than relying on an expected device-side failure. The current no-vehicle
-tests do not establish which current, Solar, battery, display, LED, or other
-settings remain writable during charging.
+mode and phase selection are confirmed members of that locked set. The current
+no-vehicle tests do not establish which current, Solar, battery, display, LED,
+or other settings remain writable during charging. The authoritative test and
+implementation criteria are tracked in the [project backlog](backlog.md).
 
 ## dev20 candidate update (2026-08-24)
 
@@ -438,8 +409,8 @@ distance 200 -> 300 -> 200 km, and a same-value ready-by republish. Each
 integration call returned only after its SET reply and fresh direct wallbox
 readback. The sequence ended in Solar mode with Plug-and-Play off; Custom current
 remained restored to 6 A and the stored Smart distance remained 200 km. This
-validates the controls without a vehicle, but does not close the separate
-charging-time interlock backlog.
+validates the controls without a vehicle, but does not establish their
+behaviour during an active charging session.
 
 The first bundled screen/LED write capture produced eight retained `241/102`
 requests and replies while direct entities confirmed both switches and all four
@@ -483,5 +454,6 @@ The installed build retained the fast path: two acknowledged same-state writes
 were each confirmed by fresh direct readback within roughly 0.4-0.6 seconds.
 Diagnostics showed two direct confirmations, zero provider/no-op confirmations,
 and no active or pending delayed refresh. The PowerPulse direct path had been
-awakened by the restart, so the provider fallback still needs a repeat test only
-after another multi-hour idle interval.
+awakened by the restart, so this run did not exercise provider-fallback
+confirmation. The remaining live validation is tracked in the
+[project backlog](backlog.md).

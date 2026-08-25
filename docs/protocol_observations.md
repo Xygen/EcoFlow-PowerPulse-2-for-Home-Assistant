@@ -161,15 +161,16 @@ Confirmed or currently retained provider fields:
   30 kWh, while distance-target mode reported `0`
 - `paramSet.solarCurrentMin`: Solar minimum/continuous current in tenths of an
   ampere; later paired as `60` = 6 A and `70` = 7 A
-- `paramSet.userCurrentSet`, `phaseSpecified`, and
-  `vehicleInfo.currentVehicleComsumption`: retained raw pending further paired
+- `paramSet.userCurrentSet`: Custom-mode current in tenths of an ampere; the
+  direct field later confirmed `60` = 6 A and `110` = 11 A
+- `phaseSpecified`: retained raw on this provider path; direct field `7` and
+  settings-report field `11` provide the confirmed phase mappings
+- `vehicleInfo.currentVehicleComsumption`: retained raw pending further paired
   tests
 
-Presentation backlog: expose `solarCurrentMin` additionally as a normal Ampere
-sensor for the Solar-mode minimum current used when Continuous charging is
-enabled (`raw / 10`), while retaining the raw diagnostic entity. The existing
-maximum-output-current entity should default to zero decimal places because the
-confirmed app setting uses whole amperes.
+The dev14 presentation update later exposed `solarCurrentMin` as a normal
+Ampere sensor (`raw / 10`) while retaining its raw diagnostic entity, and set
+the maximum-output-current entity to zero decimal places by default.
 
 The linked PowerOcean MQTT stream also emits a PowerPulse accessory report
 under `cmd_func=209` (observed with `cmd_id=8` during an earlier charging
@@ -605,18 +606,16 @@ LED brightness 25%, while the final zero aligns with battery blocking off.
 This is recorded only as a candidate for later controlled comparisons; dev19
 does not parse field `21` or use this unconfirmed assignment for readback.
 
-## 2026-08-24: charging-state write interlocks to investigate
+## 2026-08-24: observed charging-state write constraints
 
-Start and Stop must be captured both without a vehicle and with a vehicle
-connected. Future control logic must require actual charging-state readback,
-because a SET reply alone confirms transport correlation rather than the
-physical result.
+The captures contain no Start/Stop request either without a vehicle or with one
+connected. A SET reply alone would confirm transport correlation rather than
+the physical result, so independent charging-state readback is required.
 
 The official app prevents at least operating-mode and phase-selection changes
-while charging is active. Additional locked settings remain to be identified.
-Every exposed write should therefore receive a state-dependent availability or
-local validation rule once its charging-time behaviour is known, preventing a
-predictably invalid MQTT command from being sent at all.
+while charging is active. The evidence does not identify the complete locked
+set. Current follow-up and completion criteria are maintained only in the
+[project backlog](backlog.md).
 
 ## 2026-08-24: complete operating-mode capture for dev20
 
@@ -718,5 +717,5 @@ state twice. Both commands received matching replies and fresh direct readback
 in about 0.4-0.6 seconds, with `control_readback_counts.direct=2`. No delayed
 passive refresh was left active or pending, confirming that integration-owned
 replies do not duplicate the new synchronous verification. The direct device
-was awake during this test; confirmation through the provider fallback remains
-explicitly pending after the next multi-hour idle period.
+was awake during this test, so it did not exercise the provider fallback. That
+remaining validation is tracked in the [project backlog](backlog.md).
