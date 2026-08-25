@@ -28,6 +28,11 @@ Current outstanding work is maintained only in
   PowerOcean and the local Modbus integration so later app-open tests can
   separate their effects.
 - Extend the local test suite to 60 passing tests.
+- Installed validation confirms HACS commit `875b532`, manifest version
+  `0.1.0-dev24`, and both new diagnostic entities. They were enabled in the
+  entity registry; the direct-stream sensor reported connected after a
+  targeted integration reload. The reactivation button was deliberately not
+  pressed while the direct stream was fresh, and no device setting was changed.
 
 ## 0.1.0-dev23
 

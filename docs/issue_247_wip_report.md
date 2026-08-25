@@ -515,3 +515,13 @@ separate bounded view so frequent property telemetry cannot evict the evidence.
 Only safe JSON operation metadata or generic Protobuf routing fields survive;
 raw GET bodies and request IDs are omitted. The required stale-stream live test
 remains centralized in the project backlog.
+
+Installed validation loaded HACS commit `875b532` and manifest version
+`0.1.0-dev24`. The disabled-by-default connectivity sensor and reactivation
+button were both present and were explicitly enabled in the entity registry.
+After a targeted reload, the sensor reported a fresh direct stream and the
+button was available. Its action was not invoked because the coordinator would
+correctly classify that state as `already_active` without sending a new
+SUBSCRIBE. The error log contained no new PowerPulse integration error after
+the reload, and this verification did not publish a device command or alter a
+charger setting.

@@ -785,3 +785,11 @@ sequence, and the literal `app` marker. Raw request content and request IDs are
 always omitted. This instrumentation does not yet establish a wake command; the
 controlled stale-stream result remains an open evidence item in the canonical
 backlog.
+
+Post-install verification of HACS commit `875b532` found both diagnostic
+entities in the registry. After enabling them and reloading only the config
+entry, the connectivity sensor was `on`; the button was available but remained
+unpressed because the stream was already fresh. Therefore this check validates
+the installation and freshness exposure, not the stale-stream SUBSCRIBE
+experiment. No new PowerPulse integration error appeared after the reload and
+no device command was published.
