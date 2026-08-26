@@ -99,8 +99,13 @@ dev24 distinguishes the still-connected MQTT transport from freshness of the
 direct report. A diagnostic binary sensor marks `241/44` fresh for ten seconds
 after its latest frame. A separate disabled-by-default action can renew the
 existing C376 quota, property, and GET-reply subscriptions without publishing
-any device command. The result is not yet evidence that re-subscribing wakes a
-sleeping stream; that controlled idle test is tracked only in the
+any device command. A controlled stale-stream test returned
+`no_direct_report`: all three local subscribe calls succeeded, but no `241/44`
+arrived during the ten-second window. Opening only the PowerPulse overview in
+the official app subsequently restarted `241/44` without a visible C376 GET or
+SET on the subscribed topics. This points to an app-session action, an
+unobserved topic, or an HTTP/backend request rather than simple topic renewal.
+The remaining isolation work is tracked only in the
 [project backlog](backlog.md).
 
 Official-app GET publishes now form a separate `observed_get` diagnostic path.

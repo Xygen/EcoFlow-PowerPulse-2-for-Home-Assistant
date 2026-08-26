@@ -525,3 +525,20 @@ correctly classify that state as `already_active` without sending a new
 SUBSCRIBE. The error log contained no new PowerPulse integration error after
 the reload, and this verification did not publish a device command or alter a
 charger setting.
+
+The first genuine stale-stream experiment then separated subscription renewal
+from app activity. The last direct report before the test was at
+`04:04:03Z`. At `05:56:50Z`, the HA button renewed all three C376 read
+subscriptions with local result code `0`, but no `241/44` arrived within ten
+seconds and the recorded outcome was `no_direct_report`. Other C376 property
+messages continued, so neither the MQTT connection nor all charger traffic was
+asleep.
+
+Opening only the PowerPulse overview in the official app, without changing a
+setting or entering a settings page, restarted direct `241/44` reporting at
+approximately `05:58:38Z`. The dedicated request capture remained empty and no
+C376 SET appeared on the subscribed topics. HJ31 `96/97` traffic continued in
+parallel, but that traffic was already known to be repetitive and its publisher
+cannot be identified from the MQTT topic. The result therefore proves an
+app-open side effect, but not whether its cause is the app's own MQTT session or
+subscription, an unobserved topic, or an HTTP/backend request.

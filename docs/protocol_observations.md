@@ -793,3 +793,22 @@ unpressed because the stream was already fresh. Therefore this check validates
 the installation and freshness exposure, not the stale-stream SUBSCRIBE
 experiment. No new PowerPulse integration error appeared after the reload and
 no device command was published.
+
+The subsequent stale-stream test produced the first causal exclusion. The last
+`241/44` report had arrived at `04:04:03Z`. At `05:56:50Z`, the diagnostic
+button renewed the C376 quota, property, and GET-reply subscriptions; every
+local Paho result was `0`. No later direct report arrived during the ten-second
+confirmation window, so the attempt ended as `no_direct_report`. Concurrent
+C376 `96/54` and `96/34` property frames showed that the connection and broader
+charger message path were still active.
+
+The official app was then opened directly to the PowerPulse overview without a
+setting change. Direct `241/44` reporting resumed at approximately
+`05:58:38Z` and continued about once per second. No C376 GET entered
+`mqtt_request_frames`, and no C376 SET appeared in the observed command list.
+The visible HJ31 `96/97` requests cannot be used as the trigger because they
+were already repetitive and their publisher is not encoded in the shared
+topic. The supported conclusion is therefore narrow: app opening wakes the
+direct stream, whereas re-subscribing from HA does not. The actual trigger may
+be an app-client connection or subscription, a topic outside the current
+capture, or an HTTP/backend request and remains unresolved.
