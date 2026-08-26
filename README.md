@@ -30,7 +30,7 @@ diagnostics.
 
 ## Current scope
 
-Version `0.1.0-dev25` keeps automatic MQTT activity listen-only and provides
+Version `0.1.0-dev26` keeps automatic MQTT activity listen-only and provides
 disabled-by-default, user-triggered controls:
 
 - EcoFlow app-account login and PowerPulse discovery
@@ -80,6 +80,9 @@ disabled-by-default, user-triggered controls:
 - read-only provider-detail lookup on the linked PowerOcean, matched back to
   the embedded PowerPulse serial without retaining the raw provider response
 - a coordinator watchdog that retries interrupted MQTT connections
+- bounded automatic recovery when both previously observed C376 report
+  families have remained stale for five minutes: only the listen-only WSS
+  client is rebuilt, with a 30-minute retry cooldown and no MQTT publish
 - disabled-by-default diagnostic entities showing whether the direct C376
   settings and heartbeat streams are fresh, renewing existing read
   subscriptions, and rebuilding the C376 WSS session with a new Client ID;
@@ -154,6 +157,13 @@ C376 WSS client with a fresh Client ID and normal subscriptions, while a
 separate connectivity sensor tracks real heartbeat `2/33` frames with a
 90-second freshness window. The reconnect action is deliberately manual until
 an idle test proves whether it restores either stream.
+
+That stale test succeeded: a fresh listen-only C376 WSS session restored
+`241/44` after 1.779 seconds and heartbeat `2/33` shortly afterward. dev26
+therefore applies the same operation automatically only after both streams
+were first observed and then stayed stale for five minutes. Each attempt is
+rate-limited by a 30-minute cooldown and uses the same bounded diagnostics.
+The manual button remains available for controlled investigation.
 
 ## Diagnostic capture workflow
 

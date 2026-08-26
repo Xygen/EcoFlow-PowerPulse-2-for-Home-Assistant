@@ -15,14 +15,14 @@ Any upstream proposal must follow the upstream maintainer's chosen architecture.
 This integration's direct C376 MQTT path with bounded PowerOcean HTTP fallback
 is project evidence, not a prescription for another repository.
 
-Current implementation baseline: `0.1.0-dev25`.
+Current implementation baseline: `0.1.0-dev26`.
 
 ## Live validation and control safety
 
 | ID | Priority | Open work | Completion evidence |
 | --- | --- | --- | --- |
 | `LIVE-01` | Next | Live-validate the extended dev23 provider-readback window after another genuine multi-hour idle period. | Mode, battery, and Continuous writes without fresh direct `241/44` readback are confirmed by post-command raw provider snapshots without a false HA failure; the new attempt trace identifies when the match arrived. |
-| `STREAM-01` | Next release | Convert the dev25 manual C376 recovery into conservative automatic recovery after a sustained stale interval, with a cooldown and bounded diagnostics. A genuine stale test confirmed that a fresh listen-only WSS session alone restored `241/44` in 1.779 seconds and heartbeat `2/33` shortly afterward, while simple re-subscription had failed. | Automatic recovery rebuilds only the C376 listen-only WSS client, never publishes, avoids reconnect loops, and restores both streams in a repeated idle test without opening the app. |
+| `STREAM-01` | Next idle window | Live-validate dev26 automatic recovery. It requires both streams to have been observed, waits until both are stale for five minutes, rebuilds only the listen-only C376 WSS session, and applies a 30-minute cooldown. | The `automatic_wss_reconnect` trace confirms restoration of both streams without app activity, manual action, device publish, or repeated reconnect loop. |
 | `PHASE-01` | Research | Establish the provider `phaseSpecified` mapping through controlled app changes so phase writes can eventually be confirmed while the direct path sleeps. Until then dev24 exposes phase control only with fresh direct `phase_mode` readback. | Auto, one-phase, and three-phase changes isolate every provider value and agree with independent app/device state before provider phase confirmation is implemented. |
 | `CTRL-01` | Blocked by vehicle availability | Capture and implement Start and Stop separately, both without a connected vehicle and with one connected. | Official-app request/reply frames, exact target attribution, independent charger-state readback, and reversible HA tests distinguish unplugged, plugged-in, charging, paused, completed, and rejected outcomes where observed. |
 | `SAFE-01` | Blocked by vehicle availability | Establish the charging-time interlock matrix for every writable setting. Operating mode and phase selection are already known to be locked while charging; the remaining controls are unclassified. | Each control has an idle/charging result and HA prevents predictably invalid MQTT publication through availability or local validation. |

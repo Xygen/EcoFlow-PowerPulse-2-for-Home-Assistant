@@ -13,6 +13,19 @@ Current outstanding work is maintained only in
   phase field `7`, and Custom-current field `8` are resolved; older dev-stage
   statements remain explicitly historical evidence.
 
+## 0.1.0-dev26
+
+- Add conservative automatic C376 stream recovery based on the confirmed dev25
+  mechanism. Both direct `241/44` and heartbeat `2/33` must have been observed
+  in the current runtime and then remain stale for five minutes.
+- Rebuild only the hard-listen-only C376 WSS client, never publish, and enforce
+  a 30-minute cooldown after every automatic attempt to prevent reconnect
+  loops. Manual recovery remains available.
+- Label automatic outcomes separately in the bounded privacy-safe reconnect
+  trace and expose the configured stale/cooldown limits in diagnostic schema 10.
+- Add boundary tests for initial-state gating, dual-stream staleness, and the
+  cooldown; the local suite now contains 64 passing tests.
+
 ## 0.1.0-dev25
 
 - Add a disabled-by-default diagnostic button that rebuilds only the hard-

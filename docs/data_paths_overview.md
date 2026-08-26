@@ -7,7 +7,7 @@ chronological evidence in [protocol_observations.md](protocol_observations.md).
 The tables distinguish device readback from app-write observations. A fast
 acknowledgement of an app request is not automatically a trustworthy state
 value. Read entities therefore use confirmed device or provider reports. The
-dev25 settings controls are evidence-gated and require acknowledgement plus either
+dev26 settings controls are evidence-gated and require acknowledgement plus either
 fresh direct device readback or a post-command raw provider confirmation.
 Phase selection is narrower: provider `phaseSpecified` has no confirmed mapping,
 so that control requires a fresh direct `phase_mode` report.
@@ -114,6 +114,11 @@ sensor tracks receipt of `2/33` for 90 seconds. A second manual diagnostic
 action rebuilds only the hard-listen-only C376 WSS client with a new Client ID
 and its normal subscriptions. It does not send `get-all`, `latestQuotas`,
 `EnergyStreamSwitch`, or any setting command.
+The controlled stale test confirmed that this new WSS session restored
+`241/44` after 1.779 seconds and `2/33` shortly afterward. dev26 reuses only
+that verified session operation automatically after both previously observed
+streams stay stale for five minutes. A 30-minute cooldown bounds failure
+retries; the action remains hard listen-only.
 The remaining isolation work is tracked only in the
 [project backlog](backlog.md).
 

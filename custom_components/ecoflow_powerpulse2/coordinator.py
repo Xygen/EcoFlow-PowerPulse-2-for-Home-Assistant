@@ -46,6 +46,7 @@ from .frame_capture import (
 )
 from .parser import extract_powerpulse_accessory_descriptor, parse_powerpulse2_payload
 from .passive_refresh import ConfirmedSettingsReplyGate, DelayedRefreshCoalescer
+from .stream_recovery import automatic_recovery_due
 
 _LOGGER = logging.getLogger(__name__)
 _MAX_FRAME_BYTES = 2048
@@ -57,6 +58,8 @@ _CONTROL_DIAGNOSTIC_ATTEMPTS = 32
 _DIRECT_STREAM_CONFIRM_SECONDS = 10
 _DIRECT_STREAM_DIAGNOSTIC_ATTEMPTS = 16
 _HEARTBEAT_STREAM_FRESH_SECONDS = 90
+_AUTOMATIC_RECOVERY_STALE_SECONDS = 300
+_AUTOMATIC_RECOVERY_COOLDOWN_SECONDS = 1800
 _DIRECT_SETTINGS_KEYS = frozenset(
     {
         "continuous_charging",
@@ -124,6 +127,7 @@ class PowerPulse2Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
         self._direct_stream_attempts: deque[dict[str, Any]] = deque(
             maxlen=_DIRECT_STREAM_DIAGNOSTIC_ATTEMPTS
         )
+        self._last_automatic_reconnect_at: dict[str, float] = {}
         self._accessory_descriptors: dict[str, bytes] = {}
         self._reply_waiters: dict[tuple[str, int], asyncio.Future[None]] = {}
         self._control_lock = asyncio.Lock()
@@ -183,6 +187,11 @@ class PowerPulse2Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
                     for serial, timestamp in self._last_direct_settings_utc.items()
                 ],
                 "recent_reactivation_attempts": list(self._direct_stream_attempts),
+                "automatic_recovery": {
+                    "enabled": True,
+                    "stale_seconds": _AUTOMATIC_RECOVERY_STALE_SECONDS,
+                    "cooldown_seconds": _AUTOMATIC_RECOVERY_COOLDOWN_SECONDS,
+                },
             },
             "heartbeat_stream": {
                 "fresh_seconds": _HEARTBEAT_STREAM_FRESH_SECONDS,
@@ -306,6 +315,42 @@ class PowerPulse2Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
             attempted = await self.hass.async_add_executor_job(client.try_reconnect)
             if attempted:
                 _LOGGER.debug("PowerPulse MQTT reconnect started for %s…", serial[:4])
+
+        for serial in self.devices:
+            await self._async_maybe_recover_direct_stream(serial)
+
+    async def _async_maybe_recover_direct_stream(self, serial: str) -> None:
+        """Recover a proven-but-stale C376 stream at a bounded cadence."""
+        client = self.mqtt_clients.get(serial)
+        now = time.monotonic()
+        if (
+            self._shutting_down
+            or client is None
+            or not client.is_connected()
+            or not automatic_recovery_due(
+                now=now,
+                last_direct_at=self._last_direct_settings_at.get(serial),
+                last_heartbeat_at=self._last_heartbeat_at.get(serial),
+                last_attempt_at=self._last_automatic_reconnect_at.get(serial),
+                stale_seconds=_AUTOMATIC_RECOVERY_STALE_SECONDS,
+                cooldown_seconds=_AUTOMATIC_RECOVERY_COOLDOWN_SECONDS,
+            )
+        ):
+            return
+
+        # Record before reconnecting so failures cannot create a retry loop on
+        # the coordinator's 30-second update cadence.
+        self._last_automatic_reconnect_at[serial] = now
+        try:
+            await self._async_reconnect_direct_stream(
+                serial, method="automatic_wss_reconnect"
+            )
+        except HomeAssistantError as exc:
+            _LOGGER.debug(
+                "Automatic direct-stream recovery failed for %s…: %s",
+                serial[:4],
+                exc,
+            )
 
     def _schedule_mqtt_frame(self, serial: str, topic: str, payload: bytes) -> None:
         loop = self.hass.loop
@@ -543,6 +588,12 @@ class PowerPulse2Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
 
     async def async_reconnect_direct_stream(self, serial: str) -> None:
         """Rebuild only the listen-only C376 WSS session and observe reports."""
+        await self._async_reconnect_direct_stream(serial, method="wss_reconnect")
+
+    async def _async_reconnect_direct_stream(
+        self, serial: str, *, method: str
+    ) -> None:
+        """Rebuild C376 WSS and retain a safe manual/automatic outcome."""
         if serial not in self.devices:
             raise HomeAssistantError("Unknown PowerPulse device")
         client = self.mqtt_clients.get(serial)
@@ -554,7 +605,7 @@ class PowerPulse2Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
             attempt: dict[str, Any] = {
                 "timestamp": datetime.now(UTC).isoformat(),
                 "device_prefix": serial[:4],
-                "method": "wss_reconnect",
+                "method": method,
                 "direct_was_fresh": self.direct_stream_active(serial),
             }
             if attempt["direct_was_fresh"]:

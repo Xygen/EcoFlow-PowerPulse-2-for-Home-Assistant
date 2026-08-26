@@ -595,3 +595,19 @@ subscriptions is sufficient to wake these reports. Re-subscribing an existing
 session is not. Because the client remains hard `listen_only`, this result does
 not depend on `get-all`, `latestQuotas`, `EnergyStreamSwitch`, or a device SET.
 The canonical backlog now carries the bounded automatic-recovery work.
+
+## dev26 bounded automatic recovery (2026-08-26)
+
+dev26 promotes only the confirmed fresh-session mechanism into automatic
+recovery. It does not infer failure from an unchanged voltage: actual receipt
+timestamps for both parsed `241/44` and `2/33` frames must exist, and both must
+be at least five minutes old. The normal disconnected-client watchdog remains
+separate.
+
+An eligible attempt rebuilds only the C376 hard-listen-only WSS client and is
+tagged `automatic_wss_reconnect` in the bounded trace. A 30-minute cooldown is
+recorded before reconnect starts, so even a failed broker operation cannot run
+again on the integration's 30-second polling interval. No new publish path or
+device command is introduced. The next idle window must confirm the scheduler
+and loop protection; that active validation is maintained only in the canonical
+backlog.

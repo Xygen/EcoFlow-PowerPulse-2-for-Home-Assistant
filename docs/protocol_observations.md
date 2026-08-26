@@ -872,3 +872,22 @@ No MQTT publish, guessed device command, app detail page, or PowerOcean command
 is required. The next implementation step is conservative automatic recovery
 with a sustained-stale threshold, cooldown, and loop protection; a second idle
 cycle should validate that policy before treating it as production behavior.
+
+## 2026-08-26: dev26 bounded automatic stream recovery
+
+dev26 implements the confirmed session rebuild as a deliberately conservative
+watchdog. Eligibility requires that both `241/44` and `2/33` were observed in
+the current coordinator runtime; missing initial timestamps never cause a
+reconnect. Both last-receipt times must then be at least 300 seconds old. This
+avoids treating the normal ten-second direct freshness display or a single late
+heartbeat as a recovery trigger.
+
+When eligible, the coordinator records the attempt time before any network
+operation, fully rebuilds only the C376 WSS client, and waits for direct
+confirmation through the already tested path. Every automatic attempt starts a
+1,800-second cooldown even if reconnect or confirmation fails, preventing a
+30-second coordinator-poll loop. The trace method is
+`automatic_wss_reconnect`; diagnostic schema 10 exposes the fixed thresholds.
+The MQTT client's existing hard `listen_only` guard and its fresh-client-ID
+publish-regression test remain unchanged. A genuine idle window is still needed
+to validate automatic scheduling and cooldown behavior in Home Assistant.
