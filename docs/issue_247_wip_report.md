@@ -542,3 +542,19 @@ parallel, but that traffic was already known to be repetitive and its publisher
 cannot be identified from the MQTT topic. The result therefore proves an
 app-open side effect, but not whether its cause is the app's own MQTT session or
 subscription, an unobserved topic, or an HTTP/backend request.
+
+A second idle cycle narrowed the app action further. Opening only the general
+EcoFlow home/device list, without selecting PowerPulse, restarted direct
+`241/44` at approximately `08:52:06Z`. No C376 GET or SET was captured. HJ31
+commands `96/114`, `96/22`, and `96/97` appeared from `08:52:11Z`, after the
+first renewed direct report, so they cannot be treated as its trigger from this
+timing alone. Heartbeat `2/33` updated phase voltage at `08:52:53Z`, about 47
+seconds after `241/44`. The earlier app-open run showed the same ordering with
+about 54 seconds between the two streams; the prior snapshot describing phase
+voltage as still asleep was therefore only premature, not a lasting split.
+
+The next safe discriminator is a full reconnect of only the C376 WSS client
+with a new Client ID and normal subscriptions, while retaining the hard no-
+publish guarantee. If that wakes both streams, a fresh client session is
+sufficient; otherwise the missing action is app-specific or outside the
+currently observed MQTT topics.

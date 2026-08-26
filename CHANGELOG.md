@@ -35,9 +35,10 @@ Current outstanding work is maintained only in
   pressed while the direct stream was fresh, and no device setting was changed.
 - A later genuine idle test showed that successful renewal of all three C376
   read subscriptions did not restart `241/44`, while opening only the official
-  app overview did. No C376 GET or SET was visible, narrowing the remaining
-  research to app-session behavior, an unobserved topic, or an HTTP/backend
-  request.
+  app's general home/device list did. No C376 GET or SET was visible. Heartbeat
+  `2/33` followed `241/44` after about 47–54 seconds in two runs, narrowing the
+  next safe test to a fresh no-publish C376 WSS session before considering an
+  unobserved topic or HTTP/backend request.
 
 ## 0.1.0-dev23
 

@@ -101,10 +101,13 @@ after its latest frame. A separate disabled-by-default action can renew the
 existing C376 quota, property, and GET-reply subscriptions without publishing
 any device command. A controlled stale-stream test returned
 `no_direct_report`: all three local subscribe calls succeeded, but no `241/44`
-arrived during the ten-second window. Opening only the PowerPulse overview in
-the official app subsequently restarted `241/44` without a visible C376 GET or
-SET on the subscribed topics. This points to an app-session action, an
-unobserved topic, or an HTTP/backend request rather than simple topic renewal.
+arrived during the ten-second window. Opening only the general home/device list
+in the official app subsequently restarted `241/44` without a visible C376 GET
+or SET on the subscribed topics; selecting PowerPulse itself was unnecessary.
+Heartbeat `2/33`, including phase voltage, resumed about 47–54 seconds after
+the direct settings stream in two observations. This points to an app-session
+action, an unobserved topic, or an HTTP/backend request rather than simple topic
+renewal.
 The remaining isolation work is tracked only in the
 [project backlog](backlog.md).
 

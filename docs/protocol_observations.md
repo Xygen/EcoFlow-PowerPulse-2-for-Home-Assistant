@@ -812,3 +812,18 @@ topic. The supported conclusion is therefore narrow: app opening wakes the
 direct stream, whereas re-subscribing from HA does not. The actual trigger may
 be an app-client connection or subscription, a topic outside the current
 capture, or an HTTP/backend request and remains unresolved.
+
+The next idle cycle showed that the device detail page is not required. Opening
+only the general EcoFlow home/device list restarted C376 `241/44` at about
+`08:52:06Z`, again without a captured C376 GET or SET. HJ31 `96/114`, `96/22`,
+and `96/97` requests began in the retained command window at `08:52:11Z`, after
+the direct stream had already resumed, and therefore do not establish the
+trigger. Phase voltage from heartbeat `2/33` changed at `08:52:53Z`, roughly 47
+seconds later. In the preceding app-open test that heartbeat followed the
+direct stream after roughly 54 seconds. App opening therefore revives both
+C376 report families with different startup cadence; the earlier conclusion
+that heartbeat remained asleep was a snapshot taken just before it resumed.
+
+This makes a no-publish C376 WSS client rebuild with a new Client ID the next
+controlled step. It differs materially from the failed re-subscription test by
+creating a fresh cloud session while still avoiding any guessed device command.
