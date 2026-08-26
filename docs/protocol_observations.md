@@ -855,3 +855,20 @@ within the following normal cycle, switching its independent sensor to fresh.
 The reconnect button was available but was deliberately not pressed because
 the direct stream was active; `last_reactivation` remained empty. No new
 PowerPulse runtime error was logged.
+
+The subsequent genuine stale test confirmed the session hypothesis. Both
+diagnostic sensors were `off`; the last direct `241/44` frame had arrived at
+`11:31:17.706252Z` and the last heartbeat `2/33` at `11:31:11.052485Z`. At
+`12:05:08.416675Z`, the user pressed only the dev25 WSS-reconnect button while
+the EcoFlow app remained closed and no setting was changed. The privacy-safe
+trace recorded `method=wss_reconnect`, `direct_was_fresh=false`,
+`status=confirmed`, and `seconds_to_direct_report=1.779`. Heartbeat `2/33`
+followed at `12:05:13.424549Z`; both sensors were then fresh and `241/44`
+continued reporting.
+
+This establishes that a fresh C376 WSS client session and normal passive
+subscriptions are sufficient to restart both server-delivered report families.
+No MQTT publish, guessed device command, app detail page, or PowerOcean command
+is required. The next implementation step is conservative automatic recovery
+with a sustained-stale threshold, cooldown, and loop protection; a second idle
+cycle should validate that policy before treating it as production behavior.

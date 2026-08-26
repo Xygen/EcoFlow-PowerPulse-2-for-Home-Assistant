@@ -581,3 +581,17 @@ in Home Assistant. Following a targeted integration reload, the direct sensor
 was fresh and the heartbeat sensor became fresh on the next `2/33` cycle. The
 manual reconnect action was not invoked in this non-stale state, its attempt
 trace remained empty, and no new integration error appeared.
+
+The first controlled stale-stream run then confirmed the missing mechanism.
+Both `241/44` and heartbeat `2/33` freshness sensors were off before the test.
+Pressing only the listen-only C376 WSS-reconnect action at
+`12:05:08.416675Z`, with the official app closed and no setting change,
+produced a new direct report after 1.779 seconds. The independent heartbeat
+stream resumed by `12:05:13.424549Z`. The recorded outcome was
+`wss_reconnect / confirmed`; both streams remained active afterward.
+
+Therefore a new C376 cloud MQTT session with a fresh Client ID and normal
+subscriptions is sufficient to wake these reports. Re-subscribing an existing
+session is not. Because the client remains hard `listen_only`, this result does
+not depend on `get-all`, `latestQuotas`, `EnergyStreamSwitch`, or a device SET.
+The canonical backlog now carries the bounded automatic-recovery work.
