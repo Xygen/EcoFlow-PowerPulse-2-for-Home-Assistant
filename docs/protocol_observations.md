@@ -891,3 +891,10 @@ confirmation through the already tested path. Every automatic attempt starts a
 The MQTT client's existing hard `listen_only` guard and its fresh-client-ID
 publish-regression test remain unchanged. A genuine idle window is still needed
 to validate automatic scheduling and cooldown behavior in Home Assistant.
+
+Installed validation loaded manifest `0.1.0-dev26` and diagnostic schema 10.
+Runtime diagnostics reported automatic recovery enabled with
+`stale_seconds=300`, `cooldown_seconds=1800`, and an empty attempt list. Both
+independent stream sensors were fresh after startup, so no reconnect was due or
+performed. The current error log contained only Home Assistant's standard
+untested-custom-integration warning and no new PowerPulse runtime error.

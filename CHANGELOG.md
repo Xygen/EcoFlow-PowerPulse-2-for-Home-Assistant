@@ -25,6 +25,10 @@ Current outstanding work is maintained only in
   trace and expose the configured stale/cooldown limits in diagnostic schema 10.
 - Add boundary tests for initial-state gating, dual-stream staleness, and the
   cooldown; the local suite now contains 64 passing tests.
+- Installed validation loaded manifest `0.1.0-dev26` and diagnostic schema 10
+  with automatic recovery enabled at 300 seconds stale and 1,800 seconds
+  cooldown. Both streams were fresh, no attempt had run, and no new integration
+  error appeared.
 
 ## 0.1.0-dev25
 

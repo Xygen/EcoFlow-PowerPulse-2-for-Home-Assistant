@@ -611,3 +611,8 @@ again on the integration's 30-second polling interval. No new publish path or
 device command is introduced. The next idle window must confirm the scheduler
 and loop protection; that active validation is maintained only in the canonical
 backlog.
+
+Installed validation confirmed dev26, diagnostic schema 10, the exact
+300-second/1,800-second limits, and an initially empty recovery trace. Both
+report families were fresh after restart, correctly preventing an immediate
+automatic reconnect. No new integration error was logged.
