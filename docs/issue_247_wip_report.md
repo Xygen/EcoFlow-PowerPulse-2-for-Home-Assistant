@@ -575,3 +575,9 @@ heartbeat `2/33` receipt, fresh for 90 seconds. This measures frame arrival
 rather than waiting for phase voltage to change and allows the next idle test
 to compare the two C376 report families directly. The live result remains an
 open item only in `docs/backlog.md`.
+
+The installed dev25 manifest and both new entity-registry entries were verified
+in Home Assistant. Following a targeted integration reload, the direct sensor
+was fresh and the heartbeat sensor became fresh on the next `2/33` cycle. The
+manual reconnect action was not invoked in this non-stale state, its attempt
+trace remained empty, and no new integration error appeared.

@@ -26,6 +26,10 @@ Current outstanding work is maintained only in
   stream attempt trace and bump the diagnostic schema to 9.
 - Extend the local regression suite to 61 tests, including a fresh-client-ID
   reconnect test whose fake Paho client raises on every publish attempt.
+- Installed validation loaded manifest `0.1.0-dev25`; both new diagnostic
+  entities were enabled and became available after a targeted entry reload.
+  Direct `241/44` and heartbeat `2/33` freshness both reported connected. The
+  reconnect button remained unpressed and its attempt trace stayed empty.
 
 ## 0.1.0-dev24
 

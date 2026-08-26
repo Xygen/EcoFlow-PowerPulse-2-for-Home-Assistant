@@ -847,3 +847,11 @@ unchanged phase voltage as proof that no frames arrived. Diagnostic schema 9
 adds the same identifier-free heartbeat timestamp summary. Whether a fresh WSS
 session actually restarts `241/44` or the later heartbeat remains open until a
 genuine stale-stream live test.
+
+Installed validation loaded manifest `0.1.0-dev25`. After enabling the two new
+registry-disabled entities and reloading only this config entry, direct
+`241/44` was immediately fresh and the first parsed heartbeat `2/33` arrived
+within the following normal cycle, switching its independent sensor to fresh.
+The reconnect button was available but was deliberately not pressed because
+the direct stream was active; `last_reactivation` remained empty. No new
+PowerPulse runtime error was logged.
