@@ -558,3 +558,20 @@ with a new Client ID and normal subscriptions, while retaining the hard no-
 publish guarantee. If that wakes both streams, a fresh client session is
 sufficient; otherwise the missing action is app-specific or outside the
 currently observed MQTT topics.
+
+## dev25 C376 session-rebuild diagnostic (2026-08-26)
+
+dev25 turns the next discriminator into a disabled-by-default manual diagnostic
+instead of an automatic recovery policy. It fully replaces only the C376 Paho
+WSS client, thereby generating a fresh Client ID, and restores the normal
+passive subscriptions. The connection remains hard `listen_only`: reconnect
+cannot publish `get-all`, `latestQuotas`, `EnergyStreamSwitch`, or a charger
+command. Its bounded privacy-safe trace distinguishes `wss_reconnect` from the
+already disproven `resubscribe` experiment and records the outcome and optional
+time to a new `241/44` report.
+
+The build also adds a separate disabled connectivity sensor for actual parsed
+heartbeat `2/33` receipt, fresh for 90 seconds. This measures frame arrival
+rather than waiting for phase voltage to change and allows the next idle test
+to compare the two C376 report families directly. The live result remains an
+open item only in `docs/backlog.md`.

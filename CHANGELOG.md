@@ -13,6 +13,20 @@ Current outstanding work is maintained only in
   phase field `7`, and Custom-current field `8` are resolved; older dev-stage
   statements remain explicitly historical evidence.
 
+## 0.1.0-dev25
+
+- Add a disabled-by-default diagnostic button that rebuilds only the hard-
+  listen-only C376 WSS client with a fresh Client ID and normal subscriptions.
+  It sends no MQTT publish or device command and records a bounded, identifier-
+  free outcome plus confirmation latency.
+- Add a disabled-by-default connectivity sensor that tracks receipt of real
+  heartbeat `2/33` frames with a 90-second freshness window and exposes only
+  the last privacy-safe timestamp.
+- Distinguish subscription renewal from WSS rebuild in the existing direct-
+  stream attempt trace and bump the diagnostic schema to 9.
+- Extend the local regression suite to 61 tests, including a fresh-client-ID
+  reconnect test whose fake Paho client raises on every publish attempt.
+
 ## 0.1.0-dev24
 
 - Add a disabled-by-default diagnostic button that renews only the existing

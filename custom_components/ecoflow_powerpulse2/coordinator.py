@@ -56,6 +56,7 @@ _CONTROL_NOOP_FRESH_SECONDS = UPDATE_INTERVAL_SECONDS * 2
 _CONTROL_DIAGNOSTIC_ATTEMPTS = 32
 _DIRECT_STREAM_CONFIRM_SECONDS = 10
 _DIRECT_STREAM_DIAGNOSTIC_ATTEMPTS = 16
+_HEARTBEAT_STREAM_FRESH_SECONDS = 90
 _DIRECT_SETTINGS_KEYS = frozenset(
     {
         "continuous_charging",
@@ -110,6 +111,8 @@ class PowerPulse2Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
         self._last_settings_refresh_at: str | None = None
         self._last_direct_settings_at: dict[str, float] = {}
         self._last_direct_settings_utc: dict[str, str] = {}
+        self._last_heartbeat_at: dict[str, float] = {}
+        self._last_heartbeat_utc: dict[str, str] = {}
         self._last_polled_settings_at: dict[str, float] = {}
         self._last_polled_settings: dict[str, dict[str, Any]] = {}
         self._control_readback_counts = {"direct": 0, "provider": 0, "noop": 0}
@@ -180,6 +183,16 @@ class PowerPulse2Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
                     for serial, timestamp in self._last_direct_settings_utc.items()
                 ],
                 "recent_reactivation_attempts": list(self._direct_stream_attempts),
+            },
+            "heartbeat_stream": {
+                "fresh_seconds": _HEARTBEAT_STREAM_FRESH_SECONDS,
+                "last_reports": [
+                    {
+                        "device_prefix": serial[:4],
+                        "timestamp": timestamp,
+                    }
+                    for serial, timestamp in self._last_heartbeat_utc.items()
+                ],
             },
         }
 
@@ -322,6 +335,12 @@ class PowerPulse2Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
         ):
             self._last_direct_settings_at[serial] = time.monotonic()
             self._last_direct_settings_utc[serial] = datetime.now(UTC).isoformat()
+        if parsed and any(
+            header.get("cmd_func") == 2 and header.get("cmd_id") == 33
+            for header in protocol_headers
+        ):
+            self._last_heartbeat_at[serial] = time.monotonic()
+            self._last_heartbeat_utc[serial] = datetime.now(UTC).isoformat()
         if parsed:
             self._remember_smart_settings(serial, parsed)
             updated = dict(self.data or {})
@@ -438,6 +457,27 @@ class PowerPulse2Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
         client = self.mqtt_clients.get(serial)
         return serial in self.devices and client is not None and client.is_connected()
 
+    def direct_reconnect_available(self, serial: str) -> bool:
+        """Return whether the direct WSS client can be rebuilt safely."""
+        client = self.mqtt_clients.get(serial)
+        return serial in self.devices and client is not None and client.wss_mode
+
+    def heartbeat_stream_active(self, serial: str) -> bool:
+        """Return whether a real C376 heartbeat frame arrived recently."""
+        reported_at = self._last_heartbeat_at.get(serial)
+        return bool(
+            reported_at is not None
+            and time.monotonic() - reported_at <= _HEARTBEAT_STREAM_FRESH_SECONDS
+        )
+
+    def heartbeat_stream_available(self, serial: str) -> bool:
+        """Return whether the diagnostic heartbeat source is configured."""
+        return serial in self.devices and self.mqtt_clients.get(serial) is not None
+
+    def heartbeat_stream_diagnostics(self, serial: str) -> dict[str, Any]:
+        """Return safe per-device heartbeat timing for diagnostic entities."""
+        return {"last_heartbeat_report": self._last_heartbeat_utc.get(serial)}
+
     def direct_stream_diagnostics(self, serial: str) -> dict[str, Any]:
         """Return safe per-device stream state for diagnostic entities."""
         latest = next(
@@ -466,6 +506,7 @@ class PowerPulse2Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
             attempt: dict[str, Any] = {
                 "timestamp": datetime.now(UTC).isoformat(),
                 "device_prefix": serial[:4],
+                "method": "resubscribe",
                 "direct_was_fresh": self.direct_stream_active(serial),
             }
             if attempt["direct_was_fresh"]:
@@ -483,6 +524,51 @@ class PowerPulse2Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
                 self._direct_stream_attempts.append(attempt)
                 self.async_update_listeners()
                 raise HomeAssistantError("Direct MQTT subscription renewal failed")
+
+            deadline = requested_at + _DIRECT_STREAM_CONFIRM_SECONDS
+            while time.monotonic() < deadline:
+                reported_at = self._last_direct_settings_at.get(serial, 0)
+                if reported_at > requested_at:
+                    attempt["status"] = "confirmed"
+                    attempt["seconds_to_direct_report"] = round(
+                        reported_at - requested_at, 3
+                    )
+                    break
+                await asyncio.sleep(0.25)
+            else:
+                attempt["status"] = "no_direct_report"
+
+            self._direct_stream_attempts.append(attempt)
+            self.async_update_listeners()
+
+    async def async_reconnect_direct_stream(self, serial: str) -> None:
+        """Rebuild only the listen-only C376 WSS session and observe reports."""
+        if serial not in self.devices:
+            raise HomeAssistantError("Unknown PowerPulse device")
+        client = self.mqtt_clients.get(serial)
+        if client is None or not client.wss_mode:
+            raise HomeAssistantError("Direct PowerPulse WSS is not configured")
+
+        async with self._direct_stream_lock:
+            requested_at = time.monotonic()
+            attempt: dict[str, Any] = {
+                "timestamp": datetime.now(UTC).isoformat(),
+                "device_prefix": serial[:4],
+                "method": "wss_reconnect",
+                "direct_was_fresh": self.direct_stream_active(serial),
+            }
+            if attempt["direct_was_fresh"]:
+                attempt["status"] = "already_active"
+                self._direct_stream_attempts.append(attempt)
+                self.async_update_listeners()
+                return
+
+            started = await self.hass.async_add_executor_job(client.force_reconnect)
+            if not started:
+                attempt["status"] = "reconnect_failed"
+                self._direct_stream_attempts.append(attempt)
+                self.async_update_listeners()
+                raise HomeAssistantError("Direct MQTT WSS reconnect failed")
 
             deadline = requested_at + _DIRECT_STREAM_CONFIRM_SECONDS
             while time.monotonic() < deadline:

@@ -54,6 +54,10 @@ async def async_setup_entry(
         for serial in coordinator.devices
     )
     async_add_entities(
+        PowerPulse2HeartbeatStreamSensor(coordinator, serial)
+        for serial in coordinator.devices
+    )
+    async_add_entities(
         PowerPulse2SettingBinarySensor(coordinator, serial, description)
         for serial in coordinator.devices
         for description in SETTING_BINARY_SENSORS
@@ -102,6 +106,30 @@ class PowerPulse2DirectStreamSensor(PowerPulse2Entity, BinarySensorEntity):
     @property
     def extra_state_attributes(self) -> dict:
         return self.coordinator.direct_stream_diagnostics(self.serial)
+
+
+class PowerPulse2HeartbeatStreamSensor(PowerPulse2Entity, BinarySensorEntity):
+    """Whether the C376 heartbeat stream is currently fresh."""
+
+    _attr_translation_key = "heartbeat_data_stream"
+    _attr_device_class = BinarySensorDeviceClass.CONNECTIVITY
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
+    _attr_entity_registry_enabled_default = False
+
+    def __init__(self, coordinator: PowerPulse2Coordinator, serial: str) -> None:
+        super().__init__(coordinator, serial, "heartbeat_data_stream")
+
+    @property
+    def available(self) -> bool:
+        return self.coordinator.heartbeat_stream_available(self.serial)
+
+    @property
+    def is_on(self) -> bool:
+        return self.coordinator.heartbeat_stream_active(self.serial)
+
+    @property
+    def extra_state_attributes(self) -> dict:
+        return self.coordinator.heartbeat_stream_diagnostics(self.serial)
 
 
 class PowerPulse2SettingBinarySensor(PowerPulse2Entity, BinarySensorEntity):

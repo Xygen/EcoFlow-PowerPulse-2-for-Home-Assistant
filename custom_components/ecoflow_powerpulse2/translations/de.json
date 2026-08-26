@@ -17,6 +17,7 @@
     "binary_sensor": {
       "charging": {"name": "Ladevorgang"},
       "direct_data_stream": {"name": "Direkter Datenstrom"},
+      "heartbeat_data_stream": {"name": "Heartbeat-Datenstrom"},
       "continuous_charging": {"name": "Kontinuierlich laden"},
       "plug_and_play": {"name": "Plug-and-Play"},
       "battery_discharge_disabled": {"name": "Batterieentladung deaktiviert"},
@@ -24,7 +25,8 @@
       "indicator_enabled": {"name": "LED-Anzeige"}
     },
     "button": {
-      "reactivate_direct_data_stream": {"name": "Direkten Datenstrom reaktivieren"}
+      "reactivate_direct_data_stream": {"name": "Direkten Datenstrom reaktivieren"},
+      "reconnect_direct_data_stream": {"name": "Direkten Datenstrom neu verbinden"}
     },
     "sensor": {
       "charging_power": {"name": "Ladeleistung"},

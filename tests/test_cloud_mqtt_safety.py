@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from custom_components.ecoflow_powerpulse2.ecoflow import cloud_mqtt
 from custom_components.ecoflow_powerpulse2.ecoflow.cloud_mqtt import EcoFlowMQTTClient
 
 
@@ -118,6 +119,53 @@ def test_data_resubscribe_requires_connected_client() -> None:
     client.connected = False
 
     assert client.resubscribe_data_topics() == {}
+
+
+def test_listen_only_force_reconnect_uses_new_client_and_never_publishes(
+    monkeypatch,
+) -> None:
+    created_ids: list[str] = []
+    created_clients: list[object] = []
+
+    class _ReconnectPaho(_UnexpectedPublisher):
+        def __init__(self, *args, client_id: str, **kwargs) -> None:
+            super().__init__()
+            created_ids.append(client_id)
+            created_clients.append(self)
+            self.on_connect = None
+
+        def ws_set_options(self, **kwargs) -> None:
+            pass
+
+        def username_pw_set(self, *args) -> None:
+            pass
+
+        def tls_set(self, **kwargs) -> None:
+            pass
+
+        def connect(self, *args) -> None:
+            self.on_connect(self, None, None, 0)
+
+        def loop_start(self) -> None:
+            pass
+
+        def loop_stop(self) -> None:
+            pass
+
+        def disconnect(self) -> None:
+            pass
+
+    generated_ids = iter(("first-fresh-client", "second-fresh-client"))
+    monkeypatch.setattr(cloud_mqtt, "generate_client_id", lambda user_id: next(generated_ids))
+    monkeypatch.setattr(cloud_mqtt.mqtt, "Client", _ReconnectPaho)
+
+    client = _client()
+    assert client.create_client()
+    assert client.force_reconnect()
+
+    assert created_ids == ["first-fresh-client", "second-fresh-client"]
+    assert client.connected
+    assert len(created_clients[-1].subscriptions) == 11
 
 
 def test_mqtt_topic_log_masking() -> None:

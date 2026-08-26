@@ -30,7 +30,7 @@ diagnostics.
 
 ## Current scope
 
-Version `0.1.0-dev24` keeps automatic MQTT activity listen-only and provides
+Version `0.1.0-dev25` keeps automatic MQTT activity listen-only and provides
 disabled-by-default, user-triggered controls:
 
 - EcoFlow app-account login and PowerPulse discovery
@@ -81,8 +81,9 @@ disabled-by-default, user-triggered controls:
   the embedded PowerPulse serial without retaining the raw provider response
 - a coordinator watchdog that retries interrupted MQTT connections
 - disabled-by-default diagnostic entities showing whether the direct C376
-  settings stream is fresh and renewing only its existing read subscriptions;
-  this experimental action sends MQTT SUBSCRIBE packets but no device publish
+  settings and heartbeat streams are fresh, renewing existing read
+  subscriptions, and rebuilding the C376 WSS session with a new Client ID;
+  both experimental actions send no MQTT publish or device command
 - a delayed, coalesced provider refresh after a matched official-app
   `241/102` settings reply; explicit HA writes instead verify synchronously,
   preferring direct `241/44` readback and then requesting bounded fresh provider
@@ -142,12 +143,17 @@ to cover the 12–15 second propagation observed after an idle period and record
 privacy-safe details for each attempt. Its live-validation status is tracked in
 the [project backlog](docs/backlog.md).
 
-dev24 adds a separate idle-stream experiment. Its diagnostic button renews the
+dev24 added a separate idle-stream experiment. Its diagnostic button renews the
 three existing C376 read subscriptions and waits up to ten seconds for a new
 direct `241/44` report. It does not publish `get-all`, `latestQuotas`,
 `EnergyStreamSwitch`, or a charger setting. The result and timing are retained
 in privacy-safe diagnostics. This mechanism is not considered validated until
-it is exercised after a genuine idle period.
+it is exercised after a genuine idle period. dev25 adds the next controlled
+step: a second disabled diagnostic button fully rebuilds only the listen-only
+C376 WSS client with a fresh Client ID and normal subscriptions, while a
+separate connectivity sensor tracks real heartbeat `2/33` frames with a
+90-second freshness window. The reconnect action is deliberately manual until
+an idle test proves whether it restores either stream.
 
 ## Diagnostic capture workflow
 

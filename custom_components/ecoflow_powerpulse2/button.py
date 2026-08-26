@@ -19,8 +19,12 @@ async def async_setup_entry(
 ) -> None:
     coordinator: PowerPulse2Coordinator = entry.runtime_data
     async_add_entities(
-        PowerPulse2ReactivateDirectStreamButton(coordinator, serial)
+        entity
         for serial in coordinator.devices
+        for entity in (
+            PowerPulse2ReactivateDirectStreamButton(coordinator, serial),
+            PowerPulse2ReconnectDirectStreamButton(coordinator, serial),
+        )
     )
 
 
@@ -44,3 +48,25 @@ class PowerPulse2ReactivateDirectStreamButton(PowerPulse2Entity, ButtonEntity):
 
     async def async_press(self) -> None:
         await self.coordinator.async_reactivate_direct_stream(self.serial)
+
+
+class PowerPulse2ReconnectDirectStreamButton(PowerPulse2Entity, ButtonEntity):
+    """Rebuild the listen-only C376 WSS client without publishing."""
+
+    _attr_translation_key = "reconnect_direct_data_stream"
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
+    _attr_entity_registry_enabled_default = False
+
+    def __init__(self, coordinator: PowerPulse2Coordinator, serial: str) -> None:
+        super().__init__(coordinator, serial, "reconnect_direct_data_stream")
+
+    @property
+    def available(self) -> bool:
+        return self.coordinator.direct_reconnect_available(self.serial)
+
+    @property
+    def extra_state_attributes(self) -> dict:
+        return self.coordinator.direct_stream_diagnostics(self.serial)
+
+    async def async_press(self) -> None:
+        await self.coordinator.async_reconnect_direct_stream(self.serial)

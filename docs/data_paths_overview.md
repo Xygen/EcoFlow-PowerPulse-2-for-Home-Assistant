@@ -7,7 +7,7 @@ chronological evidence in [protocol_observations.md](protocol_observations.md).
 The tables distinguish device readback from app-write observations. A fast
 acknowledgement of an app request is not automatically a trustworthy state
 value. Read entities therefore use confirmed device or provider reports. The
-dev24 settings controls are evidence-gated and require acknowledgement plus either
+dev25 settings controls are evidence-gated and require acknowledgement plus either
 fresh direct device readback or a post-command raw provider confirmation.
 Phase selection is narrower: provider `phaseSpecified` has no confirmed mapping,
 so that control requires a fresh direct `phase_mode` report.
@@ -108,6 +108,12 @@ Heartbeat `2/33`, including phase voltage, resumed about 47–54 seconds after
 the direct settings stream in two observations. This points to an app-session
 action, an unobserved topic, or an HTTP/backend request rather than simple topic
 renewal.
+dev25 exposes this distinction directly: the existing direct-stream sensor
+tracks `241/44` for ten seconds, while a separate disabled-by-default heartbeat
+sensor tracks receipt of `2/33` for 90 seconds. A second manual diagnostic
+action rebuilds only the hard-listen-only C376 WSS client with a new Client ID
+and its normal subscriptions. It does not send `get-all`, `latestQuotas`,
+`EnergyStreamSwitch`, or any setting command.
 The remaining isolation work is tracked only in the
 [project backlog](backlog.md).
 

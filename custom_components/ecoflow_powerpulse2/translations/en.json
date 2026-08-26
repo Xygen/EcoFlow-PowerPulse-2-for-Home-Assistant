@@ -17,6 +17,7 @@
     "binary_sensor": {
       "charging": {"name": "Charging"},
       "direct_data_stream": {"name": "Direct data stream"},
+      "heartbeat_data_stream": {"name": "Heartbeat data stream"},
       "continuous_charging": {"name": "Continuous charging"},
       "plug_and_play": {"name": "Plug and play"},
       "battery_discharge_disabled": {"name": "Battery discharge disabled"},
@@ -24,7 +25,8 @@
       "indicator_enabled": {"name": "LED indicator"}
     },
     "button": {
-      "reactivate_direct_data_stream": {"name": "Reactivate direct data stream"}
+      "reactivate_direct_data_stream": {"name": "Reactivate direct data stream"},
+      "reconnect_direct_data_stream": {"name": "Reconnect direct data stream"}
     },
     "sensor": {
       "charging_power": {"name": "Charging power"},

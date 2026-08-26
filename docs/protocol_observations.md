@@ -827,3 +827,23 @@ that heartbeat remained asleep was a snapshot taken just before it resumed.
 This makes a no-publish C376 WSS client rebuild with a new Client ID the next
 controlled step. It differs materially from the failed re-subscription test by
 creating a fresh cloud session while still avoiding any guessed device command.
+
+## 2026-08-26: dev25 isolated C376 session-rebuild instrumentation
+
+dev25 implements that controlled step without making it automatic. A second
+disabled diagnostic button calls the existing full WSS rebuild for only the
+C376 client. WSS client creation generates a fresh Client ID and the normal
+connect callback restores passive subscriptions. The client's `listen_only`
+guard prevents every automatic request, including `get-all`, `latestQuotas`,
+and `EnergyStreamSwitch`; no charger-setting payload is involved. The bounded
+attempt trace now labels `resubscribe` and `wss_reconnect` separately and keeps
+only an ISO timestamp, four-character device prefix, prior freshness, outcome,
+and optional confirmation latency.
+
+A second disabled connectivity sensor records receipt time of parsed C376
+heartbeat `2/33` frames independently of field-value changes. Its 90-second
+window covers the observed roughly one-minute cadence and avoids treating an
+unchanged phase voltage as proof that no frames arrived. Diagnostic schema 9
+adds the same identifier-free heartbeat timestamp summary. Whether a fresh WSS
+session actually restarts `241/44` or the later heartbeat remains open until a
+genuine stale-stream live test.
