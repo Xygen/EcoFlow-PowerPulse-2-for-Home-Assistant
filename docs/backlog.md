@@ -39,7 +39,6 @@ Current implementation baseline: `0.1.0-dev27`.
 | `DATA-04` | Research | Confirm the unit and scaling of `vehicleInfo.currentVehicleComsumption` across additional Smart targets or vehicles. | Multiple comparisons establish a consistent physical meaning and scale. |
 | `DATA-05` | Needs additional operating states | Map additional charger states and `suspend_reason` values. | Captures pair each numeric value with an independently observed app/device state. |
 | `DATA-06` | Design | Decide how to expose the three individual phase voltages and currents instead of only their current aggregate summary. | The HA entity model is documented, implemented, and tested without breaking existing unique IDs. |
-| `DATA-07` | Live validation | Validate dev27 after a targeted integration reload with the app closed. The implementation decodes read-only `241/44 -> 1.4.8.21`; no refresh button is needed if the entities recover continuously. | Screen/LED state and stored brightness become available from direct reports after reload, including the expected brightness-control availability rule while the corresponding display is off. |
 
 ## Deferred and release work
 

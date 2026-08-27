@@ -975,3 +975,12 @@ brightness values restricted to the four observed levels. The last two bytes
 remain unassigned and are ignored. The four decoded keys join the freshness-
 gated direct settings set so a slower provider snapshot cannot replace them
 while `241/44` is fresh. This adds no request, publish, or reconnect path.
+
+Installed validation after a full Home Assistant restart, with the EcoFlow app
+closed and without a device write, restored the direct and heartbeat streams
+and reported LED enabled at 100%, screen disabled, and stored screen brightness
+25%. Both read-only brightness sensors were available. The writable screen-
+brightness number correctly remained unavailable because the screen was off;
+the LED-brightness number was available at 100%. This completes the dev27
+readback validation and confirms that a separate display-refresh button is not
+needed for this data source.

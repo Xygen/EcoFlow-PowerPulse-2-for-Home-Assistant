@@ -19,6 +19,10 @@ Current outstanding work is maintained only in
   `[1, 0, 100, 25, 2, 0]` without a read request or refresh command.
 - Extend the local suite to 66 passing tests, including valid and malformed
   direct display-block coverage.
+- Validate the installed build after a full Home Assistant restart with the app
+  closed and no device write: LED on/100%, screen off/stored 25%, and both
+  report streams recovered directly. The screen-brightness control correctly
+  remains unavailable while the screen itself is off.
 - Centralize all active work in `docs/backlog.md`, replace parallel roadmap and
   TODO lists with links, and define where completed changes and protocol
   evidence are recorded.

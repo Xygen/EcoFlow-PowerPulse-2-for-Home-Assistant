@@ -625,5 +625,9 @@ A live LED 75% -> 100% transition isolated the previously unassigned direct
 screen disabled, LED brightness, and stored screen brightness. dev27 decodes
 the first four bytes from this normal read-only report with strict length,
 boolean, and four-level brightness validation. It introduces no MQTT publish
-and should restore the display/indicator entities after an integration reload
-without an app settings write. Installed validation remains pending.
+and restores the display/indicator entities after an integration restart
+without an app settings write. Installed validation with the app closed showed
+LED enabled at 100%, screen disabled with stored brightness 25%, and both
+direct and heartbeat streams active. The screen-brightness control remained
+unavailable as designed while the screen was off, while its read-only sensor
+still exposed the stored 25% value.
