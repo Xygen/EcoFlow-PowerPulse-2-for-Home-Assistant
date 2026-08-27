@@ -1085,3 +1085,11 @@ longer converts the numeric heartbeat value to text. It now exposes seconds
 with `device_class=duration` and `state_class=measurement`, and is enabled by
 default. This lets Home Assistant perform display-unit conversion and supports
 numeric dashboards, history, and automations.
+
+Installed validation loaded HACS commit `d8f07d5` without an integration log
+error. The cumulative pair reported `1372926` raw and `1372.926 kWh`; the
+session pair reported `343` raw and `0.343 kWh`. Both normal sensors exposed
+`device_class=energy`, `state_class=total_increasing`, and `kWh`. The preserved
+duration entity exposed `device_class=duration` and
+`state_class=measurement`; Home Assistant converted the native 960 seconds to
+the configured display/state unit as approximately `0.2667 h`.

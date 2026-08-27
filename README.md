@@ -134,7 +134,8 @@ The current roadmap, protocol investigations, safety tests, and release
 requirements are maintained only in the [project backlog](docs/backlog.md).
 The dev29 Start/Stop controls completed a reversible live vehicle test from
 Home Assistant. They remain disabled by default so users must still opt in to
-device control. Remaining protocol and safety work is tracked only in the
+device control. dev30 adds the confirmed cumulative/session energy and numeric
+duration entities. Remaining protocol and safety work is tracked only in the
 backlog.
 
 The operating-mode control uses live-captured requests: `4.2=1` Fast charging,

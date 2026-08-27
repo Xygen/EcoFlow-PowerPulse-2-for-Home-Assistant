@@ -17,6 +17,9 @@ Current outstanding work is maintained only in
 - Confirm the cumulative field's Wh scale and monotonic behavior from 357
   charging-history samples spanning several session resets.
 - Extend conversion coverage while keeping the full suite at 76 passing tests.
+- Live-validate dev30 in Home Assistant: `1372926 Wh` became
+  `1372.926 kWh`, `343 Wh` became `0.343 kWh`, and the existing duration
+  entity reported a numeric value with duration/measurement metadata.
 
 ## 0.1.0-dev29
 

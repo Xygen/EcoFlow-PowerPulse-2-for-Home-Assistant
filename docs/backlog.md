@@ -15,7 +15,7 @@ Any upstream proposal must follow the upstream maintainer's chosen architecture.
 This integration's direct C376 MQTT path with bounded PowerOcean HTTP fallback
 is project evidence, not a prescription for another repository.
 
-Current implementation baseline: `0.1.0-dev29`.
+Current implementation baseline: `0.1.0-dev30`.
 
 ## Live validation and control safety
 
@@ -32,9 +32,6 @@ Current implementation baseline: `0.1.0-dev29`.
 
 | ID | Priority | Open work | Completion evidence |
 | --- | --- | --- | --- |
-| `DATA-01` | Next non-zero sessions | Confirm whether heartbeat field `42` is session energy in Wh and determine its rounding across multiple sessions. | Several app/session comparisons support a stable unit and scaling; only then add a normal kWh entity while retaining raw diagnostics. |
-| `DATA-07` | Next non-zero sessions | Validate the unit, scaling, monotonic behavior, and reset semantics of heartbeat field `9` (`total_energy_raw`) tracked in issue #1. | Multiple charging sessions establish a stable physical unit and counter behavior; only then expose a normal cumulative energy entity with `device_class: energy` and `state_class: total_increasing` while retaining the raw diagnostic entity. |
-| `DATA-08` | Feature | Convert `session_duration_s` / `sensor.powerpulse_2_sitzungsdauer` tracked in issue #3 from formatted text to a proper numeric Home Assistant duration sensor. | The existing entity keeps its unique ID, exposes the heartbeat field `41` value numerically in seconds with `device_class: duration` and appropriate state metadata, and is usable for dashboards, statistics, unit conversion, and numeric automations. |
 | `DATA-02` | Research | Identify the remaining fast-report byte fields `5` and `9` through controlled one-setting-at-a-time comparisons. Fields `21` (display/LED block) and `31` (Smart settings) are resolved and are not part of this item. | Paired direct reports isolate any mapping, value range, and unit without relying on byte length or coincidence. |
 | `DATA-03` | Research | Resolve the exact role of heartbeat field `17` and the remaining unassigned bits in `switchBits`. | Controlled changes isolate each value or bit; unknowns remain raw until then. |
 | `DATA-04` | Research | Confirm the unit and scaling of `vehicleInfo.currentVehicleComsumption` across additional Smart targets or vehicles. | Multiple comparisons establish a consistent physical meaning and scale. |

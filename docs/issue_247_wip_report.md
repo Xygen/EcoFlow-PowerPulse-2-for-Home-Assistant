@@ -699,3 +699,10 @@ The existing `session_duration_s` entity retains its entity identity and now
 publishes numeric seconds with Home Assistant duration and measurement
 metadata instead of preformatted text. Home Assistant is responsible for the
 human-readable display unit.
+
+Live validation loaded exact HACS commit `d8f07d5` with the integration in the
+`loaded` state and no matching system-log entry. The normal/raw energy pairs
+were `1372.926 kWh` / `1372926` and `0.343 kWh` / `343`. Their HA metadata was
+energy, kWh, and total-increasing. The existing duration entity remained
+present and reported numeric duration/measurement metadata; HA presented its
+native 960 seconds in the selected hour unit as approximately `0.2667 h`.
