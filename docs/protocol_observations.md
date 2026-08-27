@@ -1093,3 +1093,19 @@ session pair reported `343` raw and `0.343 kWh`. Both normal sensors exposed
 duration entity exposed `device_class=duration` and
 `state_class=measurement`; Home Assistant converted the native 960 seconds to
 the configured display/state unit as approximately `0.2667 h`.
+
+## 2026-08-28: 0.1.0 release branding and versioning
+
+The live-validated dev30 code becomes the first regular release as `0.1.0`.
+Subsequent releases follow Semantic Versioning; intentional preview builds use
+an explicit prerelease identifier such as `-beta.1` instead of continuing the
+historical `-devNN` counter. Remaining protocol research does not block the
+regular release, but the supported topology and evidence gates remain
+unchanged.
+
+The user-approved integration icon is an original, AI-assisted illustration
+derived from the supplied front-facing PowerPulse 2 product photo. It preserves
+the silver/black charger silhouette and adds a restrained cyan connection arc
+and green energy accent. The local brand directory contains transparent
+`icon.png` at 256×256 and `icon@2x.png` at 512×512 for Home Assistant and HACS.
+No Home Assistant branding is incorporated.

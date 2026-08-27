@@ -1,7 +1,7 @@
 # WIP findings for C376 / PowerPulse 2
 
-> **WORK IN PROGRESS — mappings and controls remain development-stage and are
-> not production-ready.**
+> **WORK IN PROGRESS — protocol research and unresolved mappings remain
+> ongoing even though the live-validated integration is now regularly released.**
 >
 > This report began with a deliberately read-only test integration. Later
 > development builds add only evidence-gated, user-triggered controls whose
@@ -706,3 +706,16 @@ were `1372.926 kWh` / `1372926` and `0.343 kWh` / `343`. Their HA metadata was
 energy, kWh, and total-increasing. The existing duration entity remained
 present and reported numeric duration/measurement metadata; HA presented its
 native 960 seconds in the selected hour unit as approximately `0.2667 h`.
+
+## 0.1.0 release transition and branding (2026-08-28)
+
+The live-validated dev30 implementation is promoted unchanged to the first
+regular `0.1.0` release. Future versions use Semantic Versioning, with explicit
+beta prereleases only when another test cycle is needed. The WIP status of this
+document now refers to continuing protocol research rather than to the release
+status of the integration.
+
+The approved project icon is bundled locally at the required 256×256 and
+512×512 sizes. It is an AI-assisted, product-specific illustration based on
+the user-supplied PowerPulse 2 photo, with transparent outer corners and
+restrained connection/energy accents designed for small UI presentation.

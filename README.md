@@ -1,6 +1,6 @@
 # EcoFlow PowerPulse 2 for Home Assistant
 
-Development-stage custom integration for EcoFlow PowerPulse 2 EV chargers.
+Custom integration for EcoFlow PowerPulse 2 EV chargers.
 It follows the independent Home Assistant integration structure of
 [EcoFlow PowerGlow for Home Assistant](https://github.com/Xygen/EcoFlow-PowerGlow-for-Home-Assistant).
 
@@ -30,7 +30,7 @@ diagnostics.
 
 ## Current scope
 
-Version `0.1.0-dev30` keeps automatic MQTT activity listen-only and provides
+Version `0.1.0` keeps automatic MQTT activity listen-only and provides
 disabled-by-default, user-triggered controls:
 
 - EcoFlow app-account login and PowerPulse discovery
@@ -134,16 +134,25 @@ The current roadmap, protocol investigations, safety tests, and release
 requirements are maintained only in the [project backlog](docs/backlog.md).
 The dev29 Start/Stop controls completed a reversible live vehicle test from
 Home Assistant. They remain disabled by default so users must still opt in to
-device control. dev30 adds the confirmed cumulative/session energy and numeric
-duration entities. Remaining protocol and safety work is tracked only in the
-backlog.
+device control. Version 0.1.0 adds the confirmed cumulative/session energy and
+numeric duration entities. Remaining protocol and safety work is tracked only
+in the backlog.
 
 The operating-mode control uses live-captured requests: `4.2=1` Fast charging,
 `4.2=2` Solar, `4.2=3` Custom, and `4.2=4` Smart. Mode-specific companion fields
 are included where the app included them and every command still needs matching
 fresh direct or raw provider readback.
 
-## Build the test ZIP
+## Versioning and releases
+
+This project uses Semantic Versioning. Regular releases use `MAJOR.MINOR.PATCH`
+and matching Git tags such as `v0.1.0`. Patch releases contain compatible fixes;
+minor releases add functionality. Intentional preview builds use explicit
+prerelease identifiers such as `-beta.1`; the earlier sequential `-devNN`
+scheme ended with dev30. Because the reverse-engineered protocol and supported
+hardware matrix can still evolve, the project remains below `1.0.0` for now.
+
+## Build the release ZIP
 
 Run from the repository root:
 
@@ -154,7 +163,7 @@ pwsh -File scripts/build_release.ps1
 The versioned archive is written to `dist/`. It contains
 `custom_components/ecoflow_powerpulse2/` and excludes Python cache files.
 
-## Test installation
+## Installation
 
 Extract the generated ZIP directly into the Home Assistant `config` directory.
 The resulting path must be
@@ -162,11 +171,12 @@ The resulting path must be
 Assistant, then add **EcoFlow PowerPulse 2** under
 **Settings > Devices & services**.
 
-Use a development/test Home Assistant instance. The telemetry parser has been
-validated against live C376 MQTT frames, but the integration is not ready for
-general use. All settings controls exposed through dev21 have completed
-reversible live tests from HA with SET acknowledgement and matching readback
-while no vehicle was connected. dev23 extends strict raw-provider confirmation
+The telemetry parser and current controls have been validated against live C376
+MQTT frames on the supported PowerPulse 2 plus PowerOcean topology. The
+protocol remains reverse-engineered, and all device controls are disabled by
+default so users must opt in explicitly. All settings controls exposed through
+dev21 have completed reversible live tests from HA with SET acknowledgement
+and matching readback while no vehicle was connected. dev23 extends strict raw-provider confirmation
 to cover the 12–15 second propagation observed after an idle period and records
 privacy-safe details for each attempt. Its live-validation status is tracked in
 the [project backlog](docs/backlog.md).
