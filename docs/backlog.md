@@ -38,6 +38,14 @@ Current implementation baseline: `0.1.0`.
 | `DATA-05` | Needs additional operating states | Map additional charger states and `suspend_reason` values. | Captures pair each numeric value with an independently observed app/device state. |
 | `DATA-06` | Design | Decide how to expose the three individual phase voltages and currents instead of only their current aggregate summary. | The HA entity model is documented, implemented, and tested without breaking existing unique IDs. |
 
+## Home Assistant entity model
+
+| ID | Priority | Open work | Completion evidence |
+| --- | --- | --- | --- |
+| `ENTITY-01` | High | Review generic sensor availability semantics tracked in issue #4 so a temporarily absent field becomes `unknown` where appropriate instead of making a healthy charger entity `unavailable`. | Tests distinguish healthy value, healthy-but-missing field, and genuinely unavailable coordinator/source states without introducing stale-value ambiguity. |
+| `ENTITY-02` | High | Complete the entity-metadata cleanup tracked in issue #5: add missing native device classes/unit constants, classify screen/LED controls as configuration where appropriate, and review measurement state classes. | Entity descriptions use Home Assistant-native metadata consistently; UI grouping and units are verified without changing protocol semantics or existing unique IDs. |
+| `ENTITY-03` | After control validation | Reduce duplicate read-only and control entities as tracked in issue #6 once the corresponding controls are stable enough to act as canonical setting entities. | One canonical entity represents each validated setting where practical, raw diagnostics remain available, migrations preserve existing installations, and charging status + charging binary sensor remain intentionally separate. |
+
 ## Deferred and release work
 
 | ID | Priority | Open work | Completion evidence |
