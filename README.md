@@ -171,6 +171,13 @@ The resulting path must be
 Assistant, then add **EcoFlow PowerPulse 2** under
 **Settings > Devices & services**.
 
+Home Assistant 2026.3 and newer display the bundled integration icon from the
+local `brand` directory. HACS 2.0.5 may still show "Icon not available" in its
+downloads list despite a correct installation; this is the upstream HACS
+frontend limitation tracked in
+[`hacs/integration#5223`](https://github.com/hacs/integration/issues/5223), not
+a missing file in this repository.
+
 The telemetry parser and current controls have been validated against live C376
 MQTT frames on the supported PowerPulse 2 plus PowerOcean topology. The
 protocol remains reverse-engineered, and all device controls are disabled by

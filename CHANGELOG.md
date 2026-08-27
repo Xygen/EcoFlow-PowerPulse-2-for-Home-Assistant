@@ -6,6 +6,9 @@ Current outstanding work is maintained only in
 
 ## Unreleased
 
+- Confirm the bundled icon renders correctly in Home Assistant 2026.8.3 and
+  document the separate upstream HACS 2.0.5 placeholder limitation.
+
 ## 0.1.0 - 2026-08-28
 
 - Promote the live-validated dev30 implementation to the first regular

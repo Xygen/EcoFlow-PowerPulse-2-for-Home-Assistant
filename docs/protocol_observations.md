@@ -1107,7 +1107,8 @@ The user-approved integration icon is an original, AI-assisted illustration
 derived from the supplied front-facing PowerPulse 2 product photo. It preserves
 the silver/black charger silhouette and adds a restrained cyan connection arc
 and green energy accent. The local brand directory contains transparent
-`icon.png` at 256×256 and `icon@2x.png` at 512×512 for Home Assistant and HACS.
+`icon.png` at 256×256 and `icon@2x.png` at 512×512 for Home Assistant's local
+brand mechanism.
 No Home Assistant branding is incorporated.
 
 The `0.1.0` candidate commit `4c94ab8` was installed through HACS on Home
@@ -1125,3 +1126,12 @@ available version `v0.1.0` with no pending update. Home Assistant Core
 2026.8.3 restarted with the config entry in `loaded` state; the current log
 contained only Home Assistant's expected generic warning for an unverified
 custom integration, not an integration-specific runtime error.
+
+The authenticated visual check subsequently confirmed the bundled icon is
+rendered correctly under **Settings > Devices & services**. In the HACS 2.0.5
+downloads list, the same repository still showed "Icon not available". This
+matches the open upstream HACS frontend reports `hacs/integration#5223` and
+`#5402`: that view still resolves custom-integration icons through the legacy
+public Brands CDN instead of Home Assistant's authenticated local-brand proxy.
+The repository layout and packaged assets therefore remain unchanged; the
+remaining HACS presentation gap is tracked only as `REL-01` in the backlog.

@@ -732,3 +732,10 @@ to the release channel and, after installation and a Home Assistant Core
 2026.8.3 restart, reported installed and available version `v0.1.0` with no
 pending update. The config entry was `loaded`; no PowerPulse-specific runtime
 error appeared in the current startup log.
+
+The user then visually confirmed the approved icon on Home Assistant's
+**Devices & services** page. HACS 2.0.5 continued to display its generic
+placeholder. This is consistent with the open upstream HACS local-brand proxy
+gap and does not indicate a missing release asset. The only remaining branding
+work is therefore the upstream-dependent `REL-01` entry in the canonical
+backlog.
