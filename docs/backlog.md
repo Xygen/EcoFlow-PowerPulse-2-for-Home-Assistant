@@ -42,5 +42,5 @@ Current implementation baseline: `0.1.0`.
 
 | ID | Priority | Open work | Completion evidence |
 | --- | --- | --- | --- |
-| `REL-01` | Before first non-`-dev` release | Create and bundle a dedicated, original PowerPulse 2 Home Assistant integration icon. | Required HA/HACS sizes are present in the release and visibly verified in Home Assistant. |
+| `REL-01` | Post-release visual check | Confirm the bundled icon is visibly rendered on the PowerPulse 2 integration and HACS repository pages. The approved 256×256 and 512×512 transparent assets are already bundled, installed through HACS, and supported by the running HA 2026.8.3 instance; only the authenticated frontend view remains to be checked. | Both HA and HACS visibly show the approved icon at normal UI size without clipping, placeholder fallback, or illegible detail. |
 | `PROTO-01` | Later | Investigate OCPP control only after the core PowerPulse controls and safety interlocks are stable. | Scope and protocol evidence are explicitly approved before implementation. |

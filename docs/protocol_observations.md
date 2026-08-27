@@ -1109,3 +1109,10 @@ the silver/black charger silhouette and adds a restrained cyan connection arc
 and green energy accent. The local brand directory contains transparent
 `icon.png` at 256×256 and `icon@2x.png` at 512×512 for Home Assistant and HACS.
 No Home Assistant branding is incorporated.
+
+The `0.1.0` candidate commit `4c94ab8` was installed through HACS on Home
+Assistant Core 2026.8.3, whose local custom-integration brand support covers
+these files. The config entry returned to `loaded`, configuration validation
+passed, HACS reported the exact installed/available commit with no pending
+update, and no matching system-log error appeared. The authenticated frontend
+visual check remains explicitly tracked as `REL-01`.

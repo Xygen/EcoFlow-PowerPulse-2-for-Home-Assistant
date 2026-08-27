@@ -719,3 +719,9 @@ The approved project icon is bundled locally at the required 256×256 and
 512×512 sizes. It is an AI-assisted, product-specific illustration based on
 the user-supplied PowerPulse 2 photo, with transparent outer corners and
 restrained connection/energy accents designed for small UI presentation.
+
+Candidate commit `4c94ab8` was then installed on Home Assistant Core 2026.8.3.
+The integration loaded without a matching system-log error, configuration
+validation passed, and HACS reported the exact commit with no pending update.
+The remaining frontend-only visual confirmation is kept in the canonical
+backlog rather than duplicated here.

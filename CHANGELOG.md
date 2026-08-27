@@ -12,6 +12,9 @@ Current outstanding work is maintained only in
   Semantic Versioning release and retire sequential `-devNN` versions.
 - Add the approved PowerPulse 2 integration icon in normal and hDPI Home
   Assistant/HACS sizes under the integration-local `brand` directory.
+- Validate the 0.1.0 candidate on Home Assistant Core 2026.8.3 with the
+  integration loaded, valid configuration, exact HACS commit, and no matching
+  system-log error.
 - Add normal, enabled-by-default energy sensors for cumulative charging energy
   and the current charging session, converting the confirmed heartbeat Wh
   values to kWh while retaining both raw diagnostic sensors.
