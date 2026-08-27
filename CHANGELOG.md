@@ -20,6 +20,9 @@ Current outstanding work is maintained only in
   unrelated SET replies cannot confirm the wrong control.
 - Extend the local suite to 76 passing tests, including exact Start/Stop frame
   shape, selector, state-gate, and outcome rules.
+- Live-validate both dev29 buttons from Home Assistant during a real vehicle
+  session: Stop reached `charge_complete`, Start created a reset session, and
+  charging resumed at 1.304 kW with matching heartbeat confirmation.
 
 ## 0.1.0-dev28
 

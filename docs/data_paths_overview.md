@@ -93,6 +93,12 @@ requires a recent heartbeat; the backend repeats the state check immediately
 before publishing and then waits up to 15 seconds for a newer heartbeat that
 confirms the action. A SET reply alone is never treated as success.
 
+Both buttons completed a reversible live HA test with a connected vehicle.
+Stop changed the heartbeat from `charging` to `charge_complete` in about 1.53
+seconds. Start changed it back to `charging` in about 4.34 seconds, reset the
+session counters, and produced 1.304 kW, 5.77 A, 233.3 V, and raw session energy
+`20` after one minute.
+
 ## Charging-time control matrix
 
 The first connected-vehicle session confirmed the following official-app

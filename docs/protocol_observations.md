@@ -1049,4 +1049,14 @@ already charging states; Stop is limited to `charging` or `paused`. After the
 matching reply, the coordinator waits up to 15 seconds for a newer heartbeat.
 Start is confirmed only by `charging` or `paused`, covering Solar mode without
 surplus; Stop is confirmed only by `plugged_in`, `charge_complete`, or
-`standby`. Live validation of both HA buttons remains in the canonical backlog.
+`standby`.
+
+The reversible HA-button test completed at `23:03Z` on 2026-08-27. Pressing
+Stop at `23:03:55.446Z` returned successfully after the matching reply and a
+new heartbeat changed to `charge_complete` at `23:03:56.975Z`. The completed
+session showed 2 h 50 min and raw energy `3685`. The Start button became
+available while Stop became unavailable. Pressing Start at `23:04:13.425Z`
+returned successfully after a new heartbeat changed to `charging` at
+`23:04:17.769Z`; the session counters reset to zero and button availability
+reversed. At `23:05:16.698Z`, physical telemetry reported 1.304 kW, 5.77 A,
+233.3 V, one minute, and raw session energy `20`. This completes `CTRL-01`.

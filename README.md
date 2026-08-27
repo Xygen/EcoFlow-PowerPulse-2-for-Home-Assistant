@@ -129,9 +129,10 @@ evidence-gated in the project backlog.
 
 The current roadmap, protocol investigations, safety tests, and release
 requirements are maintained only in the [project backlog](docs/backlog.md).
-The dev29 Start/Stop controls are implemented but remain disabled by default
-until explicitly enabled for live validation. Their remaining vehicle-state
-tests are tracked only in the backlog.
+The dev29 Start/Stop controls completed a reversible live vehicle test from
+Home Assistant. They remain disabled by default so users must still opt in to
+device control. Remaining protocol and safety work is tracked only in the
+backlog.
 
 The operating-mode control uses live-captured requests: `4.2=1` Fast charging,
 `4.2=2` Solar, `4.2=3` Custom, and `4.2=4` Smart. Mode-specific companion fields

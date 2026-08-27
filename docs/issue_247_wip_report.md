@@ -674,5 +674,11 @@ holding the control lock. Start is blocked when unplugged and is confirmed only
 by a newer `charging` or `paused` heartbeat. Stop is offered for `charging` or
 `paused` and is confirmed only by a newer `plugged_in`, `charge_complete`, or
 `standby` heartbeat. The confirmation window is 15 seconds. This implements the
-known safe envelope while leaving the real HA-button validation as the single
-remaining `CTRL-01` backlog task.
+known safe envelope.
+
+The subsequent reversible HA test completed both directions. Stop at
+`23:03:55.446Z` was confirmed by `charge_complete` at `23:03:56.975Z`. Start at
+`23:04:13.425Z` was confirmed by `charging` at `23:04:17.769Z`, reset the
+session, and returned to 1.304 kW, 5.77 A, and 233.3 V after one minute. Button
+availability followed the physical state in both directions. `CTRL-01` is
+therefore complete and has been removed from the canonical backlog.
