@@ -124,8 +124,10 @@ evidence-gated in the project backlog.
 
 The current roadmap, protocol investigations, safety tests, and release
 requirements are maintained only in the [project backlog](docs/backlog.md).
-Start/Stop controls remain unavailable until their captured
-commands, physical readback, and charging-state interlocks satisfy that list.
+Start/Stop controls remain unavailable until the now-confirmed `241/100`
+selector mapping has been implemented and live-validated as a safe HA control.
+The implementation must retain the captured command envelope, independent
+physical readback, and the charging-state interlocks defined in that list.
 
 The operating-mode control uses live-captured requests: `4.2=1` Fast charging,
 `4.2=2` Solar, `4.2=3` Custom, and `4.2=4` Smart. Mode-specific companion fields

@@ -645,7 +645,12 @@ acknowledged `241/100` command addressed to the linked `HJ31` PowerOcean. Stop
 was followed by `charge_complete`; Start created a new zeroed session and then
 returned to approximately 1.29 kW. Schema 10 omitted both 25-byte bodies, so
 dev28/schema 11 adds a privacy-safe structural inspector for that exact tuple.
-One repeated pair is needed to isolate the selector before exposing HA actions.
+The schema-11 repeat isolated protobuf field 2: value `1` stopped charging and
+value `2` started it. The field-1 accessory descriptor was structurally
+unchanged and remains opaque/redacted. Sequences 237 and 243 each received a
+matching reply, while independent heartbeat reports confirmed
+`charge_complete` and `charging` respectively. The selector is therefore ready
+for a guarded HA implementation, but no Start/Stop control is exposed yet.
 
 The app locked operating mode, phase selection, maximum output current, Solar
 minimum current, and Continuous charging while active. It allowed

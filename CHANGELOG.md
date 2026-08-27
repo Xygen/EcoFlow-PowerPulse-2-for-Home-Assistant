@@ -20,6 +20,9 @@ Current outstanding work is maintained only in
 - Record the first real connected-vehicle charging session: app Stop and Start
   both used acknowledged `241/100` commands, while heartbeat readback confirmed
   the physical state transitions and a newly reset session.
+- Confirm the privacy-safe schema-11 selector mapping in a second live pair:
+  `241/100` field 2 value `1` stops charging and value `2` starts charging.
+  Both commands received matching replies and independent heartbeat readback.
 - Strengthen the session-energy Wh hypothesis with 19 raw units after 59
   seconds and 451 raw units after 21 min 08 s at approximately 1.29 kW.
 - Confirm during active charging that Plug-and-Play toggled through shared flags

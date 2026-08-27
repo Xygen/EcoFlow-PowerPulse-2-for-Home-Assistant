@@ -1009,9 +1009,18 @@ Both actions used a 25-byte command body, but diagnostic schema 10 did not
 allow-list `241/100`, so the differing selector was not retained. dev28 adds
 only this confirmed tuple to the bounded observer inspector. It retains small
 numeric protobuf fields, runtime-keyed fingerprints, sizes, and routing data;
-the accessory descriptor and all opaque raw content remain omitted. A repeated
-Start/Stop pair after installing schema 11 is required before any HA control is
-built.
+the accessory descriptor and all opaque raw content remain omitted.
+
+The schema-11 repeat at `17:45:40.256Z` (Stop, sequence 237) and
+`17:46:26.748Z` (Start, sequence 243) isolated protobuf field 2 as the action
+selector: value `1` is Stop and value `2` is Start. Field 1 remained the same
+21-byte accessory descriptor in both frames. The Stop reply arrived after
+about 0.156 seconds and heartbeat changed to `charge_complete`; final counters
+were 19 min 36 s and raw energy `419`. The Start reply arrived after about
+0.089 seconds, heartbeat changed to `charging` roughly 4.3 seconds later, and
+the new session reset to zero before returning to approximately 1.29 kW. This
+completes the wire-level selector discovery; HA controls still require guarded
+implementation and live validation.
 
 The active-session app UI locked operating mode, phase selection, maximum
 output current, Solar minimum current, and Continuous charging. Plug-and-Play,

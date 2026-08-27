@@ -71,7 +71,7 @@ authoritative Home Assistant state.
 | Custom-mode current | `4.6`, 0.1 A | Not confirmed | — |
 | Smart settings | Nested block `4.7` | Not confirmed | — |
 | Screen/LED settings | Nested bytes `4.21`: LED enable, screen enable, LED %, screen %, `0`, `0` | Not confirmed | — |
-| Start/Stop | Both official-app actions used `241/100` with a 25-byte body addressed to the linked PowerOcean. The differing selector is pending a schema-11 repeat capture | Not confirmed | — |
+| Start/Stop | Official-app actions use `241/100` with a 25-byte body addressed to the linked PowerOcean: protobuf field 2 is `1` for Stop and `2` for Start; field 1 is the unchanged accessory descriptor. Both selectors were confirmed by matching replies and heartbeat state transitions | Not confirmed | — |
 | Observed response | Same-sequence reply after about 50-226 ms | Unknown | No assigned reply |
 | Suitable as HA state | No; SET observations are not state. Controls require separate fresh direct or provider readback | Still under investigation | No current evidence |
 
