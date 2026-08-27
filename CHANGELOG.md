@@ -6,6 +6,21 @@ Current outstanding work is maintained only in
 
 ## Unreleased
 
+## 0.1.0-dev29
+
+- Add disabled-by-default Start and Stop buttons using the twice-confirmed
+  PowerOcean-routed `241/100` command (`2=1` Stop, `2=2` Start).
+- Preserve the validated opaque accessory descriptor and require the exact
+  `241/100` same-sequence reply before evaluating the result.
+- Confirm actions only from a newer heartbeat: Start accepts `charging` or
+  `paused`, while Stop accepts `plugged_in`, `charge_complete`, or `standby`.
+- Fail closed when heartbeat readback is stale or unknown, prevent Start while
+  unplugged, and expose each button only in states where that action is valid.
+- Generalize reply waiters to include command function and ID so concurrent or
+  unrelated SET replies cannot confirm the wrong control.
+- Extend the local suite to 76 passing tests, including exact Start/Stop frame
+  shape, selector, state-gate, and outcome rules.
+
 ## 0.1.0-dev28
 
 - Enforce the live-confirmed charging-time interlock for operating mode, phase

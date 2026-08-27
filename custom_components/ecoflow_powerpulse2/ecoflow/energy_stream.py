@@ -49,6 +49,34 @@ def build_powerpulse_phase_payload(
     )
 
 
+def build_powerpulse_charge_action_payload(
+    accessory_descriptor: bytes, action: str, seq: int = 0
+) -> tuple[bytes, int]:
+    """Build the live-confirmed PowerOcean-routed Start or Stop command."""
+    selector = {"stop": 1, "start": 2}.get(action)
+    if selector is None:
+        raise ValueError("action must be start or stop")
+    if not accessory_descriptor:
+        raise ValueError("accessory descriptor must not be empty")
+    sequence = _short_sequence(seq)
+    pdata = b"".join(
+        (
+            encode_field_bytes(1, accessory_descriptor),
+            encode_field_varint(2, selector),
+        )
+    )
+    return (
+        _build_envelope(
+            pdata,
+            destination=96,
+            cmd_func=241,
+            cmd_id=100,
+            seq=sequence,
+        ),
+        sequence,
+    )
+
+
 def build_powerpulse_settings_payload(
     accessory_descriptor: bytes, settings: dict[int, int | bytes], seq: int = 0
 ) -> tuple[bytes, int]:

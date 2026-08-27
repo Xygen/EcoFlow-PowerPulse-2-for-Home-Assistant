@@ -22,10 +22,46 @@ async def async_setup_entry(
         entity
         for serial in coordinator.devices
         for entity in (
+            PowerPulse2StartChargingButton(coordinator, serial),
+            PowerPulse2StopChargingButton(coordinator, serial),
             PowerPulse2ReactivateDirectStreamButton(coordinator, serial),
             PowerPulse2ReconnectDirectStreamButton(coordinator, serial),
         )
     )
+
+
+class PowerPulse2StartChargingButton(PowerPulse2Entity, ButtonEntity):
+    """Start or resume a connected charging session."""
+
+    _attr_translation_key = "start_charging"
+    _attr_entity_registry_enabled_default = False
+
+    def __init__(self, coordinator: PowerPulse2Coordinator, serial: str) -> None:
+        super().__init__(coordinator, serial, "start_charging")
+
+    @property
+    def available(self) -> bool:
+        return self.coordinator.charge_action_available(self.serial, "start")
+
+    async def async_press(self) -> None:
+        await self.coordinator.async_start_charging(self.serial)
+
+
+class PowerPulse2StopChargingButton(PowerPulse2Entity, ButtonEntity):
+    """Stop an active or paused charging session."""
+
+    _attr_translation_key = "stop_charging"
+    _attr_entity_registry_enabled_default = False
+
+    def __init__(self, coordinator: PowerPulse2Coordinator, serial: str) -> None:
+        super().__init__(coordinator, serial, "stop_charging")
+
+    @property
+    def available(self) -> bool:
+        return self.coordinator.charge_action_available(self.serial, "stop")
+
+    async def async_press(self) -> None:
+        await self.coordinator.async_stop_charging(self.serial)
 
 
 class PowerPulse2ReactivateDirectStreamButton(PowerPulse2Entity, ButtonEntity):

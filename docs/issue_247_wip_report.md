@@ -660,3 +660,19 @@ interrupting charging, isolating shared flags `16 -> 18` and `18 -> 19 -> 18`.
 dev28 enforces the five confirmed locks in both entity availability and the
 backend write path; untested mode-specific cases remain in the canonical
 backlog.
+
+## dev29 guarded Start/Stop controls (2026-08-27)
+
+dev29 turns the repeated `241/100` evidence into two disabled-by-default HA
+buttons. Stop emits field 2 value `1`; Start emits value `2`; both preserve the
+validated opaque field-1 accessory descriptor. Waiters are matched on the full
+command tuple and sequence, and the acknowledgement cannot by itself report
+success.
+
+The backend requires a recent heartbeat and rechecks the current state while
+holding the control lock. Start is blocked when unplugged and is confirmed only
+by a newer `charging` or `paused` heartbeat. Stop is offered for `charging` or
+`paused` and is confirmed only by a newer `plugged_in`, `charge_complete`, or
+`standby` heartbeat. The confirmation window is 15 seconds. This implements the
+known safe envelope while leaving the real HA-button validation as the single
+remaining `CTRL-01` backlog task.

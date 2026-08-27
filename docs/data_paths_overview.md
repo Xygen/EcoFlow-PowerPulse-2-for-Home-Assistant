@@ -7,10 +7,12 @@ chronological evidence in [protocol_observations.md](protocol_observations.md).
 The tables distinguish device readback from app-write observations. A fast
 acknowledgement of an app request is not automatically a trustworthy state
 value. Read entities therefore use confirmed device or provider reports. The
-dev28 settings controls are evidence-gated and require acknowledgement plus either
+dev29 settings controls are evidence-gated and require acknowledgement plus either
 fresh direct device readback or a post-command raw provider confirmation.
 Phase selection is narrower: provider `phaseSpecified` has no confirmed mapping,
 so that control requires a fresh direct `phase_mode` report.
+Start/Stop uses its separate `241/100` route and requires a newer heartbeat with
+an allowed physical charging state after the matching reply.
 
 `—` means that no value has been identified on that path. Values marked
 **raw** are intentionally not assigned a final unit or complete semantic
@@ -85,12 +87,18 @@ then either matching direct `241/44` readback or a post-command raw provider
 snapshot that explicitly contains the expected key and value. Cached merged
 state alone never confirms a write.
 
+dev29 additionally exposes disabled-by-default Start and Stop buttons. Their
+`241/100` reply waiter is keyed by command tuple and sequence. Availability
+requires a recent heartbeat; the backend repeats the state check immediately
+before publishing and then waits up to 15 seconds for a newer heartbeat that
+confirms the action. A SET reply alone is never treated as success.
+
 ## Charging-time control matrix
 
 The first connected-vehicle session confirmed the following official-app
 behavior while the charger reported `charging`:
 
-| Control | Official app while charging | dev28 Home Assistant behavior |
+| Control | Official app while charging | dev29 Home Assistant behavior |
 | --- | --- | --- |
 | Operating mode | Locked | Unavailable; backend rejects bypass attempts |
 | Phase selection | Locked | Unavailable; backend rejects bypass attempts |
@@ -101,6 +109,8 @@ behavior while the charger reported `charging`:
 | Battery discharge disabled | Allowed and live-tested | Available |
 | Screen/brightness | Allowed and live-tested | Available subject to screen-on brightness rule |
 | LED/brightness | Allowed and live-tested | Available subject to LED-on brightness rule |
+| Start charging | Not applicable while already charging | Unavailable while charging; also unavailable while unplugged |
+| Stop charging | Allowed and live-tested | Available while charging or paused; requires fresh heartbeat confirmation |
 
 The app tests changed shared `switchBits` from `16` to `18` for Plug-and-Play
 and from `18` to `19` for battery-discharge blocking, then restored `18`.

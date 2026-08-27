@@ -1,4 +1,5 @@
 from custom_components.ecoflow_powerpulse2.ecoflow.energy_stream import (
+    build_powerpulse_charge_action_payload,
     build_powerpulse_phase_payload,
     build_powerpulse_settings_payload,
     build_powerpulse_smart_settings,
@@ -39,6 +40,42 @@ def test_phase_control_matches_observed_241_102_shape() -> None:
     assert varints[11] == 1
     assert _bytes_field(pdata, 1) == descriptor
     assert list(iter_protobuf_fields(settings)) == [(5, 0, 2)]
+
+
+def test_charge_actions_match_observed_241_100_shape() -> None:
+    descriptor = b"opaque-accessory"
+    for action, selector in (("stop", 1), ("start", 2)):
+        payload, sequence = build_powerpulse_charge_action_payload(
+            descriptor, action, seq=243
+        )
+        header = _bytes_field(payload, 1)
+        header_fields = list(iter_protobuf_fields(header))
+        varints = {
+            field: value
+            for field, wire, value in header_fields
+            if wire == 0 and isinstance(value, int)
+        }
+        pdata = _bytes_field(header, 1)
+
+        assert sequence == 243
+        assert varints[3] == 96
+        assert varints[8] == 241
+        assert varints[9] == 100
+        assert varints[11] == 1
+        assert list(iter_protobuf_fields(pdata)) == [
+            (1, 2, descriptor),
+            (2, 0, selector),
+        ]
+
+
+def test_charge_action_rejects_unknown_action_or_missing_descriptor() -> None:
+    for descriptor, action in ((b"opaque", "pause"), (b"", "start")):
+        try:
+            build_powerpulse_charge_action_payload(descriptor, action, seq=1)
+        except ValueError:
+            pass
+        else:
+            raise AssertionError("unsafe charging action accepted")
 
 
 def test_settings_control_preserves_multi_field_app_shape() -> None:

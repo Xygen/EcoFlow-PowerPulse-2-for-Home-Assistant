@@ -25,6 +25,8 @@
       "indicator_enabled": {"name": "LED-Anzeige"}
     },
     "button": {
+      "start_charging": {"name": "Ladevorgang starten"},
+      "stop_charging": {"name": "Ladevorgang stoppen"},
       "reactivate_direct_data_stream": {"name": "Direkten Datenstrom reaktivieren"},
       "reconnect_direct_data_stream": {"name": "Direkten Datenstrom neu verbinden"}
     },

@@ -1031,3 +1031,22 @@ continued throughout. dev28 applies the five confirmed locks both to entity
 availability and immediately before publishing, failing closed when charging
 state is missing or unknown. It does not generalize the rule to untested
 mode-specific controls.
+
+## 2026-08-27: dev29 guarded Start/Stop implementation
+
+dev29 implements two disabled-by-default buttons from the repeated schema-11
+evidence. Both reuse the validated 21-byte accessory descriptor but construct a
+separate `241/100` body: protobuf field 1 contains the descriptor and field 2
+contains `1` for Stop or `2` for Start. Reply waiters now include device,
+command function, command ID, and sequence, preventing a `241/102` settings
+reply or another command with the same short sequence from confirming the
+action.
+
+The transport acknowledgement is only the first gate. Before publishing, the
+coordinator requires a heartbeat no older than 90 seconds and a state in which
+the requested action is valid. Start fails closed for `unplugged`, unknown, or
+already charging states; Stop is limited to `charging` or `paused`. After the
+matching reply, the coordinator waits up to 15 seconds for a newer heartbeat.
+Start is confirmed only by `charging` or `paused`, covering Solar mode without
+surplus; Stop is confirmed only by `plugged_in`, `charge_complete`, or
+`standby`. Live validation of both HA buttons remains in the canonical backlog.

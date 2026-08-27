@@ -30,6 +30,8 @@
       "indicator_enabled": {"name": "LED indicator"}
     },
     "button": {
+      "start_charging": {"name": "Start charging"},
+      "stop_charging": {"name": "Stop charging"},
       "reactivate_direct_data_stream": {"name": "Reactivate direct data stream"},
       "reconnect_direct_data_stream": {"name": "Reconnect direct data stream"}
     },

@@ -16,6 +16,7 @@ from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
 from .api import PowerPulse2ApiClient
+from .charge_control import charge_action_allowed, charge_action_confirmed
 from .const import (
     CONF_EMAIL,
     CONF_PASSWORD,
@@ -33,6 +34,7 @@ from .control_safety import control_allowed_for_status
 from .data_merge import merge_snapshot_after_read
 from .ecoflow.cloud_mqtt import EcoFlowMQTTClient
 from .ecoflow.energy_stream import (
+    build_powerpulse_charge_action_payload,
     build_powerpulse_settings_payload,
     build_powerpulse_smart_settings,
 )
@@ -59,6 +61,7 @@ _CONTROL_DIAGNOSTIC_ATTEMPTS = 32
 _DIRECT_STREAM_CONFIRM_SECONDS = 10
 _DIRECT_STREAM_DIAGNOSTIC_ATTEMPTS = 16
 _HEARTBEAT_STREAM_FRESH_SECONDS = 90
+_CHARGE_ACTION_CONFIRM_SECONDS = 15
 _AUTOMATIC_RECOVERY_STALE_SECONDS = 300
 _AUTOMATIC_RECOVERY_COOLDOWN_SECONDS = 1800
 _DIRECT_SETTINGS_KEYS = frozenset(
@@ -134,7 +137,7 @@ class PowerPulse2Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
         )
         self._last_automatic_reconnect_at: dict[str, float] = {}
         self._accessory_descriptors: dict[str, bytes] = {}
-        self._reply_waiters: dict[tuple[str, int], asyncio.Future[None]] = {}
+        self._reply_waiters: dict[tuple[str, int, int, int], asyncio.Future[None]] = {}
         self._control_lock = asyncio.Lock()
         self._direct_stream_lock = asyncio.Lock()
         self._last_smart_settings: dict[str, dict[str, Any]] = {}
@@ -453,13 +456,18 @@ class PowerPulse2Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
         own_settings_reply = False
         if channel == "set_reply":
             for header in protocol_headers:
-                if (header.get("cmd_func"), header.get("cmd_id")) != (241, 102):
-                    continue
+                command_pair = (header.get("cmd_func"), header.get("cmd_id"))
                 sequence = header.get("sequence")
-                if isinstance(sequence, int):
-                    waiter = self._reply_waiters.pop((serial, sequence), None)
+                if (
+                    isinstance(command_pair[0], int)
+                    and isinstance(command_pair[1], int)
+                    and isinstance(sequence, int)
+                ):
+                    waiter = self._reply_waiters.pop(
+                        (serial, command_pair[0], command_pair[1], sequence), None
+                    )
                     if waiter is not None and not waiter.done():
-                        own_settings_reply = True
+                        own_settings_reply = command_pair == (241, 102)
                         waiter.set_result(None)
         if not self._shutting_down and self._settings_reply_gate.observe(frame):
             self._settings_reply_count += 1
@@ -502,6 +510,85 @@ class PowerPulse2Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
             setting_key,
             (self.data or {}).get(serial, {}).get("charging_status"),
         )
+
+    def charge_action_available(self, serial: str, action: str) -> bool:
+        """Return whether transport and fresh state allow Start or Stop."""
+        return (
+            self.settings_control_available(serial)
+            and self.heartbeat_stream_active(serial)
+            and charge_action_allowed(
+                action, (self.data or {}).get(serial, {}).get("charging_status")
+            )
+        )
+
+    async def async_start_charging(self, serial: str) -> None:
+        """Start or resume a connected charging session."""
+        await self._async_set_charging(serial, "start")
+
+    async def async_stop_charging(self, serial: str) -> None:
+        """Stop the active or paused charging session."""
+        await self._async_set_charging(serial, "stop")
+
+    async def _async_set_charging(self, serial: str, action: str) -> None:
+        """Publish a captured charge action and require fresh heartbeat readback."""
+        if serial not in self.devices:
+            raise HomeAssistantError("Unknown PowerPulse device")
+        status = (self.data or {}).get(serial, {}).get("charging_status")
+        if action == "start" and status == "unplugged":
+            raise HomeAssistantError("The EV charger is not connected to a vehicle")
+        if not self.heartbeat_stream_active(serial):
+            raise HomeAssistantError(
+                "Charging control requires a recent device heartbeat"
+            )
+        if not charge_action_allowed(action, status):
+            raise HomeAssistantError(
+                f"Charging action {action} is not valid for state {status or 'unknown'}"
+            )
+
+        async with self._control_lock:
+            status = (self.data or {}).get(serial, {}).get("charging_status")
+            if not charge_action_allowed(action, status):
+                raise HomeAssistantError(
+                    f"Charging action {action} is not valid for state "
+                    f"{status or 'unknown'}"
+                )
+            if not self.settings_control_available(serial):
+                raise HomeAssistantError(
+                    "Charging control requires exactly one connected PowerOcean source"
+                )
+
+            observer_serial = next(iter(self.observer_devices))
+            client = self.mqtt_clients[observer_serial]
+            payload, sequence = build_powerpulse_charge_action_payload(
+                self._accessory_descriptors[serial], action
+            )
+            waiter = self.hass.loop.create_future()
+            waiter_key = (observer_serial, 241, 100, sequence)
+            self._reply_waiters[waiter_key] = waiter
+            issued_at = time.monotonic()
+            published = await self.hass.async_add_executor_job(
+                client.send_explicit_control, payload
+            )
+            if not published:
+                self._reply_waiters.pop(waiter_key, None)
+                raise HomeAssistantError("EcoFlow rejected the MQTT publish request")
+            try:
+                await asyncio.wait_for(waiter, timeout=5)
+            except TimeoutError as exc:
+                self._reply_waiters.pop(waiter_key, None)
+                raise HomeAssistantError("No EcoFlow SET reply was received") from exc
+
+            deadline = time.monotonic() + _CHARGE_ACTION_CONFIRM_SECONDS
+            while time.monotonic() < deadline:
+                reported_at = self._last_heartbeat_at.get(serial, 0)
+                status = (self.data or {}).get(serial, {}).get("charging_status")
+                if reported_at > issued_at and charge_action_confirmed(action, status):
+                    return
+                await asyncio.sleep(0.25)
+            raise HomeAssistantError(
+                "EcoFlow acknowledged the command, but fresh device readback did not "
+                "confirm the charging state"
+            )
 
     def direct_stream_active(self, serial: str) -> bool:
         """Return whether the direct settings stream reported recently."""
@@ -1037,18 +1124,19 @@ class PowerPulse2Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
             self._accessory_descriptors[serial], settings
         )
         waiter = self.hass.loop.create_future()
-        self._reply_waiters[(observer_serial, sequence)] = waiter
+        waiter_key = (observer_serial, 241, 102, sequence)
+        self._reply_waiters[waiter_key] = waiter
         issued_at = time.monotonic()
         published = await self.hass.async_add_executor_job(
             client.send_explicit_control, payload
         )
         if not published:
-            self._reply_waiters.pop((observer_serial, sequence), None)
+            self._reply_waiters.pop(waiter_key, None)
             raise HomeAssistantError("EcoFlow rejected the MQTT publish request")
         try:
             await asyncio.wait_for(waiter, timeout=5)
         except TimeoutError as exc:
-            self._reply_waiters.pop((observer_serial, sequence), None)
+            self._reply_waiters.pop(waiter_key, None)
             raise HomeAssistantError("No EcoFlow SET reply was received") from exc
 
         source = await self._async_wait_for_control_readback(

@@ -30,7 +30,7 @@ diagnostics.
 
 ## Current scope
 
-Version `0.1.0-dev28` keeps automatic MQTT activity listen-only and provides
+Version `0.1.0-dev29` keeps automatic MQTT activity listen-only and provides
 disabled-by-default, user-triggered controls:
 
 - EcoFlow app-account login and PowerPulse discovery
@@ -62,6 +62,10 @@ disabled-by-default, user-triggered controls:
   operating mode, phase selection, maximum output current, Solar minimum
   current, and Continuous charging. Availability and the backend write path
   both enforce the same live charging-state rule
+- disabled-by-default Start and Stop buttons using the confirmed `241/100`
+  selectors. They require a fresh heartbeat before publishing and a newer
+  heartbeat with the expected physical state after the acknowledged command;
+  Start is unavailable while no vehicle is connected
 - Smart controls for ready-by date/time, energy/distance target type and the
   selected target value; Smart writes preserve the captured nested settings
   block rather than inventing missing defaults
@@ -103,7 +107,8 @@ disabled-by-default, user-triggered controls:
 The MQTT transport retains its hard `listen_only` guard for every automatic
 publish path. All controls are disabled in the entity registry
 by default and use a separate, user-triggered path limited to observed
-PowerOcean-routed `241/102 -> 4.*` commands. They become available only
+PowerOcean-routed `241/102 -> 4.*` settings commands and the separate confirmed
+`241/100` Start/Stop command. They become available only
 after the charger supplies its opaque accessory descriptor, requires exactly
 one connected PowerOcean source, and reports success only after both a matching
 `set_reply` and either fresh direct or raw provider readback. Current controls
@@ -124,10 +129,9 @@ evidence-gated in the project backlog.
 
 The current roadmap, protocol investigations, safety tests, and release
 requirements are maintained only in the [project backlog](docs/backlog.md).
-Start/Stop controls remain unavailable until the now-confirmed `241/100`
-selector mapping has been implemented and live-validated as a safe HA control.
-The implementation must retain the captured command envelope, independent
-physical readback, and the charging-state interlocks defined in that list.
+The dev29 Start/Stop controls are implemented but remain disabled by default
+until explicitly enabled for live validation. Their remaining vehicle-state
+tests are tracked only in the backlog.
 
 The operating-mode control uses live-captured requests: `4.2=1` Fast charging,
 `4.2=2` Solar, `4.2=3` Custom, and `4.2=4` Smart. Mode-specific companion fields
