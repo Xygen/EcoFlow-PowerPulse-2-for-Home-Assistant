@@ -898,3 +898,80 @@ Runtime diagnostics reported automatic recovery enabled with
 independent stream sensors were fresh after startup, so no reconnect was due or
 performed. The current error log contained only Home Assistant's standard
 untested-custom-integration warning and no new PowerPulse runtime error.
+
+## 2026-08-27: app navigation while display settings were unavailable
+
+The user opened the EcoFlow app at 18:03 local time, the PowerPulse page at
+18:04, general settings at 18:05, and the display/indicator settings page only
+at approximately 18:06, without changing or saving anything. The retained
+observer capture showed a short burst of new request/reply activity beginning
+at `16:03:35Z`, which can be attributed to the app/PowerPulse navigation but not
+specifically to the display page. It included matched `211/100`, `96/127`, and
+`96/145` pairs plus request-only `96/37` and `96/22` traffic. No distinct
+display-page request has been isolated yet.
+
+The HA display/indicator entities remained unavailable after the navigation.
+Therefore the app traffic was not automatically merged into the coordinator's
+PowerPulse state. A dedicated refresh action must not be implemented until one
+of these requests is correlated with a complete display-settings report and its
+read-only behavior is confirmed.
+
+The controlled LED-only change supplied that missing correlation. The app sent
+four matched `241/102` request/reply pairs between `16:13:25Z` and `16:14:06Z`
+(18:13:25–18:14:06 local); no other PowerPulse setting was changed. The existing
+confirmed-settings gate then completed two delayed provider refreshes, with the
+last one at `16:14:26Z`. HA subsequently received `LED-Helligkeit=75%`,
+`Bildschirmhelligkeit=25%`, `LED-Anzeige=on`, and `Bildschirm=off`.
+
+This proves that the display block becomes available after a confirmed app
+settings write followed by the existing delayed provider refresh. It does not
+yet prove that a standalone read-only request can cause the same backend
+response; the `241/102` payload is a write and must not be reused as a refresh
+button command.
+
+As a read-only negative control, the integration was reloaded with the app
+closed after the values had been populated. After approximately 90 seconds,
+all display/indicator entities were again `unavailable`, while direct `241/44`
+and heartbeat `2/33` streams remained fresh. The passive-refresh diagnostics
+showed no confirmed settings reply and no completed refresh. Ordinary provider
+polling therefore does not restore the display block by itself; the next safe
+candidate must be a separately identified read request or a session/app
+trigger, not a generic coordinator refresh.
+
+The follow-up app-open test was then performed without changing any setting and
+without saving (the app sends changes immediately). After the display settings
+page was opened and the test window elapsed, all six display/indicator entities
+remained `unavailable`; the direct and heartbeat streams stayed fresh, and
+passive-refresh diagnostics still showed zero confirmed replies and zero
+completed refreshes. Menu navigation alone therefore does not restore the
+values. Current evidence narrows the trigger to a confirmed settings write (or
+an as-yet-unidentified app request coupled to that write), not page opening.
+
+Inspection of a current, independently received C376 `241/44` frame revealed a
+better read-only path. Its previously unassigned `paramSet` field `21` contained
+the six bytes `[1, 0, 75, 25, 2, 0]`. The first four values exactly matched the
+independently observed state after the LED test: LED enabled, screen disabled,
+LED brightness 75%, and stored screen brightness 25%. This is the same byte
+layout already confirmed for app writes at `241/102 -> 4.21`, but it arrives in
+the normal high-frequency device report and requires no publish or refresh.
+
+The integration currently ignores this direct field, which explains why the
+entities become unavailable after a reload even though `241/44` remains fresh.
+One additional controlled display transition should confirm the live byte
+change; the next build can then decode the bounded six-byte block directly and
+likely eliminate the need for a display-refresh button.
+
+## 2026-08-27: dev27 direct display/LED readback
+
+The controlled transition from LED brightness 75% to 100% confirmed the fast
+mapping. With the integration left running, consecutive C376 `241/44` reports
+changed field `1.4.8.21` from `[1, 0, 75, 25, 2, 0]` to
+`[1, 0, 100, 25, 2, 0]`; the other bytes remained stable. This independently
+confirms byte 1 as LED enable, byte 2 as screen enable, byte 3 as LED brightness,
+and byte 4 as stored screen brightness.
+
+dev27 decodes only an unambiguous six-byte field with boolean first bytes and
+brightness values restricted to the four observed levels. The last two bytes
+remain unassigned and are ignored. The four decoded keys join the freshness-
+gated direct settings set so a slower provider snapshot cannot replace them
+while `241/44` is fresh. This adds no request, publish, or reconnect path.

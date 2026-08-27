@@ -37,10 +37,10 @@ mapping yet.
 | Custom/user current | — | — | `1.4.8.8`; `60` = 6 A and `110` = 11 A | `paramSet.userCurrentSet` |
 | Phase selection | — | Field `11`: `1` one phase, `2` three phase, `3` auto | `1.4.8.7`: `0` auto, `1` one phase, `2` three phase | `paramSet.phaseSpecified`, raw and not suitable for confirmation yet |
 | Plug-and-Play | — | Field `2`: `0`/`1` | Bit `0x02` in `1.4.8.1`; confirmed by `16 -> 18 -> 16` | Bit `0x02` in `paramSet.switchBits` |
-| LED enabled | — | Field `13`: `0`/`1` | — | — |
-| LED brightness | — | Field `14`, percent | — | — |
-| Screen enabled | — | Field `15`: `0`/`1` | — | — |
-| Screen brightness | — | Field `16`, percent | — | — |
+| LED enabled | — | Field `13`: `0`/`1` | `1.4.8.21`, byte 1: `0`/`1` | — |
+| LED brightness | — | Field `14`, percent | `1.4.8.21`, byte 3: `25`/`50`/`75`/`100` | — |
+| Screen enabled | — | Field `15`: `0`/`1` | `1.4.8.21`, byte 2: `0`/`1` | — |
+| Screen brightness | — | Field `16`, percent | `1.4.8.21`, byte 4: `25`/`50`/`75`/`100` | — |
 | Battery discharge disabled | — | Field `22`: `0`/`1` | — | — |
 | Smart ready-by time | — | — | `1.4.8.31.1`, Unix timestamp | `paramSet.smartMode.timeToUseCar` |
 | Smart target type | — | — | `1.4.8.31.2`: `1` energy, `2` distance | Inferred through the selected target |
@@ -48,7 +48,7 @@ mapping yet.
 | Smart distance target | — | — | Distance mode: `1.4.8.31.4`, km | Provider energy target becomes `0` in distance mode |
 | Smart calculated energy | — | — | Distance mode: `1.4.8.31.3`; 300 km produced 45000 Wh | — |
 | Vehicle consumption, raw | — | — | Unknown | `vehicleInfo.currentVehicleComsumption` |
-| Unassigned content | — | Additional fields may exist | Byte fields `5`, `9`, and `21`; field `31` is now decoded for Smart settings | Other unassigned provider fields exist |
+| Unassigned content | — | Additional fields may exist | Byte fields `5` and `9`; fields `21` and `31` are decoded for display and Smart settings | Other unassigned provider fields exist |
 
 The installed dev16 build confirmed the practical difference between the two
 main settings read paths. Restoring the Solar minimum from 7 A to 6 A updated

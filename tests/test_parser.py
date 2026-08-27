@@ -181,20 +181,22 @@ def _direct_param_set_envelope(
     switch_bits: int = 16,
     work_mode: int = 2,
     solar_current_min: int = 70,
+    display_settings: bytes | None = None,
     smart_settings: bytes = b"unknown",
 ) -> bytes:
-    param_set = b"".join(
-        (
-            encode_field_varint(1, switch_bits),
-            encode_field_varint(2, work_mode),
-            encode_field_varint(4, 160),
-            encode_field_bytes(5, b"unknown-smart"),
-            encode_field_varint(6, solar_current_min),
-            encode_field_varint(7, 0),
-            encode_field_varint(8, 60),
-            encode_field_bytes(31, smart_settings),
-        )
-    )
+    param_fields = [
+        encode_field_varint(1, switch_bits),
+        encode_field_varint(2, work_mode),
+        encode_field_varint(4, 160),
+        encode_field_bytes(5, b"unknown-smart"),
+        encode_field_varint(6, solar_current_min),
+        encode_field_varint(7, 0),
+        encode_field_varint(8, 60),
+    ]
+    if display_settings is not None:
+        param_fields.append(encode_field_bytes(21, display_settings))
+    param_fields.append(encode_field_bytes(31, smart_settings))
+    param_set = b"".join(param_fields)
     report = b"".join(
         (
             encode_field_bytes(
@@ -237,6 +239,32 @@ def test_direct_c376_param_set_report() -> None:
         "user_current_set_raw": 60,
         "work_mode": "solar",
     }
+
+
+def test_direct_display_settings_block() -> None:
+    result = parse_powerpulse2_payload(
+        _direct_param_set_envelope(
+            display_settings=bytes((1, 0, 100, 25, 2, 0))
+        )
+    )
+
+    assert result["indicator_enabled"] is True
+    assert result["screen_enabled"] is False
+    assert result["indicator_brightness_pct"] == 100
+    assert result["screen_brightness_pct"] == 25
+
+
+def test_direct_display_settings_rejects_malformed_block() -> None:
+    result = parse_powerpulse2_payload(
+        _direct_param_set_envelope(
+            display_settings=bytes((1, 0, 99, 25, 2, 0))
+        )
+    )
+
+    assert "indicator_enabled" not in result
+    assert "screen_enabled" not in result
+    assert "indicator_brightness_pct" not in result
+    assert "screen_brightness_pct" not in result
 
 
 def test_direct_param_set_exposes_validated_descriptor_only_to_control_helper() -> None:

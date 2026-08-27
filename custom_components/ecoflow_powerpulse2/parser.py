@@ -408,6 +408,25 @@ def _parse_cp307_direct_param_set(payload: bytes) -> dict[str, Any]:
         ),
     }
     try:
+        display_bytes = _protobuf_bytes_at(param_set, 21)
+    except (LookupError, ValueError):
+        display_bytes = b""
+    if (
+        len(display_bytes) == 6
+        and display_bytes[0] in (0, 1)
+        and display_bytes[1] in (0, 1)
+        and display_bytes[2] in (25, 50, 75, 100)
+        and display_bytes[3] in (25, 50, 75, 100)
+    ):
+        result.update(
+            {
+                "indicator_enabled": bool(display_bytes[0]),
+                "screen_enabled": bool(display_bytes[1]),
+                "indicator_brightness_pct": display_bytes[2],
+                "screen_brightness_pct": display_bytes[3],
+            }
+        )
+    try:
         smart_bytes = _protobuf_bytes_at(param_set, 31)
         smart_fields = {
             field: value

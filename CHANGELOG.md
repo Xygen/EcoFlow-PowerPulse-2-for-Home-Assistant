@@ -6,6 +6,19 @@ Current outstanding work is maintained only in
 
 ## Unreleased
 
+## 0.1.0-dev27
+
+- Decode the live-confirmed six-byte display/LED block from the read-only fast
+  `241/44 -> 1.4.8.21` report, allowing screen and indicator state plus stored
+  brightness to recover after an integration reload without a settings write.
+- Preserve those four values against a slower cached provider snapshot while
+  the direct report is fresh, and reject malformed block lengths, flags, or
+  brightness levels.
+- Confirm the mapping through a live LED transition from 75% to 100%; the
+  direct block changed from `[1, 0, 75, 25, 2, 0]` to
+  `[1, 0, 100, 25, 2, 0]` without a read request or refresh command.
+- Extend the local suite to 66 passing tests, including valid and malformed
+  direct display-block coverage.
 - Centralize all active work in `docs/backlog.md`, replace parallel roadmap and
   TODO lists with links, and define where completed changes and protocol
   evidence are recorded.

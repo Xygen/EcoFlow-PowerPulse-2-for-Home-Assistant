@@ -64,6 +64,8 @@ _DIRECT_SETTINGS_KEYS = frozenset(
     {
         "continuous_charging",
         "battery_discharge_disabled",
+        "indicator_brightness_pct",
+        "indicator_enabled",
         "current_limit_raw",
         "output_current_max_raw",
         "phase_specified_raw",
@@ -77,6 +79,8 @@ _DIRECT_SETTINGS_KEYS = frozenset(
         "smart_target_distance_km",
         "smart_target_type",
         "ready_by_timestamp",
+        "screen_brightness_pct",
+        "screen_enabled",
         "work_mode",
     }
 )

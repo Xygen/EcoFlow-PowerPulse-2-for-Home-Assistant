@@ -616,3 +616,14 @@ Installed validation confirmed dev26, diagnostic schema 10, the exact
 300-second/1,800-second limits, and an initially empty recovery trace. Both
 report families were fresh after restart, correctly preventing an immediate
 automatic reconnect. No new integration error was logged.
+
+## dev27 direct display/LED readback (2026-08-27)
+
+A live LED 75% -> 100% transition isolated the previously unassigned direct
+`241/44 -> 1.4.8.21` block. It changed from
+`[1, 0, 75, 25, 2, 0]` to `[1, 0, 100, 25, 2, 0]`, matching LED enabled,
+screen disabled, LED brightness, and stored screen brightness. dev27 decodes
+the first four bytes from this normal read-only report with strict length,
+boolean, and four-level brightness validation. It introduces no MQTT publish
+and should restore the display/indicator entities after an integration reload
+without an app settings write. Installed validation remains pending.

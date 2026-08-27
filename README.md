@@ -30,7 +30,7 @@ diagnostics.
 
 ## Current scope
 
-Version `0.1.0-dev26` keeps automatic MQTT activity listen-only and provides
+Version `0.1.0-dev27` keeps automatic MQTT activity listen-only and provides
 disabled-by-default, user-triggered controls:
 
 - EcoFlow app-account login and PowerPulse discovery
@@ -50,6 +50,9 @@ disabled-by-default, user-triggered controls:
   and Plug-and-Play flags, maximum output current, Solar minimum current,
   Custom current, and raw phase selection without waiting for the cached
   provider snapshot
+- screen/LED state and stored brightness from the live-confirmed six-byte
+  `241/44 -> 1.4.8.21` block, allowing these entities to recover after a reload
+  without an app or Home Assistant settings write
 - normal Ampere presentation of the Custom-mode current and fast phase enum
   readback
 - controls for operating mode, phase selection, Plug-and-Play,
