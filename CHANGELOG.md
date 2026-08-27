@@ -15,6 +15,9 @@ Current outstanding work is maintained only in
 - Validate the 0.1.0 candidate on Home Assistant Core 2026.8.3 with the
   integration loaded, valid configuration, exact HACS commit, and no matching
   system-log error.
+- Publish the annotated `v0.1.0` Git tag and GitHub release with the
+  versioned installation archive, refresh HACS to the release channel, and verify installed and
+  available version `v0.1.0` with no pending update after restart.
 - Add normal, enabled-by-default energy sensors for cumulative charging energy
   and the current charging session, converting the confirmed heartbeat Wh
   values to kWh while retaining both raw diagnostic sensors.

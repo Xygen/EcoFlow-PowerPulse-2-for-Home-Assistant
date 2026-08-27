@@ -725,3 +725,10 @@ The integration loaded without a matching system-log error, configuration
 validation passed, and HACS reported the exact commit with no pending update.
 The remaining frontend-only visual confirmation is kept in the canonical
 backlog rather than duplicated here.
+
+The final annotated `v0.1.0` tag targets validation commit `4882e7c`, and the
+public GitHub release includes the versioned installation ZIP. HACS refreshed
+to the release channel and, after installation and a Home Assistant Core
+2026.8.3 restart, reported installed and available version `v0.1.0` with no
+pending update. The config entry was `loaded`; no PowerPulse-specific runtime
+error appeared in the current startup log.

@@ -1116,3 +1116,12 @@ these files. The config entry returned to `loaded`, configuration validation
 passed, HACS reported the exact installed/available commit with no pending
 update, and no matching system-log error appeared. The authenticated frontend
 visual check remains explicitly tracked as `REL-01`.
+
+The final annotated `v0.1.0` tag points to candidate-validation commit
+`4882e7c`. Its GitHub release contains the versioned installation ZIP with
+SHA-256 `316d9f89432c995baad81d73560bdc24de3b5fda1808051ba74f85c2ea97a4fa`.
+After refreshing HACS release metadata, HACS reported both installed and
+available version `v0.1.0` with no pending update. Home Assistant Core
+2026.8.3 restarted with the config entry in `loaded` state; the current log
+contained only Home Assistant's expected generic warning for an unverified
+custom integration, not an integration-specific runtime error.
