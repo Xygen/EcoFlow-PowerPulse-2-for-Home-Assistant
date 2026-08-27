@@ -70,7 +70,9 @@ class PowerPulse2ModeSelect(PowerPulse2Entity, SelectEntity):
 
     @property
     def available(self) -> bool:
-        return self.coordinator.settings_control_available(self.serial)
+        return self.coordinator.charging_sensitive_control_available(
+            self.serial, "work_mode"
+        )
 
     @property
     def current_option(self) -> str | None:

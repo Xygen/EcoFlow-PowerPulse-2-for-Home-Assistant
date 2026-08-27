@@ -30,7 +30,7 @@ diagnostics.
 
 ## Current scope
 
-Version `0.1.0-dev27` keeps automatic MQTT activity listen-only and provides
+Version `0.1.0-dev28` keeps automatic MQTT activity listen-only and provides
 disabled-by-default, user-triggered controls:
 
 - EcoFlow app-account login and PowerPulse discovery
@@ -58,6 +58,10 @@ disabled-by-default, user-triggered controls:
 - controls for operating mode, phase selection, Plug-and-Play,
   battery-discharge blocking, Solar Continuous charging, maximum output
   current, Solar minimum current, and Custom-mode current
+- charging-time interlocks for the five controls confirmed locked by the app:
+  operating mode, phase selection, maximum output current, Solar minimum
+  current, and Continuous charging. Availability and the backend write path
+  both enforce the same live charging-state rule
 - Smart controls for ready-by date/time, energy/distance target type and the
   selected target value; Smart writes preserve the captured nested settings
   block rather than inventing missing defaults
@@ -71,7 +75,8 @@ disabled-by-default, user-triggered controls:
 - separate bounded capture of app-auth GET requests, retaining only safe JSON
   operation metadata or Protobuf routing fields and never the raw GET payload
 - privacy-safe structural inspection of the small PowerOcean `96/97`
-  background command and the acknowledged `241/102` Solar-current route,
+  background command, the acknowledged `241/102` settings route, and the
+  observed `241/100` Start/Stop route,
   runtime-keyed opaque-field equality checks, and bounded request/retry/reply
   correlation by sequence number; EcoFlow header field 6 is treated as
   `enc_type` and field 11 as `need_ack`, allowing the nested `241/102` protobuf
@@ -109,11 +114,17 @@ or targets. Phase selection is additionally available only while a fresh direct
 `241/44` phase value exists, because the provider phase mapping is not yet
 confirmed.
 
+During a live charging session the EcoFlow app allowed Plug-and-Play,
+battery-discharge blocking, screen, LED, and their brightness controls. dev28
+keeps those available while preventing the five app-locked settings above from
+being published. Other mode-specific charging-time combinations remain
+evidence-gated in the project backlog.
+
 ## Open work
 
 The current roadmap, protocol investigations, safety tests, and release
 requirements are maintained only in the [project backlog](docs/backlog.md).
-Start/Stop and active-session controls remain unavailable until their captured
+Start/Stop controls remain unavailable until their captured
 commands, physical readback, and charging-state interlocks satisfy that list.
 
 The operating-mode control uses live-captured requests: `4.2=1` Fast charging,

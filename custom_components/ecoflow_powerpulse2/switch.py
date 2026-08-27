@@ -67,7 +67,12 @@ class PowerPulse2SettingsSwitch(PowerPulse2Entity, SwitchEntity):
             return False
         values = self.coordinator.data.get(self.serial, {})
         if self.entity_description.key == "continuous_charging_control":
-            return values.get("work_mode") == "solar"
+            return (
+                self.coordinator.charging_sensitive_control_available(
+                    self.serial, "continuous_charging"
+                )
+                and values.get("work_mode") == "solar"
+            )
         source_key = {
             "battery_discharge_control": "battery_discharge_disabled",
             "plug_and_play_control": "plug_and_play",

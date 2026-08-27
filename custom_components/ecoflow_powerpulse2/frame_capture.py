@@ -17,6 +17,7 @@ REQUEST_CHANNELS = frozenset({"observed_get"})
 NON_TELEMETRY_CHANNELS = COMMAND_CHANNELS | REQUEST_CHANNELS
 _SAFE_OBSERVER_COMMAND_LIMITS = {
     (96, 97): 16,
+    (241, 100): 64,
     (241, 102): 64,
 }
 _MAX_SAFE_SMALL_VARINT = 255
@@ -206,7 +207,7 @@ def inspect_observer_command_payloads(
                         _summarize_safe_command_fields(
                             pdata,
                             fingerprint_key=fingerprint_key,
-                            recursive=command_pair == (241, 102),
+                            recursive=command_pair in {(241, 100), (241, 102)},
                         )
                     )
                 summaries.append(summary)

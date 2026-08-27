@@ -631,3 +631,27 @@ LED enabled at 100%, screen disabled with stored brightness 25%, and both
 direct and heartbeat streams active. The screen-brightness control remained
 unavailable as designed while the screen was off, while its read-only sensor
 still exposed the stored 25% value.
+
+## dev28 connected-vehicle evidence and charging interlocks (2026-08-27)
+
+A real vehicle session confirmed the complete telemetry path at approximately
+1.29 kW and 5.75 A. Heartbeat field 42 advanced to `19` after 59 seconds and
+the completed first segment reached `451` after 21 min 08 s. Both observations
+fit Wh at the measured power and strengthen the earlier `1815` versus 1.82 kWh
+app comparison; the field remains raw pending the backlog's rounding check.
+
+Official-app Stop at `17:24:34.365Z` and Start at `17:26:02.630Z` both used an
+acknowledged `241/100` command addressed to the linked `HJ31` PowerOcean. Stop
+was followed by `charge_complete`; Start created a new zeroed session and then
+returned to approximately 1.29 kW. Schema 10 omitted both 25-byte bodies, so
+dev28/schema 11 adds a privacy-safe structural inspector for that exact tuple.
+One repeated pair is needed to isolate the selector before exposing HA actions.
+
+The app locked operating mode, phase selection, maximum output current, Solar
+minimum current, and Continuous charging while active. It allowed
+Plug-and-Play, battery-discharge blocking, screen, LED, and brightness.
+Plug-and-Play and battery writes were acknowledged and read back without
+interrupting charging, isolating shared flags `16 -> 18` and `18 -> 19 -> 18`.
+dev28 enforces the five confirmed locks in both entity availability and the
+backend write path; untested mode-specific cases remain in the canonical
+backlog.

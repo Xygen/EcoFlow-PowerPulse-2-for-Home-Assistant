@@ -29,6 +29,7 @@ from .control_readback import (
     matching_readback_source,
     provider_readback_attempt_details,
 )
+from .control_safety import control_allowed_for_status
 from .data_merge import merge_snapshot_after_read
 from .ecoflow.cloud_mqtt import EcoFlowMQTTClient
 from .ecoflow.energy_stream import (
@@ -493,6 +494,15 @@ class PowerPulse2Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
         client = self.mqtt_clients.get(observer_serial)
         return client is not None and client.is_connected()
 
+    def charging_sensitive_control_available(
+        self, serial: str, setting_key: str
+    ) -> bool:
+        """Return whether transport and the live charging state allow a write."""
+        return self.settings_control_available(serial) and control_allowed_for_status(
+            setting_key,
+            (self.data or {}).get(serial, {}).get("charging_status"),
+        )
+
     def direct_stream_active(self, serial: str) -> bool:
         """Return whether the direct settings stream reported recently."""
         reported_at = self._last_direct_settings_at.get(serial)
@@ -643,13 +653,16 @@ class PowerPulse2Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
 
     def phase_control_available(self, serial: str) -> bool:
         """Return whether phase control also has a confirmable direct readback."""
-        return self.settings_control_available(serial) and fresh_direct_value_available(
-            current_values=(self.data or {}).get(serial, {}),
-            direct_reported_at=self._last_direct_settings_at.get(serial, 0),
-            now=time.monotonic(),
-            max_age=_DIRECT_SETTINGS_FRESH_SECONDS,
-            key="phase_mode",
-            allowed_values={"auto", "one_phase", "three_phase"},
+        return (
+            self.charging_sensitive_control_available(serial, "phase_mode")
+            and fresh_direct_value_available(
+                current_values=(self.data or {}).get(serial, {}),
+                direct_reported_at=self._last_direct_settings_at.get(serial, 0),
+                now=time.monotonic(),
+                max_age=_DIRECT_SETTINGS_FRESH_SECONDS,
+                key="phase_mode",
+                allowed_values={"auto", "one_phase", "three_phase"},
+            )
         )
 
     async def async_set_phase_mode(self, serial: str, option: str) -> None:
@@ -979,6 +992,13 @@ class PowerPulse2Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
         expected_value: Any,
     ) -> None:
         """Publish one settings command and require reply plus confirmed readback."""
+        if not control_allowed_for_status(
+            expected_key,
+            (self.data or {}).get(serial, {}).get("charging_status"),
+        ):
+            raise HomeAssistantError(
+                "This setting cannot be changed while the vehicle is charging"
+            )
         async with self._control_lock:
             await self._async_write_settings_locked(
                 serial,

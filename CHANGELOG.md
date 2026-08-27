@@ -6,6 +6,28 @@ Current outstanding work is maintained only in
 
 ## Unreleased
 
+## 0.1.0-dev28
+
+- Enforce the live-confirmed charging-time interlock for operating mode, phase
+  selection, maximum output current, Solar minimum current, and Continuous
+  charging in both entity availability and the backend write path.
+- Keep the charging-time controls confirmed usable by the official app
+  available: Plug-and-Play, battery-discharge blocking, screen, LED, and both
+  brightness settings.
+- Add bounded, privacy-safe structural diagnostics for the observed
+  PowerOcean-routed `241/100` Start/Stop command and bump diagnostic schema to
+  11. Identifiers and raw opaque bodies remain omitted.
+- Record the first real connected-vehicle charging session: app Stop and Start
+  both used acknowledged `241/100` commands, while heartbeat readback confirmed
+  the physical state transitions and a newly reset session.
+- Strengthen the session-energy Wh hypothesis with 19 raw units after 59
+  seconds and 451 raw units after 21 min 08 s at approximately 1.29 kW.
+- Confirm during active charging that Plug-and-Play toggled through shared flags
+  `16 -> 18`, and battery-discharge blocking through `18 -> 19 -> 18`, without
+  interrupting charging.
+- Extend the local suite to 71 passing tests, including fail-closed interlock
+  coverage and identifier-safe `241/100` inspection.
+
 ## 0.1.0-dev27
 
 - Decode the live-confirmed six-byte display/LED block from the read-only fast

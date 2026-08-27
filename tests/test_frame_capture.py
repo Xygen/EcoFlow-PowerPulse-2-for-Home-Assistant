@@ -295,6 +295,43 @@ def test_241_102_need_ack_plaintext_exposes_bounded_settings_structure() -> None
     assert secret.hex() not in repr(result)
 
 
+def test_241_100_exposes_only_small_start_stop_value() -> None:
+    secret = b"vehicle-secret"
+    pdata = encode_field_bytes(1, secret) + encode_field_varint(4, 1)
+    header = b"".join(
+        (
+            encode_field_bytes(1, pdata),
+            encode_field_varint(8, 241),
+            encode_field_varint(9, 100),
+            encode_field_varint(11, 1),
+            encode_field_varint(14, 118),
+        )
+    )
+
+    result = inspect_observer_command_payloads(
+        encode_field_bytes(1, header), fingerprint_key=b"test-runtime-key"
+    )
+    result[0].pop("runtime_fingerprint")
+    result[0]["fields"][0].pop("runtime_fingerprint")
+
+    assert result == [
+        {
+            "cmd_func": 241,
+            "cmd_id": 100,
+            "decoded_size": len(pdata),
+            "sequence": 118,
+            "xor_decoded": False,
+            "classification": "structured_opaque",
+            "fields": [
+                {"field": 1, "wire_type": 2, "size": len(secret)},
+                {"field": 4, "wire_type": 0, "small_value": 1},
+            ],
+        }
+    ]
+    assert "vehicle-secret" not in repr(result)
+    assert secret.hex() not in repr(result)
+
+
 def test_241_102_exposes_only_tiny_top_level_settings_bytes() -> None:
     secret = b"vehicle-secret"
     display_settings = bytes((66, 7, 1, 1, 25, 25, 2, 0, 0))

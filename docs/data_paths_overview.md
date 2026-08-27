@@ -7,7 +7,7 @@ chronological evidence in [protocol_observations.md](protocol_observations.md).
 The tables distinguish device readback from app-write observations. A fast
 acknowledgement of an app request is not automatically a trustworthy state
 value. Read entities therefore use confirmed device or provider reports. The
-dev26 settings controls are evidence-gated and require acknowledgement plus either
+dev28 settings controls are evidence-gated and require acknowledgement plus either
 fresh direct device readback or a post-command raw provider confirmation.
 Phase selection is narrower: provider `phaseSpecified` has no confirmed mapping,
 so that control requires a fresh direct `phase_mode` report.
@@ -27,7 +27,7 @@ mapping yet.
 | Phase current | Field `30` | — | — | — |
 | Total energy, raw | Field `9` | — | — | — |
 | Session duration | Field `41`, seconds | — | — | — |
-| Session energy, raw | Field `42`; `1815` corresponded to about `1.82 kWh` in one app display | — | — | — |
+| Session energy, raw | Field `42`; `1815` corresponded to about `1.82 kWh` in the app. Further live sessions produced `19` after 59 s and `451` after 21 min 08 s at about 1.29 kW, strongly supporting Wh | — | — | — |
 | Suspend reason, raw | Field `102` | — | — | — |
 | Charge-current setpoint, raw | Field `17`; exact role still needs separation | — | — | — |
 | Operating mode | — | — | `1.4.8.2`: `1` Fast, `2` Solar, `3` Custom, `4` Smart | `paramSet.workMode` |
@@ -60,9 +60,9 @@ provider fallback completed only about 20.26 seconds after the app SET.
 These paths are useful for protocol research but are not currently used as
 authoritative Home Assistant state.
 
-| Value or function | App-write path `241/102 -> 4.*` | PowerOcean accessory report `209/8` | Unassigned `96/97` traffic |
+| Value or function | App-write paths routed through PowerOcean | PowerOcean accessory report `209/8` | Unassigned `96/97` traffic |
 | --- | --- | --- | --- |
-| Role | App sends settings; a same-sequence reply confirms transport correlation but does not echo the settings | Possible additional read path | Likely periodic PowerOcean background traffic |
+| Role | Settings use `241/102 -> 4.*`; Start/Stop uses `241/100`. A same-sequence reply confirms transport correlation but does not itself prove device state | Possible additional read path | Likely periodic PowerOcean background traffic |
 | Settings bitmask | `4.1`; bit `0x01` battery-discharge blocking, `0x02` Plug-and-Play, `0x10` Continuous charging | Earlier field assignments were withdrawn pending controlled evidence | Not assigned |
 | Operating mode | `4.2` | Not confirmed | — |
 | Maximum output current | `4.3`, 0.1 A | Not confirmed | — |
@@ -71,6 +71,7 @@ authoritative Home Assistant state.
 | Custom-mode current | `4.6`, 0.1 A | Not confirmed | — |
 | Smart settings | Nested block `4.7` | Not confirmed | — |
 | Screen/LED settings | Nested bytes `4.21`: LED enable, screen enable, LED %, screen %, `0`, `0` | Not confirmed | — |
+| Start/Stop | Both official-app actions used `241/100` with a 25-byte body addressed to the linked PowerOcean. The differing selector is pending a schema-11 repeat capture | Not confirmed | — |
 | Observed response | Same-sequence reply after about 50-226 ms | Unknown | No assigned reply |
 | Suitable as HA state | No; SET observations are not state. Controls require separate fresh direct or provider readback | Still under investigation | No current evidence |
 
@@ -83,6 +84,27 @@ their 25/50/75/100% brightness. Every write requires a same-sequence reply and
 then either matching direct `241/44` readback or a post-command raw provider
 snapshot that explicitly contains the expected key and value. Cached merged
 state alone never confirms a write.
+
+## Charging-time control matrix
+
+The first connected-vehicle session confirmed the following official-app
+behavior while the charger reported `charging`:
+
+| Control | Official app while charging | dev28 Home Assistant behavior |
+| --- | --- | --- |
+| Operating mode | Locked | Unavailable; backend rejects bypass attempts |
+| Phase selection | Locked | Unavailable; backend rejects bypass attempts |
+| Maximum output current | Locked | Unavailable; backend rejects bypass attempts |
+| Solar minimum current | Locked | Unavailable; backend rejects bypass attempts |
+| Continuous charging | Locked | Unavailable; backend rejects bypass attempts |
+| Plug-and-Play | Allowed and live-tested | Available |
+| Battery discharge disabled | Allowed and live-tested | Available |
+| Screen/brightness | Allowed and live-tested | Available subject to screen-on brightness rule |
+| LED/brightness | Allowed and live-tested | Available subject to LED-on brightness rule |
+
+The app tests changed shared `switchBits` from `16` to `18` for Plug-and-Play
+and from `18` to `19` for battery-discharge blocking, then restored `18`.
+Charging continued at approximately 1.29 kW throughout.
 
 The 2026-08-26 idle test showed why the paths cannot share one blanket rule.
 Mode and flag updates appeared in the provider snapshot about 12–15 seconds

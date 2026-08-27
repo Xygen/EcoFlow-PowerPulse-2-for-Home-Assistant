@@ -101,6 +101,14 @@ class PowerPulse2CurrentNumber(PowerPulse2Entity, NumberEntity):
         if not self.coordinator.settings_control_available(self.serial):
             return False
         values = self.coordinator.data.get(self.serial, {})
+        locked_key = {
+            "maximum_output_current_control": "output_current_max_raw",
+            "solar_minimum_current_control": "solar_current_min_raw",
+        }.get(self.entity_description.key)
+        if locked_key and not self.coordinator.charging_sensitive_control_available(
+            self.serial, locked_key
+        ):
+            return False
         if self.entity_description.key == "solar_minimum_current_control":
             return values.get("work_mode") == "solar" and bool(
                 values.get("continuous_charging")

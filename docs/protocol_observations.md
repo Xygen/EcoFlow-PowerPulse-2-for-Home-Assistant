@@ -984,3 +984,41 @@ brightness number correctly remained unavailable because the screen was off;
 the LED-brightness number was available at 100%. This completes the dev27
 readback validation and confirms that a separate display-refresh button is not
 needed for this data source.
+
+## 2026-08-27: first connected-vehicle session and dev28 safety work
+
+The first available vehicle session started automatically in Solar mode with
+Continuous charging enabled at 6 A. Heartbeat readback first changed from
+`unplugged` to `charging`, followed by approximately 1.29 kW, 5.75 A at 231.6 V,
+59 seconds duration, and raw session energy `19`. The later completed first
+segment reported 21 min 08 s and raw energy `451`. Integrating the observed
+approximately 1.28-1.29 kW over that duration closely matches 451 Wh, adding
+independent evidence that heartbeat field `42` is measured in Wh.
+
+At `17:24:34.365Z` the official app Stop action sent a PowerOcean-observed
+`241/100` SET to the linked `HJ31` inverter. Sequence 118 received a matching
+reply after about 0.199 seconds. At `17:24:36.135Z` heartbeat readback changed
+to `charge_complete`, charging became false, and final session values were
+reported. At `17:26:02.630Z` app Start sent the same `241/100` tuple with
+sequence 128; its reply arrived after about 0.093 seconds. Heartbeat changed to
+`charging` at `17:26:06.587Z`, and by `17:27:05.837Z` reported 1.288 kW,
+5.75 A, one minute, and raw energy `20`. The new session counters reset rather
+than continuing the stopped segment.
+
+Both actions used a 25-byte command body, but diagnostic schema 10 did not
+allow-list `241/100`, so the differing selector was not retained. dev28 adds
+only this confirmed tuple to the bounded observer inspector. It retains small
+numeric protobuf fields, runtime-keyed fingerprints, sizes, and routing data;
+the accessory descriptor and all opaque raw content remain omitted. A repeated
+Start/Stop pair after installing schema 11 is required before any HA control is
+built.
+
+The active-session app UI locked operating mode, phase selection, maximum
+output current, Solar minimum current, and Continuous charging. Plug-and-Play,
+battery-discharge blocking, screen, LED, and brightness remained usable.
+Controlled writes confirmed Plug-and-Play as shared flags `18 -> 16 -> 18` and,
+with Plug-and-Play retained, battery blocking as `18 -> 19 -> 18`; charging
+continued throughout. dev28 applies the five confirmed locks both to entity
+availability and immediately before publishing, failing closed when charging
+state is missing or unknown. It does not generalize the rule to untested
+mode-specific controls.
