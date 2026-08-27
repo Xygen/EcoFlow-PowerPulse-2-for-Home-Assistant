@@ -30,7 +30,7 @@ diagnostics.
 
 ## Current scope
 
-Version `0.1.0-dev29` keeps automatic MQTT activity listen-only and provides
+Version `0.1.0-dev30` keeps automatic MQTT activity listen-only and provides
 disabled-by-default, user-triggered controls:
 
 - EcoFlow app-account login and PowerPulse discovery
@@ -73,7 +73,10 @@ disabled-by-default, user-triggered controls:
   blocking, screen/LED state, and both brightness settings from the live-
   confirmed CP307 settings report
 - optional voltage, current, duration, and raw diagnostic values when reported
-- human-readable session duration while retaining numeric seconds internally
+- cumulative and per-session charging energy as normal kWh sensors, converted
+  from the confirmed Wh heartbeat fields while retaining their raw diagnostics
+- numeric session duration in seconds with Home Assistant's duration metadata;
+  Home Assistant can present it in a suitable user-selected time unit
 - redacted MQTT frame capture grouped by channel and `(cmd_func, cmd_id)`
 - passive observation of app-auth and device-facing SET candidate topics
 - separate bounded capture of app-auth GET requests, retaining only safe JSON

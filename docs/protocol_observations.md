@@ -1060,3 +1060,28 @@ returned successfully after a new heartbeat changed to `charging` at
 `23:04:17.769Z`; the session counters reset to zero and button availability
 reversed. At `23:05:16.698Z`, physical telemetry reported 1.304 kW, 5.77 A,
 233.3 V, one minute, and raw session energy `20`. This completes `CTRL-01`.
+
+## 2026-08-28: dev30 energy and duration entities
+
+History from the connected-vehicle test closes the remaining scale question
+for heartbeat field 9. Across 357 numeric samples from 19:00 to 01:09 local
+time, `total_energy_raw` increased from `1364918` to `1372690` without a
+single decrease, including across multiple Stop/Start transitions and session
+counter resets. While charging at approximately 1.29 kW, it increased by
+21–22 raw units per minute, matching Wh. It is therefore a cumulative Wh
+counter and dev30 exposes it as an enabled-by-default kWh energy sensor with
+`state_class=total_increasing`. The raw diagnostic entity remains unchanged.
+
+Field 42 is now also exposed as an enabled-by-default per-session kWh energy
+sensor. Its Wh interpretation is supported by the app comparison `1815` raw
+versus `1.82 kWh`, by `451` after 21 min 08 s at approximately 1.29 kW, by
+`3685` after 2 h 50 min, and by `20` after one minute in a newly reset session.
+Its `total_increasing` state class intentionally accommodates the observed
+reset at the beginning of each new charging session. The raw entity remains a
+disabled diagnostic.
+
+The existing `session_duration_s` entity keeps its key and unique ID but no
+longer converts the numeric heartbeat value to text. It now exposes seconds
+with `device_class=duration` and `state_class=measurement`, and is enabled by
+default. This lets Home Assistant perform display-unit conversion and supports
+numeric dashboards, history, and automations.

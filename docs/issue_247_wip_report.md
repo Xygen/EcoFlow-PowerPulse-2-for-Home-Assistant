@@ -682,3 +682,20 @@ The subsequent reversible HA test completed both directions. Stop at
 session, and returned to 1.304 kW, 5.77 A, and 233.3 V after one minute. Button
 availability followed the physical state in both directions. `CTRL-01` is
 therefore complete and has been removed from the canonical backlog.
+
+## dev30 energy and duration entities (2026-08-28)
+
+The accumulated live history resolves the remaining energy-scale questions.
+Heartbeat field 9 rose from `1364918` to `1372690` across 357 samples without
+a decrease, including several session resets. Its 21–22 unit/minute increase
+at approximately 1.29 kW identifies the raw unit as Wh. Heartbeat field 42 is
+also confirmed as per-session Wh by several independent power/time checks and
+the EcoFlow app comparison. dev30 therefore adds enabled-by-default kWh energy
+sensors for both fields while retaining the raw diagnostic entities. The
+cumulative and per-session sensors use `state_class=total_increasing`; the
+latter's resets coincide with new charging sessions.
+
+The existing `session_duration_s` entity retains its entity identity and now
+publishes numeric seconds with Home Assistant duration and measurement
+metadata instead of preformatted text. Home Assistant is responsible for the
+human-readable display unit.

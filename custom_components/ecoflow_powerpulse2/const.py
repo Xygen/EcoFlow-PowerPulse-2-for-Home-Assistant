@@ -17,15 +17,17 @@ from homeassistant.const import (
     UnitOfElectricPotential,
     UnitOfEnergy,
     UnitOfPower,
+    UnitOfTime,
 )
 
-from .presentation import as_timestamp, format_duration, tenths_to_float
+from .presentation import as_timestamp, tenths_to_float, watt_hours_to_kwh
 
 DOMAIN = "ecoflow_powerpulse2"
 CONF_EMAIL = "email"
 CONF_PASSWORD = "password"
 UPDATE_INTERVAL_SECONDS = 30
 SETTINGS_REFRESH_DELAY_SECONDS = 20
+
 
 @dataclass(frozen=True, kw_only=True)
 class PowerPulse2SensorDescription(SensorEntityDescription):
@@ -93,9 +95,10 @@ SENSORS = (
     PowerPulse2SensorDescription(
         key="session_duration_s",
         translation_key="session_duration",
-        value_fn=format_duration,
-        diagnostic=True,
-        entity_registry_enabled_default=False,
+        native_unit_of_measurement=UnitOfTime.SECONDS,
+        device_class=SensorDeviceClass.DURATION,
+        state_class=SensorStateClass.MEASUREMENT,
+        suggested_display_precision=0,
     ),
     PowerPulse2SensorDescription(
         key="smart_charge_target_wh",
@@ -131,10 +134,30 @@ SENSORS = (
         entity_registry_enabled_default=False,
     ),
     PowerPulse2SensorDescription(
+        key="total_energy_kwh",
+        source_key="total_energy_raw",
+        translation_key="total_energy",
+        native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
+        device_class=SensorDeviceClass.ENERGY,
+        state_class=SensorStateClass.TOTAL_INCREASING,
+        suggested_display_precision=3,
+        value_fn=watt_hours_to_kwh,
+    ),
+    PowerPulse2SensorDescription(
         key="session_energy_raw",
         translation_key="session_energy_raw",
         diagnostic=True,
         entity_registry_enabled_default=False,
+    ),
+    PowerPulse2SensorDescription(
+        key="session_energy_kwh",
+        source_key="session_energy_raw",
+        translation_key="session_energy",
+        native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
+        device_class=SensorDeviceClass.ENERGY,
+        state_class=SensorStateClass.TOTAL_INCREASING,
+        suggested_display_precision=3,
+        value_fn=watt_hours_to_kwh,
     ),
     PowerPulse2SensorDescription(
         key="charge_current_set_raw",

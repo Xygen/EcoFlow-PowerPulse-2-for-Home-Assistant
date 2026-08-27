@@ -6,6 +6,18 @@ Current outstanding work is maintained only in
 
 ## Unreleased
 
+## 0.1.0-dev30
+
+- Add normal, enabled-by-default energy sensors for cumulative charging energy
+  and the current charging session, converting the confirmed heartbeat Wh
+  values to kWh while retaining both raw diagnostic sensors.
+- Change the existing session-duration entity from formatted text to numeric
+  seconds with Home Assistant's duration device class and measurement state
+  class, preserving its entity identity.
+- Confirm the cumulative field's Wh scale and monotonic behavior from 357
+  charging-history samples spanning several session resets.
+- Extend conversion coverage while keeping the full suite at 76 passing tests.
+
 ## 0.1.0-dev29
 
 - Add disabled-by-default Start and Stop buttons using the twice-confirmed

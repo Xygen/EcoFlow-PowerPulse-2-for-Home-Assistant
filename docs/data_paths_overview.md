@@ -7,7 +7,7 @@ chronological evidence in [protocol_observations.md](protocol_observations.md).
 The tables distinguish device readback from app-write observations. A fast
 acknowledgement of an app request is not automatically a trustworthy state
 value. Read entities therefore use confirmed device or provider reports. The
-dev29 settings controls are evidence-gated and require acknowledgement plus either
+dev30 settings controls are evidence-gated and require acknowledgement plus either
 fresh direct device readback or a post-command raw provider confirmation.
 Phase selection is narrower: provider `phaseSpecified` has no confirmed mapping,
 so that control requires a fresh direct `phase_mode` report.
@@ -27,9 +27,9 @@ mapping yet.
 | Charging power | Field `28` | — | — | `chargingPwr` |
 | Phase voltage | Field `29` | — | — | — |
 | Phase current | Field `30` | — | — | — |
-| Total energy, raw | Field `9` | — | — | — |
-| Session duration | Field `41`, seconds | — | — | — |
-| Session energy, raw | Field `42`; `1815` corresponded to about `1.82 kWh` in the app. Further live sessions produced `19` after 59 s and `451` after 21 min 08 s at about 1.29 kW, strongly supporting Wh | — | — | — |
+| Total charging energy | Field `9`, Wh. Across 357 history samples and several session resets it increased without a decrease; at about 1.29 kW it rose by 21–22 Wh/min. Exposed normally in kWh; raw diagnostics remain available | — | — | — |
+| Session duration | Field `41`, seconds. Exposed as a numeric HA duration sensor | — | — | — |
+| Charging-session energy | Field `42`, Wh. `1815` corresponded to about `1.82 kWh` in the app; live sessions produced `19` after 59 s, `451` after 21 min 08 s, and `3685` after 2 h 50 min. Exposed normally in kWh and resets per session; raw diagnostics remain available | — | — | — |
 | Suspend reason, raw | Field `102` | — | — | — |
 | Charge-current setpoint, raw | Field `17`; exact role still needs separation | — | — | — |
 | Operating mode | — | — | `1.4.8.2`: `1` Fast, `2` Solar, `3` Custom, `4` Smart | `paramSet.workMode` |
@@ -87,7 +87,7 @@ then either matching direct `241/44` readback or a post-command raw provider
 snapshot that explicitly contains the expected key and value. Cached merged
 state alone never confirms a write.
 
-dev29 additionally exposes disabled-by-default Start and Stop buttons. Their
+dev30 retains the dev29 disabled-by-default Start and Stop buttons. Their
 `241/100` reply waiter is keyed by command tuple and sequence. Availability
 requires a recent heartbeat; the backend repeats the state check immediately
 before publishing and then waits up to 15 seconds for a newer heartbeat that
