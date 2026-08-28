@@ -739,3 +739,30 @@ placeholder. This is consistent with the open upstream HACS local-brand proxy
 gap and does not indicate a missing release asset. The only remaining branding
 work is therefore the upstream-dependent `REL-01` entry in the canonical
 backlog.
+
+## Post-release phase confirmation check (2026-08-28)
+
+A no-vehicle HA test changed the phase selector through Auto, one phase, three
+phase, and back to Auto while the EcoFlow app remained closed. Each write was
+acknowledged and confirmed by a fresh direct C376 settings report in roughly
+one second. Direct field `1.4.8.7` again mapped `0/1/2` to
+Auto/one-phase/three-phase.
+
+This did not close the provider question. Runtime diagnostics counted six
+direct confirmations and zero provider confirmations, and the installed
+EcoFlow Energy diagnostic export did not include a usable live
+`phaseSpecified` provider snapshot. `PHASE-01` therefore remains open and the
+released phase control continues to require fresh direct readback.
+
+The next unreleased diagnostic revision records direct `241/44`, parent
+accessory provider, and device-detail provider phase observations separately.
+It stores only source, field-presence flags, raw/mapped values when valid,
+timestamps, and the four-character device prefix. The feature is deliberately
+diagnostic-only: no entity, merge precedence, write confirmation, or safety
+gate changes before the three provider values are independently validated.
+
+The controlled Auto/one-phase/three-phase/Auto sequence additionally retained
+16 direct frames per state. Across all 64 decoded frames, field `1.4.8.7`
+followed `0/1/2/0`, while unassigned byte fields `1.4.8.5` and `1.4.8.9`
+remained byte-identical. This excludes them as the direct phase selector but
+does not establish their meaning; that research remains solely in `DATA-02`.

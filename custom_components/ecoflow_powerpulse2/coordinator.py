@@ -49,6 +49,7 @@ from .frame_capture import (
 )
 from .parser import extract_powerpulse_accessory_descriptor, parse_powerpulse2_payload
 from .passive_refresh import ConfirmedSettingsReplyGate, DelayedRefreshCoalescer
+from .phase_diagnostics import PhaseReadbackTracker
 from .stream_recovery import automatic_recovery_due
 
 _LOGGER = logging.getLogger(__name__)
@@ -132,6 +133,7 @@ class PowerPulse2Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
         self._control_provider_attempts: deque[dict[str, Any]] = deque(
             maxlen=_CONTROL_DIAGNOSTIC_ATTEMPTS
         )
+        self._phase_readbacks = PhaseReadbackTracker()
         self._direct_stream_attempts: deque[dict[str, Any]] = deque(
             maxlen=_DIRECT_STREAM_DIAGNOSTIC_ATTEMPTS
         )
@@ -213,6 +215,11 @@ class PowerPulse2Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
             },
         }
 
+    @property
+    def phase_readback_sources(self) -> list[dict[str, Any]]:
+        """Return direct and provider phase evidence without full identifiers."""
+        return self._phase_readbacks.snapshot()
+
     async def _async_update_data(self) -> dict[str, dict[str, Any]]:
         try:
             if not self._initialized:
@@ -255,8 +262,12 @@ class PowerPulse2Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
         for source_serial, device in self.observer_devices.items():
             reports = await self.api.async_read_accessories(device)
             matched_keys: set[str] = set()
-            for target_serial, values in reports.items():
-                if target_serial not in self.devices:
+            for target_serial in self.devices:
+                values = reports.get(target_serial, {})
+                self._phase_readbacks.record(
+                    target_serial, "provider_parent_accessory", values
+                )
+                if not values:
                     continue
                 updates.setdefault(target_serial, {}).update(values)
                 matched_keys.update(values)
@@ -272,6 +283,7 @@ class PowerPulse2Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
     ) -> dict[str, Any]:
         """Combine direct and already-fetched parent data before race-safe merge."""
         snapshot = await self.api.async_read(device)
+        self._phase_readbacks.record(serial, "provider_device_detail", snapshot)
         snapshot.update(provider)
         self._last_polled_settings[serial] = dict(snapshot)
         self._last_polled_settings_at[serial] = time.monotonic()
@@ -382,12 +394,17 @@ class PowerPulse2Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
             if serial in self.devices and channel_carries_telemetry(channel)
             else {}
         )
-        if parsed and any(
+        is_direct_settings = parsed and any(
             header.get("cmd_func") == 241 and header.get("cmd_id") == 44
             for header in protocol_headers
-        ):
+        )
+        if is_direct_settings:
+            reported_at = datetime.now(UTC).isoformat()
             self._last_direct_settings_at[serial] = time.monotonic()
-            self._last_direct_settings_utc[serial] = datetime.now(UTC).isoformat()
+            self._last_direct_settings_utc[serial] = reported_at
+            self._phase_readbacks.record(
+                serial, "direct_241_44", parsed, timestamp=reported_at
+            )
         if parsed and any(
             header.get("cmd_func") == 2 and header.get("cmd_id") == 33
             for header in protocol_headers

@@ -51,7 +51,7 @@ mapping yet.
 | Smart distance target | — | — | Distance mode: `1.4.8.31.4`, km | Provider energy target becomes `0` in distance mode |
 | Smart calculated energy | — | — | Distance mode: `1.4.8.31.3`; 300 km produced 45000 Wh | — |
 | Vehicle consumption, raw | — | — | Unknown | `vehicleInfo.currentVehicleComsumption` |
-| Unassigned content | — | Additional fields may exist | Byte fields `5` and `9`; fields `21` and `31` are decoded for display and Smart settings | Other unassigned provider fields exist |
+| Unassigned content | — | Additional fields may exist | Byte fields `5` and `9`; both remained byte-identical across 64 decoded frames during an Auto/one-phase/three-phase/Auto comparison and are not the direct phase-selection field. Fields `21` and `31` are decoded for display and Smart settings | Other unassigned provider fields exist |
 
 The installed dev16 build confirmed the practical difference between the two
 main settings read paths. Restoring the Solar minimum from 7 A to 6 A updated

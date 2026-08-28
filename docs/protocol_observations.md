@@ -1135,3 +1135,42 @@ matches the open upstream HACS frontend reports `hacs/integration#5223` and
 public Brands CDN instead of Home Assistant's authenticated local-brand proxy.
 The repository layout and packaged assets therefore remain unchanged; the
 remaining HACS presentation gap is tracked only as `REL-01` in the backlog.
+
+## 2026-08-28: post-release phase readback sequence
+
+With no vehicle connected and the EcoFlow app closed, the phase selector was
+changed in Home Assistant from Auto to one phase, then to three phase, and
+finally back to Auto. All three `241/102` SET requests received matching
+replies and were confirmed through a newer direct C376 settings report. The
+direct field `1.4.8.7` followed `0 -> 1 -> 2 -> 0`, independently reconfirming
+`0` as Auto, `1` as one phase, and `2` as three phase. Device readback arrived
+in approximately 0.8 to 1.4 seconds for the observed transitions.
+
+The coordinator diagnostics ended with six direct control confirmations and
+zero provider confirmations. The normal phase sensor changed at the same time
+because it consumes the coordinator's merged value; it is not independent
+evidence of provider readback. Diagnostics from the concurrently installed
+EcoFlow Energy integration contained the MQTT frames but no current raw
+provider/quota snapshot exposing `phaseSpecified`. Its provider mapping
+therefore remains unresolved under `PHASE-01`; the direct-only safety gate is
+still required.
+
+An unreleased diagnostic-only change now keeps three observations separate:
+direct C376 `241/44`, the parent PowerOcean accessory provider report, and the
+wallbox device-detail provider report. For each source it records the last
+snapshot timestamp, whether `phase_specified_raw` and `phase_mode` were present
+in that snapshot, and the timestamp/value of the last valid observation. Only
+the four-character product prefix is retained. This does not map a provider
+value, alter merged coordinator data, expose a new entity, or relax the phase
+control gate; it supplies the evidence needed for the next controlled app
+sequence.
+
+The same controlled phase sequence also tested the remaining unassigned fast
+report byte fields. Sixteen direct frames were retained for each of Auto, one
+phase, three phase, and the final return to Auto (64 decoded frames total).
+Field `1.4.8.7` changed as expected through `0 -> 1 -> 2 -> 0`, while fields
+`1.4.8.5` and `1.4.8.9` remained byte-identical in all four samples. Field `5`
+retained two equal four-byte strings and two varints with value `15`; field `9`
+retained its mixture of empty byte fields and zero varints. This is a controlled
+negative result only: it excludes both fields as the direct phase-selection
+value but does not assign their positive meaning. `DATA-02` remains open.

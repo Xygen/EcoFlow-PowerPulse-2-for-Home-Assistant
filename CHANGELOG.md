@@ -8,6 +8,10 @@ Current outstanding work is maintained only in
 
 - Confirm the bundled icon renders correctly in Home Assistant 2026.8.3 and
   document the separate upstream HACS 2.0.5 placeholder limitation.
+- Add privacy-safe, source-separated phase diagnostics for direct `241/44`,
+  parent-accessory provider, and device-detail provider snapshots. Each source
+  records field presence, last snapshot time, and last valid raw observation
+  without changing entities or phase-control behavior.
 
 ## 0.1.0 - 2026-08-28
 

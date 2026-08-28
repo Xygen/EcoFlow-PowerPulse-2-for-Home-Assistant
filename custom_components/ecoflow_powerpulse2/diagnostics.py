@@ -69,6 +69,7 @@ async def async_get_config_entry_diagnostics(
         "mqtt_mode": "listen_only",
         "mqtt_capture_schema": 11,
         "passive_settings_refresh": coordinator.passive_settings_refresh,
+        "phase_readback_sources": coordinator.phase_readback_sources,
         "mqtt_frames": list(coordinator.mqtt_frames),
         "mqtt_command_frames": list(coordinator.mqtt_command_frames),
         "mqtt_request_frames": list(coordinator.mqtt_request_frames),
