@@ -6,6 +6,8 @@ Current outstanding work is maintained only in
 
 ## Unreleased
 
+## 0.1.1-beta.1 - 2026-08-29
+
 - Extend the charging-time safety interlock to the mode-specific controls
   confirmed locked by the official app: Custom charging current and all four
   Smart settings (ready-by time, target type, energy, and distance). The

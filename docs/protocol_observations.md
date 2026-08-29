@@ -1235,7 +1235,7 @@ second availability gap. The target-type control was already unavailable in
 that particular snapshot because the integration had not retained both target
 values; this is not evidence that its charging interlock was correct.
 
-The unreleased correction adds `user_current_set_raw`, `ready_by_timestamp`,
+The `0.1.1-beta.1` correction adds `user_current_set_raw`, `ready_by_timestamp`,
 `smart_target_type`, `smart_charge_target_wh`, and
 `smart_target_distance_km` to the common charging-locked key set. Number,
 select, and datetime availability uses the same keys, while the coordinator's
@@ -1248,3 +1248,13 @@ request was accepted, but the user intentionally pressed Stop again before the
 final state inspection because the vehicle should no longer charge. The later
 `unknown`/zero-power snapshot is therefore not treated as evidence of a failed
 Start request or a new charger-state mapping.
+
+## 2026-08-29: 0.1.1-beta.1 validation bundle
+
+The first post-0.1.0 preview bundles the source-separated phase readback
+diagnostics with the completed Custom/Smart charging interlocks. It deliberately
+does not change the selected charging-power source or phase-control fallback.
+The versioned ZIP retains the standard
+`custom_components/ecoflow_powerpulse2/...` layout. Live validation covers both
+the new diagnostic observations and the UI/backend safety gates before a stable
+0.1.1 release is considered.

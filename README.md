@@ -30,7 +30,7 @@ diagnostics.
 
 ## Current scope
 
-Version `0.1.0` keeps automatic MQTT activity listen-only and provides
+Version `0.1.1-beta.1` keeps automatic MQTT activity listen-only and provides
 disabled-by-default, user-triggered controls:
 
 - EcoFlow app-account login and PowerPulse discovery
@@ -134,7 +134,7 @@ The current roadmap, protocol investigations, safety tests, and release
 requirements are maintained only in the [project backlog](docs/backlog.md).
 The dev29 Start/Stop controls completed a reversible live vehicle test from
 Home Assistant. They remain disabled by default so users must still opt in to
-device control. Version 0.1.0 adds the confirmed cumulative/session energy and
+device control. Version 0.1.0 added the confirmed cumulative/session energy and
 numeric duration entities. Remaining protocol and safety work is tracked only
 in the backlog.
 

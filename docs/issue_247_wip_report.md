@@ -800,10 +800,19 @@ active Custom session. During an active Smart session it also prevents changes
 to ready-by time, target type, and the selected energy or distance value. The
 released HA entities did not yet mirror all of those restrictions.
 
-The unreleased implementation now routes Custom current and every Smart setting
+The `0.1.1-beta.1` implementation routes Custom current and every Smart setting
 through the same fail-closed charging-state helper already used for mode,
 phase, maximum current, Solar minimum current, and Continuous charging. This is
 enforced both in entity availability and immediately before publishing, so a
 direct service call cannot bypass the UI interlock. The full local suite passes
 with 78 tests; live validation of the next installed build remains tracked only
 as `SAFE-01` in the canonical backlog.
+
+## 0.1.1-beta.1 validation bundle (2026-08-29)
+
+The beta packages two independently useful test blocks: privacy-safe,
+source-separated phase observations and the completed Custom/Smart
+charging-time interlocks. No provider phase mapping, charging-power source, or
+runtime dependency on another EcoFlow integration is introduced. The release
+keeps the standard custom-component archive layout and is intended for one
+combined Home Assistant validation cycle before promotion to stable 0.1.1.
