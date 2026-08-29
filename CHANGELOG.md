@@ -8,6 +8,14 @@ Current outstanding work is maintained only in
 
 ## 0.1.1-beta.1 - 2026-08-29
 
+- Publish and install the prerelease through HACS using its explicit version,
+  then verify the integration loads on Home Assistant without a matching
+  runtime error.
+- Live-confirm the new source-separated phase diagnostics: the parent
+  PowerOcean accessory field follows `0/1/2` for Auto/one/three phase, while
+  the device-detail source omits the field.
+- Confirm the new Custom-current interlock remains available while stopped;
+  active-session validation of the Custom and Smart locks remains pending.
 - Extend the charging-time safety interlock to the mode-specific controls
   confirmed locked by the official app: Custom charging current and all four
   Smart settings (ready-by time, target type, energy, and distance). The

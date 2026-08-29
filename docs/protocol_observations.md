@@ -1258,3 +1258,35 @@ The versioned ZIP retains the standard
 `custom_components/ecoflow_powerpulse2/...` layout. Live validation covers both
 the new diagnostic observations and the UI/backend safety gates before a stable
 0.1.1 release is considered.
+
+The tagged prerelease was published with a 340,984-byte installation archive
+whose local and GitHub asset SHA-256 both equal
+`6f6e8aad10bb09f275ab73dce87c3d4c364ae06ffa94e8c8d7c44816730f9d3b`.
+HACS installed the explicit `v0.1.1-beta.1` version while correctly continuing
+to advertise stable `v0.1.0` as the normal latest version. After a valid config
+check and Core restart, the config entry was loaded, both MQTT data streams were
+active, and no `ecoflow_powerpulse2` system-log error was present.
+
+With the vehicle stopped, Custom mode exposed its 6 A current control together
+with maximum current and phase selection, confirming the new interlock did not
+break idle availability. Smart mode could not be selected from HA after the
+restart because the complete retained Smart block had not yet been republished;
+the coordinator correctly failed closed instead of inventing companion values.
+Active-session interlock validation remains open.
+
+The phase diagnostic test selected one phase and three phases separately,
+forced a provider refresh after each direct confirmation, and finally restored
+Auto. The parent PowerOcean accessory source followed `phaseSpecified` raw
+values `1`, `2`, and `0` respectively. The first three-phase provider poll still
+held the earlier `1`; a second poll after ten seconds delivered `2`, demonstrating
+why timestamped source separation is necessary. The wallbox device-detail source
+reported neither the raw nor mapped phase field in every snapshot. This confirms
+the parent-accessory mapping but does not yet change phase write confirmation.
+
+Immediately after the Core restart, a fresh heartbeat and non-zero power showed
+the charger active again even though the user had intentionally stopped it
+earlier. No HA Start action was issued after restart. A new Stop reached
+`charge_complete`; zero power/current followed and remained stable through the
+phase tests. Because Plug-and-Play and Solar Continuous charging were both on,
+the single observation is retained for controlled follow-up under `CTRL-03`
+rather than attributed to the HA restart.

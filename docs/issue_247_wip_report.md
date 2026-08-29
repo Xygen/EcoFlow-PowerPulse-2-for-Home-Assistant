@@ -816,3 +816,18 @@ charging-time interlocks. No provider phase mapping, charging-power source, or
 runtime dependency on another EcoFlow integration is introduced. The release
 keeps the standard custom-component archive layout and is intended for one
 combined Home Assistant validation cycle before promotion to stable 0.1.1.
+
+The published GitHub prerelease and its installation ZIP were hash-verified,
+then HACS installed the explicit beta version. Home Assistant loaded the entry
+after restart with both PowerPulse streams active and no matching integration
+error. Stopped-state validation kept the Custom-current, maximum-current, and
+phase controls available; the charging-state portion of `SAFE-01` remains open.
+
+The new diagnostic separation produced a complete provider mapping from the
+parent PowerOcean accessory report: raw `0`, `1`, and `2` aligned with fresh
+direct Auto, one-phase, and three-phase readback. The device-detail report did
+not contain the phase field. One deliberately repeated three-phase poll also
+captured the slower provider path retaining the preceding one-phase value before
+it advanced to `2`, validating the need for per-source timestamps and freshness
+checks. The mapping is now established, but it is not yet used as a phase-write
+fallback.
