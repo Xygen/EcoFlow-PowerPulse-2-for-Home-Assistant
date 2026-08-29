@@ -25,7 +25,7 @@ mapping yet.
 | --- | --- | --- | --- | --- |
 | Typical update | Continuous or event-driven | When a settings report is emitted | Approximately once per second | Normal poll every 30 seconds; the provider cache can lag |
 | Charging state | Field `1` | — | — | `chargingStatus` |
-| Charging power | Field `28` | — | — | `chargingPwr` |
+| Charging power | Field `28`, consistent with real power. One-phase and balanced three-phase comparisons produced plausible power factors of about 0.97-0.98 against simultaneous voltage/current summaries | — | — | `chargingPwr`; matched direct power closely in a stable one-phase observation, while one time-offset three-phase value happened to match `3 * maximum voltage * maximum current`. Its exact calculation remains unresolved because the paths are asynchronous and the direct phase entities are maxima, not per-phase sums |
 | Phase voltage | Field `29` | — | — | — |
 | Phase current | Field `30` | — | — | — |
 | Total charging energy | Field `9`, Wh. Across 357 history samples and several session resets it increased without a decrease; at about 1.29 kW it rose by 21–22 Wh/min. Exposed normally in kWh; raw diagnostics remain available | — | — | — |

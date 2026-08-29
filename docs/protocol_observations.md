@@ -1174,3 +1174,45 @@ retained two equal four-byte strings and two varints with value `15`; field `9`
 retained its mixture of empty byte fields and zero varints. This is a controlled
 negative result only: it excludes both fields as the direct phase-selection
 value but does not assign their positive meaning. `DATA-02` remains open.
+
+## 2026-08-29: one-phase real-power comparison
+
+A connected vehicle charged in Solar mode with phase selection set to Auto;
+the observed voltage and current identify the active session as one-phase.
+Six simultaneous direct samples from approximately 2.4 to 3.2 kW showed the
+direct power field consistently about 2.8-3.0% below voltage multiplied by
+current. During the later stable interval, direct power was `1246.9 W`, the
+provider `chargingPwr` value was `1244 W` and had last been reported 26 seconds
+earlier, while `229.3 V * 5.62 A` equalled `1288.7 VA`. The two power fields
+therefore differed by only about 0.23%, whereas the voltage/current product
+remained about 3.3% higher.
+
+This supports the direct field and `chargingPwr` as real-power readings and the
+simple voltage/current product as apparent power with a power factor near
+`0.97`. Earlier larger discrepancies are consistent with the paths' different
+cadences during changing Solar output: provider reports arrived approximately
+every 20-30 seconds, while the direct power/voltage/current set arrived about
+once per minute.
+
+A controlled follow-up stopped charging, selected three phases, restarted the
+session, collected two complete direct reports, and then restored Auto plus an
+active charging session. The two direct samples were `4070.7 W` at `231.6 V`
+and `5.95 A`, and `4066.5 W` at `231.7 V` and `5.95 A`. Multiplying the summary
+voltage and current by three produced `4134.1 VA` and `4135.8 VA`, for power
+factors of about `0.985` and `0.983`. Provider `chargingPwr` was `4135 W` during
+the first sample, but its timestamp preceded the direct sample by about 30
+seconds. This confirms the intended three-phase scale for this balanced
+session, while also confirming that a naive `U * I * 3` entity would represent
+an apparent-power estimate rather than a more accurate real-power replacement.
+It does not establish whether provider `chargingPwr` itself is real or apparent
+power: the paths are asynchronous and the exposed voltage/current values are
+the maxima of their phase arrays rather than three individually aligned pairs.
+No replacement sensor is justified; `DATA-07` is complete and has been removed
+from the canonical backlog.
+
+The Home Assistant Start service also exposed a tooling nuance during the
+test: the first synchronous MCP call returned `UNAVAILABLE` because the Start
+button becomes unavailable immediately after a successful transition, but a
+new heartbeat independently showed `charging`. A later non-waiting call
+returned success and the same expected post-start button state. Device behavior
+and the integration's heartbeat confirmation were correct.

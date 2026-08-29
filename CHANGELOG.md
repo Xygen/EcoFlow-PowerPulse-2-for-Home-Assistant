@@ -12,6 +12,10 @@ Current outstanding work is maintained only in
   parent-accessory provider, and device-detail provider snapshots. Each source
   records field presence, last snapshot time, and last valid raw observation
   without changing entities or phase-control behavior.
+- Complete one-phase and three-phase charging-power comparisons. The direct
+  field behaves as real power, while voltage times current (times three for the
+  balanced three-phase test) is apparent power; no calculated replacement
+  sensor is warranted on current evidence.
 
 ## 0.1.0 - 2026-08-28
 

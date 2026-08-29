@@ -766,3 +766,28 @@ The controlled Auto/one-phase/three-phase/Auto sequence additionally retained
 followed `0/1/2/0`, while unassigned byte fields `1.4.8.5` and `1.4.8.9`
 remained byte-identical. This excludes them as the direct phase selector but
 does not establish their meaning; that research remains solely in `DATA-02`.
+
+## One-phase power comparison (2026-08-29)
+
+A connected-vehicle Solar-mode session provided simultaneous direct power,
+voltage, and current samples plus provider `chargingPwr`. Across six changing
+load samples the direct power remained about 2.8-3.0% below `voltage * current`.
+At stable load, direct power was `1246.9 W`, provider `chargingPwr` was `1244 W`
+(reported 26 seconds earlier), and `229.3 V * 5.62 A` was `1288.7 VA`. This
+supports both reported power fields as real power and the simple product as
+apparent power with a power factor near 0.97. Different 20-30-second provider
+and roughly 60-second direct cadences explain misleading comparisons while
+Solar output changes.
+
+The controlled three-phase follow-up then produced `4070.7 W` at `231.6 V`
+and `5.95 A`, followed by `4066.5 W` at `231.7 V` and `5.95 A`. Three times
+voltage times current was `4134.1 VA` and `4135.8 VA`, corresponding to power
+factors near `0.985` and `0.983`; provider `chargingPwr` was `4135 W` about 30
+seconds before the first direct sample. Charging was stopped only for the phase
+change and the original Auto plus charging state was restored afterward. This
+completes the replacement-sensor question: the direct field is the appropriate
+real-power sensor and a naive calculation would add an apparent-power estimate,
+not a more accurate replacement. The provider field's exact real/apparent
+semantics are not inferred from this time-offset comparison, especially because
+the exposed phase voltage/current entities are maxima rather than per-phase
+pairs. `DATA-07` is therefore closed without an implementation change.
