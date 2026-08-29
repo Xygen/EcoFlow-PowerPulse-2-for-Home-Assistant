@@ -1216,3 +1216,35 @@ button becomes unavailable immediately after a successful transition, but a
 new heartbeat independently showed `charging`. A later non-waiting call
 returned success and the same expected post-start button state. Device behavior
 and the integration's heartbeat confirmation were correct.
+
+## 2026-08-29: Custom and Smart charging-time interlocks
+
+A connected-vehicle test completed the mode-specific part of the charging-time
+control matrix. In Custom mode at 6 A, Home Assistant started charging and the
+official app no longer displayed the Custom-current slider. The released HA
+entity incorrectly remained available, proving that Custom current must use the
+same charging interlock as mode, phase, and the two stored current limits.
+
+After stopping, Smart mode was selected in the official app without changing
+its retained target. HA received a ready-by timestamp and the retained 30 kWh
+energy target, then started a confirmed charging session. During charging, the
+official app allowed none of the Smart settings to be changed: ready-by time,
+energy/distance target type, and the active target value were all locked. The
+released HA ready-by and energy controls remained available, confirming the
+second availability gap. The target-type control was already unavailable in
+that particular snapshot because the integration had not retained both target
+values; this is not evidence that its charging interlock was correct.
+
+The unreleased correction adds `user_current_set_raw`, `ready_by_timestamp`,
+`smart_target_type`, `smart_charge_target_wh`, and
+`smart_target_distance_km` to the common charging-locked key set. Number,
+select, and datetime availability uses the same keys, while the coordinator's
+write path independently rejects direct service calls. The established
+charging-time exceptions remain unchanged: Plug-and-Play, battery-discharge
+blocking, screen, LED, and both brightness settings stay usable.
+
+After the test, Solar mode and Auto phase were restored. A subsequent Start
+request was accepted, but the user intentionally pressed Stop again before the
+final state inspection because the vehicle should no longer charge. The later
+`unknown`/zero-power snapshot is therefore not treated as evidence of a failed
+Start request or a new charger-state mapping.

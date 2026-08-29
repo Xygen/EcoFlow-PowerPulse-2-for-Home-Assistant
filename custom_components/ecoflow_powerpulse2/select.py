@@ -100,6 +100,9 @@ class PowerPulse2SmartTargetSelect(PowerPulse2Entity, SelectEntity):
             self.coordinator.settings_control_available(self.serial)
             and values.get("work_mode") == "smart"
             and self.coordinator.smart_target_type_control_available(self.serial)
+            and self.coordinator.charging_sensitive_control_available(
+                self.serial, "smart_target_type"
+            )
         )
 
     @property

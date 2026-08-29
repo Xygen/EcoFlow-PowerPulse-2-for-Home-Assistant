@@ -791,3 +791,19 @@ not a more accurate replacement. The provider field's exact real/apparent
 semantics are not inferred from this time-offset comparison, especially because
 the exposed phase voltage/current entities are maxima rather than per-phase
 pairs. `DATA-07` is therefore closed without an implementation change.
+
+## Mode-specific charging interlocks (2026-08-29)
+
+Connected-vehicle tests completed the remaining Custom- and Smart-mode safety
+matrix. The official app removes the 6-16 A Custom-current slider during an
+active Custom session. During an active Smart session it also prevents changes
+to ready-by time, target type, and the selected energy or distance value. The
+released HA entities did not yet mirror all of those restrictions.
+
+The unreleased implementation now routes Custom current and every Smart setting
+through the same fail-closed charging-state helper already used for mode,
+phase, maximum current, Solar minimum current, and Continuous charging. This is
+enforced both in entity availability and immediately before publishing, so a
+direct service call cannot bypass the UI interlock. The full local suite passes
+with 78 tests; live validation of the next installed build remains tracked only
+as `SAFE-01` in the canonical backlog.

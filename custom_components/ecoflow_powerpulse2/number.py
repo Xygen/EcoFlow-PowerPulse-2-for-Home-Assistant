@@ -104,6 +104,9 @@ class PowerPulse2CurrentNumber(PowerPulse2Entity, NumberEntity):
         locked_key = {
             "maximum_output_current_control": "output_current_max_raw",
             "solar_minimum_current_control": "solar_current_min_raw",
+            "custom_current_control": "user_current_set_raw",
+            "smart_energy_target_control": "smart_charge_target_wh",
+            "smart_distance_target_control": "smart_target_distance_km",
         }.get(self.entity_description.key)
         if locked_key and not self.coordinator.charging_sensitive_control_available(
             self.serial, locked_key

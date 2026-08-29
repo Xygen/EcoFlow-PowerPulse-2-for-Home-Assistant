@@ -9,7 +9,12 @@ def test_live_confirmed_settings_are_locked_while_charging() -> None:
         "continuous_charging",
         "output_current_max_raw",
         "phase_mode",
+        "ready_by_timestamp",
         "solar_current_min_raw",
+        "smart_charge_target_wh",
+        "smart_target_distance_km",
+        "smart_target_type",
+        "user_current_set_raw",
         "work_mode",
     }
     for key in CHARGING_LOCKED_SETTING_KEYS:

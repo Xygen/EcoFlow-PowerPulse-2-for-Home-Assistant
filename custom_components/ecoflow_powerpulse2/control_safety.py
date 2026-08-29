@@ -7,7 +7,12 @@ CHARGING_LOCKED_SETTING_KEYS = frozenset(
         "continuous_charging",
         "output_current_max_raw",
         "phase_mode",
+        "ready_by_timestamp",
         "solar_current_min_raw",
+        "smart_charge_target_wh",
+        "smart_target_distance_km",
+        "smart_target_type",
+        "user_current_set_raw",
         "work_mode",
     }
 )

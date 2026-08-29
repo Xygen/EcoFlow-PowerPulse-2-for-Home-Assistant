@@ -41,6 +41,9 @@ class PowerPulse2ReadyByDateTime(PowerPulse2Entity, DateTimeEntity):
             self.coordinator.settings_control_available(self.serial)
             and values.get("work_mode") == "smart"
             and isinstance(values.get("ready_by_timestamp"), int)
+            and self.coordinator.charging_sensitive_control_available(
+                self.serial, "ready_by_timestamp"
+            )
         )
 
     @property

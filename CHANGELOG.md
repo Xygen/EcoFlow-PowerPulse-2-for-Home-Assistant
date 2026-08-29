@@ -6,6 +6,11 @@ Current outstanding work is maintained only in
 
 ## Unreleased
 
+- Extend the charging-time safety interlock to the mode-specific controls
+  confirmed locked by the official app: Custom charging current and all four
+  Smart settings (ready-by time, target type, energy, and distance). The
+  entities now fail closed during charging and the coordinator independently
+  rejects direct service calls for the same fields.
 - Confirm the bundled icon renders correctly in Home Assistant 2026.8.3 and
   document the separate upstream HACS 2.0.5 placeholder limitation.
 - Add privacy-safe, source-separated phase diagnostics for direct `241/44`,
