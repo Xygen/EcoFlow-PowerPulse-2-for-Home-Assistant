@@ -45,10 +45,6 @@ Current implementation baseline: `0.1.1-beta.5`.
 
 ## Home Assistant entity model
 
-| ID | Priority | Open work | Completion evidence |
-| --- | --- | --- | --- |
-| `ENTITY-03` | Implemented locally; live validation pending | Keep Read-only setting observations and write Controls separate. Current observations now use exact source IDs, per-source TTLs and source precedence without public age/timestamp attributes or new polling. Healthy missing/stale fields become `unknown`; current Smart observations no longer fall back to remembered payload settings. The entity-role matrix classifies configuration mirrors and Controls while retaining primary charging/Smart functions. Raw fields remain diagnostics, unique IDs remain unchanged, and Controls retain their fail-closed gates. See [`docs/entity_model_analysis.md`](entity_model_analysis.md). | Install the next build and confirm current settings remain readable independently of Controls, healthy omitted/stale settings become `unknown`, fresh Direct values outrank Provider values, current Smart sensors do not show remembered values outside their valid report context, the Smart-energy registry migration preserves user-disabled entries, and configuration/diagnostic grouping matches the matrix. Then remove this item and close issue #6. |
-
 ## Deferred and release work
 
 | ID | Priority | Open work | Completion evidence |

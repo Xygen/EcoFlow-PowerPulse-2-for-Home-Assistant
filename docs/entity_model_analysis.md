@@ -566,3 +566,33 @@ Backend-, Transport-, Ladezustands- und Readback-Gates der Controls bleiben
 unverändert. Tests decken Source-Trennung und -Priorität, TTL-Ablauf, fehlende
 Felder in partiellen Reports, `unknown` für Boolean Settings, Entity-Rollen und
 die enge Registry-Migration ab. Live-Validierung bleibt vor Abschluss nötig.
+
+## Validierung ohne Fahrzeug
+
+Stand: 2026-08-31
+
+Die Validierung erfolgte read-only an der geladenen Home-Assistant-Integration
+im Leerlauf (`charging = off`, Direct-Status `unplugged`). Beide Direct-Streams
+waren verbunden und die abgefragten Einstellungen meldeten einen frischen,
+gleichen Aktualisierungszeitpunkt.
+
+- Die unabhängigen Observations und Controls für Maximalstrom (16 A),
+  Solar-Mindeststrom (6 A), Betriebsmodus (`solar`) und Phaseneinstellung
+  (`auto`) waren jeweils gleichzeitig lesbar und stimmten überein.
+- Ohne aktiven Smart-Kontext waren die Smart-Observations `unknown`, während
+  die Smart-Controls erwartungsgemäß `unavailable` waren. Somit wird kein
+  intern erinnerter Smart-Payloadwert als aktueller Gerätezustand angezeigt.
+- Die Entity-Registry bestätigt unveränderte, getrennte Unique IDs für
+  Observation und Control sowie die beabsichtigte Einordnung der Raw-Entity.
+  In dieser Installation war keine Smart-Energie-Entity durch den Nutzer
+  deaktiviert; diese spezielle Migration ist daher nicht live reproduzierbar.
+- Die gezielten Regressionstests liefen mit 16 bestanden Tests. Sie decken
+  fehlende und abgelaufene Beobachtungen, partielle Reports, die Priorität eines
+  frischen Direct-Werts vor einem neueren Provider-Wert, das spätere
+  Provider-Fallback sowie die Erhaltung einer nutzerseitigen Deaktivierung ab.
+- Das Home-Assistant-Systemlog enthielt keine Einträge für
+  `ecoflow_powerpulse2`.
+
+Damit ist ENTITY-03 ohne Fahrzeug ausreichend validiert. Ein Fahrzeug wäre nur
+für zusätzliche Betriebszustandsabdeckung nützlich, nicht für den
+Entity-/Freshness-Vertrag dieses Items.
