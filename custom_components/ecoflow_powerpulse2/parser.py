@@ -562,6 +562,20 @@ def _parse_cp307_heartbeat(payload: bytes) -> dict[str, Any]:
     if phase_currents:
         result["phase_current_a"] = round(max(phase_currents), 2)
     _finish(result)
+    # Preserve the original direct CP307 heartbeat as its own entity source.
+    # Canonical keys remain for control safety and backwards-compatible merge
+    # behavior, while these aliases cannot be overwritten by provider polls.
+    for key in (
+        "charging_power_w",
+        "charging_status",
+        "phase_voltage_v",
+        "phase_current_a",
+        "session_duration_s",
+        "session_energy_raw",
+        "total_energy_raw",
+    ):
+        if key in result:
+            result[f"direct_{key}"] = result[key]
     return result
 
 

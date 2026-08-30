@@ -127,6 +127,31 @@ below contained no `209/8` frame at all. Raw parent payloads are retained only
 through the upstream integration's privacy-masked diagnostic capture because
 they can bundle charger, battery, and vehicle identifiers.
 
+The local DATA-09 implementation on 2026-08-30 uses the four coherent session
+values independently supported by current protocol evidence. For PowerPulse 2
+they arrive on accessory relay `241/3`: charging power at `4.6` (whole W),
+session energy at `4.8.5` (Wh), duration at `4.8.6` (s), and native EVSE status
+at `4.4`. The equivalent `209/8` form is accepted for compatibility but does
+not coexist on the same PowerOcean. The values use a common `PowerOcean`
+entity-name prefix; original CP307 heartbeat values retain a separate `Direct
+wallbox` prefix without changing unique IDs.
+The target serial is used only for exact in-memory routing, vehicle identifiers
+are discarded, and unconfirmed/redundant fields do not become entities. Live
+receipt and cadence of `241/3` on the standalone observer remain to be
+validated in a charging build.
+
+Version `0.1.1-beta.3` packages this source-separated entity model. Follow-up
+item DATA-10 deliberately keeps the remaining PowerOcean wallbox fields in
+scope for completeness, including potentially redundant settings and session
+metadata. Useful duplicates may be disabled by default; identifiers remain
+subject to a separate privacy decision rather than being exposed implicitly.
+The release archive was structurally verified with 39 entries only under the
+required `custom_components/ecoflow_powerpulse2` path, no cache files, complete
+manifest/translations/brand assets, and SHA-256
+`3B2BD6C028864A3A94C4A673F01A663165EA74B81C12849E67C303FED9A30DD3`. All 86
+local tests and Ruff checks passed; live `241/3` receipt remains the separate
+Home Assistant validation step.
+
 Later live diagnostics also captured 24 frames on the linked PowerOcean's
 official-app property-SET topic. Their envelope headers consistently contained
 `cmd_func=96`, `cmd_id=97`, and a two-byte `pdata`; several sequences were

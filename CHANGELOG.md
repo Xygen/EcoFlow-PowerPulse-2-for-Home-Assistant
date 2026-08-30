@@ -6,6 +6,26 @@ Current outstanding work is maintained only in
 
 ## Unreleased
 
+## 0.1.1-beta.3 - 2026-08-30
+
+- Keep the existing CP307 heartbeat telemetry under a consistently named
+  `Direct wallbox` group without changing its entity unique IDs or allowing
+  provider polls to overwrite the source-specific values.
+- Add a separate `PowerOcean` entity group for the confirmed PowerPulse 2
+  `241/3` session power, charging status, energy, and duration fields, with the
+  equivalent `209/8` form supported by the same internal mapping. Exact
+  charger-serial routing is internal; vehicle identifiers and unconfirmed
+  fields are dropped.
+- Document the source and freshness difference behind DATA-09 and leave live
+  standalone-observer validation open before the next prerelease.
+- Add DATA-10 to investigate the remaining PowerOcean wallbox fields with
+  completeness taking priority over avoiding temporary, disabled-by-default
+  duplicates, while retaining explicit privacy boundaries for identifiers.
+- Verify the release archive contains 39 files exclusively below
+  `custom_components/ecoflow_powerpulse2`, includes both brand assets and all
+  required translations, and passes the complete 86-test suite plus Ruff and
+  JSON validation.
+
 ## 0.1.1-beta.2 - 2026-08-30
 
 - Increase only the Start device-readback window from 15 to 30 seconds after a

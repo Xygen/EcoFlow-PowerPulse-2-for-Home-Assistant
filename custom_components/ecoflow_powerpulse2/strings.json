@@ -36,9 +36,9 @@
       "reconnect_direct_data_stream": {"name": "Reconnect direct data stream"}
     },
     "sensor": {
-      "charging_power": {"name": "Charging power"},
-      "charging_status": {
-        "name": "Charging status",
+      "direct_charging_power": {"name": "Direct wallbox – Charging power"},
+      "direct_charging_status": {
+        "name": "Direct wallbox – Charging status",
         "state": {
           "unknown": "Unknown",
           "unplugged": "Unplugged",
@@ -61,17 +61,33 @@
         }
       },
       "ready_by": {"name": "Ready by"},
-      "phase_voltage": {"name": "Phase voltage"},
-      "phase_current": {"name": "Phase current"},
-      "session_duration": {"name": "Session duration"},
-      "session_energy": {"name": "Charging session energy"},
+      "direct_phase_voltage": {"name": "Direct wallbox – Phase voltage"},
+      "direct_phase_current": {"name": "Direct wallbox – Phase current"},
+      "direct_session_duration": {"name": "Direct wallbox – Session duration"},
+      "direct_session_energy": {"name": "Direct wallbox – Session energy"},
       "smart_charge_target": {"name": "Smart energy target"},
       "smart_target_type": {"name": "Smart target type", "state": {"energy": "Energy", "distance": "Distance"}},
       "smart_target_distance": {"name": "Smart distance target"},
       "smart_calculated_energy": {"name": "Calculated Smart energy"},
-      "total_energy_raw": {"name": "Total energy raw"},
-      "total_energy": {"name": "Total charging energy"},
-      "session_energy_raw": {"name": "Session energy raw"},
+      "direct_total_energy_raw": {"name": "Direct wallbox – Total energy raw"},
+      "direct_total_energy": {"name": "Direct wallbox – Total charging energy"},
+      "direct_session_energy_raw": {"name": "Direct wallbox – Session energy raw"},
+      "powerocean_charging_power": {"name": "PowerOcean – Charging power"},
+      "powerocean_charging_status": {
+        "name": "PowerOcean – Charging status",
+        "state": {
+          "none": "No charging session",
+          "available": "Available",
+          "preparing": "Preparing",
+          "charging": "Charging",
+          "suspended_charger": "Suspended by charger",
+          "suspended_vehicle": "Suspended by vehicle",
+          "finishing": "Finishing",
+          "faulted": "Faulted"
+        }
+      },
+      "powerocean_session_duration": {"name": "PowerOcean – Session duration"},
+      "powerocean_session_energy": {"name": "PowerOcean – Session energy"},
       "charge_current_set_raw": {"name": "Charge current set raw"},
       "current_limit_raw": {"name": "Current limit raw"},
       "maximum_output_current": {"name": "Maximum output current"},

@@ -181,6 +181,46 @@ pending direct evidence. The no-car settings capture below contained no
 `209/8` report at all, so it neither confirms nor disproves either field
 meaning.
 
+### 2026-08-30: production-safe PowerOcean session subset
+
+DATA-09 compared the existing CP307 heartbeat power with the EcoFlow Energy
+integration's PowerOcean-forwarded wallbox power. The latter is not calculated
+from voltage and current: it uses the native power value from a coherent
+session report and receives snapshots at a materially faster cadence.
+Stable-load comparisons brought both power values close together; the large
+differences during changing Solar power were primarily freshness differences.
+
+Current upstream reporter evidence distinguishes two compatible envelopes. A
+PowerPulse 2 (`C376`) uses the PowerOcean accessory relay `241/3`, with status
+at nested field `4.4`, whole-watt power at `4.6`, session energy in Wh at
+`4.8.5`, and duration in seconds at `4.8.6`. The older `209/8`
+`EVChargingParamReport` form carries the equivalent values at fields 6, 8, 9,
+and 11. The integration decodes both confirmed shapes but maps them to the same
+four PowerOcean entity keys because the report families do not coexist for one
+charger.
+
+The charger serial is used ephemerally to route the parent report to the exact
+C376 device and is never included in diagnostics or entity state. Vehicle
+identifiers are discarded. The parser rejects other command IDs, non-finite
+floats and reports without an exact known charger serial.
+
+The original CP307 values remain separate through `direct_*` aliases. Existing
+entity unique IDs are retained, while displayed names use a common `Wallbox
+direct` prefix; the new four sensors use a common `PowerOcean` prefix. A live
+charging build must still confirm that this installation's passive observer
+receives `241/3` without depending on the separately installed EcoFlow Energy
+integration.
+
+This implementation is packaged as `0.1.1-beta.3`. DATA-10 separately retains
+the completeness work for the remaining relay fields. Temporary duplicate
+entities are acceptable when they provide useful source comparison, but new
+fields still require confirmed semantics and privacy review before exposure.
+The generated archive contains 39 entries exclusively below
+`custom_components/ecoflow_powerpulse2`, no Python cache files, and all required
+manifest, translation and brand files. Its SHA-256 is
+`3B2BD6C028864A3A94C4A673F01A663165EA74B81C12849E67C303FED9A30DD3`; the full
+local suite completed with 86 passing tests.
+
 ## 2026-08-24: Solar continuous-charging bit
 
 Paired provider snapshots confirmed that `paramSet.switchBits & 0x10` is the

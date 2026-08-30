@@ -14,6 +14,7 @@ from custom_components.ecoflow_powerpulse2.frame_capture import (
     inspect_get_request,
     inspect_observer_command_payloads,
     inspect_powerpulse_accessory_reports,
+    parse_powerocean_charging_reports,
 )
 
 
@@ -155,6 +156,142 @@ def test_powerocean_accessory_report_is_numeric_and_privacy_safe() -> None:
     ]
     assert "serial-secret" not in repr(result)
     assert "vehicle-secret" not in repr(result)
+
+
+def test_powerocean_charging_report_maps_confirmed_session_values() -> None:
+    report = b"".join(
+        (
+            encode_field_bytes(1, b"C376TEST"),
+            encode_field_varint(5, 1),
+            encode_field_varint(6, 3),
+            bytes(((8 << 3) | 5,)) + pack("<f", 6676.0),
+            bytes(((9 << 3) | 5,)) + pack("<f", 1815.0),
+            encode_field_varint(10, 2),
+            encode_field_varint(11, 987),
+            encode_field_varint(18, 9),
+            encode_field_bytes(14, b"vehicle-secret"),
+        )
+    )
+    header = b"".join(
+        (
+            encode_field_bytes(1, report),
+            encode_field_varint(8, 209),
+            encode_field_varint(9, 8),
+        )
+    )
+
+    result = parse_powerocean_charging_reports(encode_field_bytes(1, header))
+
+    assert result == [
+        {
+            "target_serial": "C376TEST",
+            "powerocean_charging_status": "charging",
+            "powerocean_charging_power_w": 6676.0,
+            "powerocean_session_energy_wh": 1815.0,
+            "powerocean_session_duration_s": 987,
+        }
+    ]
+    assert "vehicle-secret" not in repr(result)
+
+
+def test_powerocean_charging_report_ignores_other_209_variants() -> None:
+    report = encode_field_bytes(1, b"C376TEST") + bytes(
+        ((8 << 3) | 5,)
+    ) + pack("<f", 1234.0)
+    header = b"".join(
+        (
+            encode_field_bytes(1, report),
+            encode_field_varint(8, 209),
+            encode_field_varint(9, 33),
+        )
+    )
+
+    assert parse_powerocean_charging_reports(encode_field_bytes(1, header)) == []
+
+
+def test_powerocean_charging_report_decodes_xor_envelope() -> None:
+    report = b"".join(
+        (
+            encode_field_bytes(1, b"C376TEST"),
+            encode_field_varint(6, 4),
+            bytes(((8 << 3) | 5,)) + pack("<f", 0.0),
+        )
+    )
+    sequence = 1234
+    key = sequence & 0xFF
+    encrypted = bytes(byte ^ key for byte in report)
+    header = b"".join(
+        (
+            encode_field_bytes(1, encrypted),
+            encode_field_varint(6, 1),
+            encode_field_varint(8, 209),
+            encode_field_varint(9, 8),
+            encode_field_varint(14, sequence),
+        )
+    )
+
+    assert parse_powerocean_charging_reports(encode_field_bytes(1, header)) == [
+        {
+            "target_serial": "C376TEST",
+            "powerocean_charging_status": "suspended_charger",
+            "powerocean_charging_power_w": 0.0,
+        }
+    ]
+
+
+def test_powerocean_241_3_report_maps_powerpulse2_session() -> None:
+    device_info = b"".join(
+        (
+            encode_field_varint(1, 215),
+            encode_field_bytes(2, b"C376TEST"),
+            encode_field_varint(3, 1),
+        )
+    )
+    order = b"".join(
+        (
+            encode_field_varint(1, 12345),
+            encode_field_varint(2, 1),
+            encode_field_varint(5, 364),
+            encode_field_varint(6, 1080),
+        )
+    )
+    vehicle = encode_field_bytes(2, b"vehicle-secret")
+    pile = b"".join(
+        (
+            encode_field_varint(4, 3),
+            encode_field_varint(6, 1355),
+            encode_field_bytes(7, vehicle),
+            encode_field_bytes(8, order),
+        )
+    )
+    report = b"".join(
+        (
+            encode_field_bytes(1, device_info),
+            encode_field_bytes(3, b"unrelated-accessory"),
+            encode_field_bytes(4, pile),
+        )
+    )
+    header = b"".join(
+        (
+            encode_field_bytes(1, report),
+            encode_field_varint(8, 241),
+            encode_field_varint(9, 3),
+        )
+    )
+
+    result = parse_powerocean_charging_reports(encode_field_bytes(1, header))
+
+    assert result == [
+        {
+            "target_serial": "C376TEST",
+            "powerocean_charging_status": "charging",
+            "powerocean_charging_power_w": 1355,
+            "powerocean_session_energy_wh": 364,
+            "powerocean_session_duration_s": 1080,
+        }
+    ]
+    assert "vehicle-secret" not in repr(result)
+    assert "unrelated-accessory" not in repr(result)
 
 
 def test_small_observer_command_is_xor_decoded_without_raw_bytes() -> None:

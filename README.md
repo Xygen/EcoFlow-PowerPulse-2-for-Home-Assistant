@@ -30,12 +30,18 @@ diagnostics.
 
 ## Current scope
 
-Version `0.1.1-beta.2` keeps automatic MQTT activity listen-only and provides
+Version `0.1.1-beta.3` keeps automatic MQTT activity listen-only and provides
 disabled-by-default, user-triggered controls:
 
 - EcoFlow app-account login and PowerPulse discovery
 - listen-only cloud MQTT connection (WSS)
-- charging state and charging power from known CP307 heartbeat fields
+- a retained, explicitly named **Direct wallbox** telemetry group from the
+  known CP307 heartbeat fields: charging state and power, phase voltage and
+  current, session duration and energy, and cumulative charging energy
+- a separate **PowerOcean** session group decoded from the linked inverter's
+  coherent PowerPulse 2 accessory-relay report (`241/3`): charging power and
+  state plus session duration and energy. The compatible `209/8` session form
+  is also understood, but neither path overwrites the direct wallbox entities
 - operating mode, Smart ready-by time, and Smart energy target from the
   provider snapshot when EcoFlow reports them
 - Smart target type and distance from the fast direct report, including the
@@ -72,7 +78,8 @@ disabled-by-default, user-triggered controls:
 - maximum output current, Plug-and-Play, phase selection, battery-discharge
   blocking, screen/LED state, and both brightness settings from the live-
   confirmed CP307 settings report
-- optional voltage, current, duration, and raw diagnostic values when reported
+- optional direct-wallbox voltage, current, duration, and raw diagnostic values
+  when reported
 - cumulative and per-session charging energy as normal kWh sensors, converted
   from the confirmed Wh heartbeat fields while retaining their raw diagnostics
 - numeric session duration in seconds with Home Assistant's duration metadata;

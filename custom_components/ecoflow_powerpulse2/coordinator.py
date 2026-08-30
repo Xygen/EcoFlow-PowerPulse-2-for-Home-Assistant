@@ -50,6 +50,7 @@ from .frame_capture import (
     inspect_envelope_headers,
     inspect_get_request,
     inspect_powerpulse_accessory_reports,
+    parse_powerocean_charging_reports,
 )
 from .parser import extract_powerpulse_accessory_descriptor, parse_powerpulse2_payload
 from .passive_refresh import ConfirmedSettingsReplyGate, DelayedRefreshCoalescer
@@ -440,6 +441,32 @@ class PowerPulse2Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
         accessory_reports = (
             inspect_powerpulse_accessory_reports(payload) if is_observer else []
         )
+        charging_reports = (
+            parse_powerocean_charging_reports(payload)
+            if is_observer and channel_carries_telemetry(channel)
+            else []
+        )
+        for report in charging_reports:
+            target_serial = report.get("target_serial")
+            if not isinstance(target_serial, str):
+                continue
+            matched_serial = next(
+                (
+                    device_serial
+                    for device_serial in self.devices
+                    if device_serial.upper() == target_serial.upper()
+                ),
+                None,
+            )
+            if matched_serial is None:
+                continue
+            updated = dict(self.data or {})
+            values = dict(updated.get(matched_serial, {}))
+            values.update(
+                {key: value for key, value in report.items() if key != "target_serial"}
+            )
+            updated[matched_serial] = values
+            self.async_set_updated_data(updated)
         command_payloads = (
             self._frame_capture.inspect_observer_command_payloads(payload)
             if is_observer and channel in COMMAND_CHANNELS
@@ -457,6 +484,14 @@ class PowerPulse2Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
             "parsed_keys": sorted(parsed),
             "protocol_headers": protocol_headers,
             "powerpulse_accessory_reports": accessory_reports,
+            "powerocean_session_reports": [
+                {
+                    key: value
+                    for key, value in report.items()
+                    if key != "target_serial"
+                }
+                for report in charging_reports
+            ],
             "observer_command_payloads": command_payloads,
             "get_request": (
                 inspect_get_request(payload) if channel == "observed_get" else {}

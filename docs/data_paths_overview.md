@@ -58,6 +58,34 @@ main settings read paths. Restoring the Solar minimum from 7 A to 6 A updated
 the Home Assistant entities after about 1.77 seconds through `241/44`; the
 provider fallback completed only about 20.26 seconds after the app SET.
 
+## Separate direct-wallbox and PowerOcean session entities
+
+The existing CP307 heartbeat sensors remain separate and keep their established
+unique IDs. Their displayed names now share the `Wallbox direct` / `Wallbox
+direkt` prefix so the source is explicit. Provider polls may still update the
+coordinator's canonical values for control safety, but cannot overwrite the
+new `direct_*` source aliases used by these entities.
+
+The linked PowerOcean's PowerPulse 2 accessory-relay report `241/3` is exposed
+as a second, consistently named `PowerOcean` group. Its nested
+`pileChargingParamReport` contains one coherent session snapshot rather than a
+lifetime meter. The parser also understands the equivalent `209/8`
+`EVChargingParamReport` used by the other PowerPulse route:
+
+| PowerOcean entity | PowerPulse 2 `241/3` field | Compatible `209/8` field | Unit / mapping |
+| --- | --- | --- | --- |
+| Charging power | `4.6` (`charging_pwr`) | `8` (`ev_pwr`) | W; native reported real power |
+| Charging status | `4.4` (`charging_status`) | `6` (`charging_status`) | Native EVSE states: none, available, preparing, charging, suspended by charger/vehicle, finishing, faulted |
+| Session energy | `4.8.5` (`order_charging_energy`) | `9` (`ev_charging_energy`) | Wh on the wire, presented as kWh; resets with a new session |
+| Session duration | `4.8.6` (`order_time`) | `11` (`order_time`) | seconds; resets with a new session |
+
+Fields for the charger serial, vehicle IDs, operating mode, Plug-and-Play,
+timestamps, grid preference and settings flags also exist in the report. They
+are deliberately not added as entities: serials are used only internally for
+routing, vehicle IDs are privacy-sensitive, and the remaining fields are
+redundant or need more local validation. Other `209` or `241` command IDs are
+not accepted as this coherent session report.
+
 ## Observed write and research paths
 
 These paths are useful for protocol research but are not currently used as

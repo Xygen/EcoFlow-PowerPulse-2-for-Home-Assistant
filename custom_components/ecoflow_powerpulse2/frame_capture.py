@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hmac
 import json
+import math
 from collections import OrderedDict
 from hashlib import sha256
 from secrets import token_bytes
@@ -377,6 +378,153 @@ def inspect_powerpulse_accessory_reports(payload: bytes) -> list[dict[str, Any]]
     except ValueError:
         return []
     return reports
+
+
+_POWER_OCEAN_CHARGING_STATUS = {
+    0: "none",
+    1: "available",
+    2: "preparing",
+    3: "charging",
+    4: "suspended_charger",
+    5: "suspended_vehicle",
+    6: "finishing",
+    9: "faulted",
+}
+
+
+def parse_powerocean_charging_reports(payload: bytes) -> list[dict[str, Any]]:
+    """Decode confirmed session telemetry from PowerOcean 241/3 or 209/8.
+
+    Unlike the privacy-safe diagnostic summary, this internal parser retains
+    the target serial just long enough for the coordinator to route the report
+    to the correct charger. Vehicle identifiers and unconfirmed fields are
+    deliberately not returned.
+    """
+    reports: list[dict[str, Any]] = []
+    try:
+        for field, wire, header_bytes in iter_protobuf_fields(payload):
+            if field != 1 or wire != 2 or not isinstance(header_bytes, bytes):
+                continue
+            header_fields = list(iter_protobuf_fields(header_bytes))
+            varints = {
+                inner_field: inner_value
+                for inner_field, inner_wire, inner_value in header_fields
+                if inner_wire == 0 and isinstance(inner_value, int)
+            }
+            command = (varints.get(8), varints.get(9))
+            if command not in ((209, 8), (241, 3)):
+                continue
+            for inner_field, inner_wire, inner_value in header_fields:
+                if (
+                    inner_field != 1
+                    or inner_wire != 2
+                    or not isinstance(inner_value, bytes)
+                ):
+                    continue
+                report_payload = inner_value
+                if varints.get(6) == 1 and isinstance(varints.get(14), int):
+                    key = varints[14] & 0xFF
+                    report_payload = bytes(byte ^ key for byte in report_payload)
+                report = (
+                    _parse_powerocean_charging_report(report_payload)
+                    if command == (209, 8)
+                    else _parse_powerocean_relay_charging_report(report_payload)
+                )
+                if report:
+                    reports.append(report)
+    except ValueError:
+        return []
+    return reports
+
+
+def _parse_powerocean_charging_report(payload: bytes) -> dict[str, Any]:
+    """Decode the confirmed, entity-safe subset of EVChargingParamReport."""
+    result: dict[str, Any] = {}
+    try:
+        for field, wire, value in iter_protobuf_fields(payload):
+            if field == 1 and wire == 2 and isinstance(value, bytes):
+                try:
+                    target_serial = value.decode("ascii")
+                except UnicodeDecodeError:
+                    continue
+                if target_serial:
+                    result["target_serial"] = target_serial.upper()
+            elif field == 6 and wire == 0 and isinstance(value, int):
+                status = _POWER_OCEAN_CHARGING_STATUS.get(value)
+                if status is not None:
+                    result["powerocean_charging_status"] = status
+            elif field in (11,) and wire == 0 and isinstance(value, int):
+                result["powerocean_session_duration_s"] = value
+            elif field in (8, 9) and wire == 5 and isinstance(value, bytes):
+                number = unpack("<f", value)[0]
+                if not math.isfinite(number):
+                    continue
+                if field == 8:
+                    result["powerocean_charging_power_w"] = round(number, 1)
+                else:
+                    result["powerocean_session_energy_wh"] = round(number, 1)
+    except ValueError:
+        return {}
+
+    if "target_serial" not in result:
+        return {}
+    return result
+
+
+def _parse_powerocean_relay_charging_report(payload: bytes) -> dict[str, Any]:
+    """Decode the PowerPulse 2 session nested in PowerOcean relay 241/3."""
+    result: dict[str, Any] = {}
+    try:
+        for field, wire, value in iter_protobuf_fields(payload):
+            if wire != 2 or not isinstance(value, bytes):
+                continue
+            if field == 1:
+                for nested_field, nested_wire, nested_value in iter_protobuf_fields(
+                    value
+                ):
+                    if (
+                        nested_field == 2
+                        and nested_wire == 2
+                        and isinstance(nested_value, bytes)
+                    ):
+                        try:
+                            target_serial = nested_value.decode("ascii")
+                        except UnicodeDecodeError:
+                            continue
+                        if target_serial:
+                            result["target_serial"] = target_serial.upper()
+            elif field == 4:
+                _parse_powerocean_relay_pile_report(value, result)
+    except ValueError:
+        return {}
+
+    if "target_serial" not in result:
+        return {}
+    return result
+
+
+def _parse_powerocean_relay_pile_report(
+    payload: bytes, result: dict[str, Any]
+) -> None:
+    """Decode the entity-safe EDevPileChargingParamReport subset."""
+    for field, wire, value in iter_protobuf_fields(payload):
+        if wire == 0 and isinstance(value, int):
+            if field == 4:
+                status = _POWER_OCEAN_CHARGING_STATUS.get(value)
+                if status is not None:
+                    result["powerocean_charging_status"] = status
+            elif field == 6:
+                result["powerocean_charging_power_w"] = value
+        elif field == 8 and wire == 2 and isinstance(value, bytes):
+            for nested_field, nested_wire, nested_value in iter_protobuf_fields(
+                value
+            ):
+                if nested_wire != 0 or not isinstance(nested_value, int):
+                    continue
+                if nested_field == 5:
+                    result["powerocean_session_energy_wh"] = nested_value
+                elif nested_field == 6:
+                    result["powerocean_session_duration_s"] = nested_value
 
 
 def _summarize_accessory_report(payload: bytes) -> dict[str, Any]:

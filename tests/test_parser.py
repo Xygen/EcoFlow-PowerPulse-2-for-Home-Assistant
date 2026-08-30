@@ -55,6 +55,13 @@ def test_cp307_heartbeat_inside_cloud_envelope() -> None:
     assert result["phase_current_a"] == 17.0
     assert result["session_duration_s"] == 720
     assert result["session_energy_raw"] == 449
+    assert result["direct_charging_status"] == "charging"
+    assert result["direct_charging_power_w"] == 3929.0
+    assert result["direct_phase_voltage_v"] == 231.4
+    assert result["direct_phase_current_a"] == 17.0
+    assert result["direct_session_duration_s"] == 720
+    assert result["direct_session_energy_raw"] == 449
+    assert result["direct_total_energy_raw"] == 94708
 
 
 def test_need_ack_does_not_trigger_xor_decoding() -> None:
