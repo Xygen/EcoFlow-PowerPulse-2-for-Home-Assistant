@@ -17,6 +17,9 @@ Current outstanding work is maintained only in
 - Classify the Smart distance sensor as distance with the native kilometre
   constant, and group the screen/LED switches and brightness controls under
   device configuration.
+- Live-confirm the Home Assistant device page groups Bildschirm,
+  Bildschirmhelligkeit, LED-Anzeige, and LED-Helligkeit together under
+  **Configuration** after installing the prerelease.
 - Complete the numeric state-class review without marking configuration
   targets, brightness values, or raw diagnostics as measurements. Existing
   physical telemetry and energy totals already carry the appropriate classes.

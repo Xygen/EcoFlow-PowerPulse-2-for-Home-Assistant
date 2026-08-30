@@ -867,3 +867,10 @@ switches and brightness controls. The state-class audit found no missing class
 on physical telemetry; configuration targets, brightness settings, and raw
 diagnostics intentionally remain without measurement state classes. The bundle
 changes no protocol mapping, command payload, or entity unique ID.
+
+The installed prerelease then confirmed the metadata at both registry and UI
+level. Home Assistant exposed the intended current, energy, and distance
+classes with native units, while the device page grouped Bildschirm,
+Bildschirmhelligkeit, LED-Anzeige, and LED-Helligkeit together under
+**Configuration**. Issue #5 / `ENTITY-02` is therefore complete and no longer
+appears in the canonical backlog.

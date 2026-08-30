@@ -1372,3 +1372,12 @@ entities. No measurement state class was added to targets, brightness values,
 or raw diagnostics because they are configuration or protocol values rather
 than physical measurement series. No protocol path, payload, or unique ID is
 changed.
+
+After installation and restart, Home Assistant's live entity registry reported
+the intended current, energy, and distance device classes and the native `A`,
+`kWh`, and `km` units. It also reported `entity_category=config` for both
+screen/LED switches and both brightness controls. The subsequent user-provided
+device-page screenshot visually confirmed that all four appear together under
+**Configuration**: Bildschirm, Bildschirmhelligkeit, LED-Anzeige, and
+LED-Helligkeit. This completes the metadata cleanup without changing entity
+IDs; `ENTITY-02` has been removed from the canonical backlog.
