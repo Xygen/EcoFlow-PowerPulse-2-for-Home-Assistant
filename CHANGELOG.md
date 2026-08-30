@@ -6,6 +6,22 @@ Current outstanding work is maintained only in
 
 ## Unreleased
 
+- Implement the code side of issue #6 / `ENTITY-03` using the revised entity
+  model analysis. Read-only settings remain the canonical visible
+  observations, while writable Controls remain separate, default-disabled and
+  protected by all existing fail-closed gates. Internal observation state now
+  distinguishes the three Direct and two Provider source families, applies
+  source precedence and bounded per-source freshness, and returns `unknown`
+  for omitted or stale fields without publishing continuously changing age or
+  timestamp attributes.
+- Promote the Smart energy target from a disabled diagnostic sensor to a
+  canonical normal sensor. Existing entries disabled by the integration are
+  enabled once; explicit user-disabled entries are preserved. Raw and
+  technical duplicate fields remain disabled diagnostics. Current Smart
+  observations do not fall back to remembered Control payload settings;
+  configuration mirrors and Controls receive their classified Diagnostic or
+  Configuration role. No entity unique ID or protocol write path changes.
+
 ## 0.1.1-beta.4 - 2026-08-30
 
 - Implement the code side of issue #4 / `ENTITY-01` for normal sensors only.

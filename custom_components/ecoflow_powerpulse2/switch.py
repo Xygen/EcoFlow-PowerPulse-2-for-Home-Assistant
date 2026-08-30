@@ -27,6 +27,7 @@ async def async_setup_entry(
             SwitchEntityDescription(
                 key="battery_discharge_control",
                 translation_key="battery_discharge_control",
+                entity_category=EntityCategory.CONFIG,
             ),
             SwitchEntityDescription(
                 key="continuous_charging_control",
@@ -35,6 +36,7 @@ async def async_setup_entry(
             SwitchEntityDescription(
                 key="plug_and_play_control",
                 translation_key="plug_and_play_control",
+                entity_category=EntityCategory.CONFIG,
             ),
             SwitchEntityDescription(
                 key="screen_control",

@@ -1505,3 +1505,28 @@ sensors exposed values, and the system log contained no
 the focused cached-value regression test rather than disrupting the healthy
 live MQTT sessions. `ENTITY-01` is complete and has been removed from the
 canonical backlog.
+
+## 2026-08-30: ENTITY-03 canonical setting observations
+
+The implementation follows the completed analysis rather than deleting
+Read-only/Control pairs. Those entities have different contracts: a known
+setting can remain readable while its write Control is unavailable because of
+transport, charging-state, mode, safety, or readback gates. All existing
+Control gates and backend write checks therefore remain unchanged.
+
+Canonical setting observations internally distinguish
+`direct_heartbeat_2_33`, `direct_settings_2_34`,
+`direct_fast_settings_241_44`, `provider_parent_accessory`, and
+`provider_device_detail`. Direct observations use a 90-second TTL and Provider
+observations two coordinator intervals. The highest-priority fresh candidate
+is exposed; an omitted field does not refresh an old observation and all-stale
+candidates produce `unknown`. No timestamp or age attribute is published, so
+unchanged reports do not create recorder churn.
+
+This current-observation path does not read `_last_smart_settings`; remembered
+Smart values remain available only to construct safe Control payloads. A
+healthy snapshot that omits an individual boolean setting produces `unknown`
+rather than an unavailable device or a false `off`. The Smart energy target
+becomes a normal canonical sensor; its unique ID remains unchanged and the
+migration only clears an integration-applied disable flag. No payload, field
+mapping, additional poll, or protocol write behavior changes.

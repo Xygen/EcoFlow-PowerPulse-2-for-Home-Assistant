@@ -56,9 +56,14 @@ class PowerPulse2Sensor(PowerPulse2Entity, SensorEntity):
     @property
     def native_value(self):
         source_key = self.entity_description.source_key or self.entity_description.key
-        value = telemetry_sensor_value(
-            self.coordinator.data.get(self.serial, {}), source_key
-        )
+        if self.entity_description.setting_observation_key is not None:
+            value = self.coordinator.setting_observation_value(
+                self.serial, self.entity_description.setting_observation_key
+            )
+        else:
+            value = telemetry_sensor_value(
+                self.coordinator.data.get(self.serial, {}), source_key
+            )
         if self.entity_description.value_fn is not None:
             return self.entity_description.value_fn(value)
         return value

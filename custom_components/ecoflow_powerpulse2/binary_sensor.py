@@ -23,18 +23,22 @@ SETTING_BINARY_SENSORS = (
     BinarySensorEntityDescription(
         key="plug_and_play",
         translation_key="plug_and_play",
+        entity_category=EntityCategory.DIAGNOSTIC,
     ),
     BinarySensorEntityDescription(
         key="battery_discharge_disabled",
         translation_key="battery_discharge_disabled",
+        entity_category=EntityCategory.DIAGNOSTIC,
     ),
     BinarySensorEntityDescription(
         key="screen_enabled",
         translation_key="screen_enabled",
+        entity_category=EntityCategory.DIAGNOSTIC,
     ),
     BinarySensorEntityDescription(
         key="indicator_enabled",
         translation_key="indicator_enabled",
+        entity_category=EntityCategory.DIAGNOSTIC,
     ),
 )
 
@@ -148,14 +152,11 @@ class PowerPulse2SettingBinarySensor(PowerPulse2Entity, BinarySensorEntity):
 
     @property
     def available(self) -> bool:
-        return self.coordinator.last_update_success and self.entity_description.key in self.coordinator.data.get(
-            self.serial, {}
-        )
+        return super().available and self.serial in self.coordinator.data
 
     @property
-    def is_on(self) -> bool:
-        return bool(
-            self.coordinator.data.get(self.serial, {}).get(
-                self.entity_description.key
-            )
+    def is_on(self) -> bool | None:
+        value = self.coordinator.setting_observation_value(
+            self.serial, self.entity_description.key
         )
+        return value if isinstance(value, bool) else None

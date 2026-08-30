@@ -40,6 +40,7 @@ async def async_setup_entry(
                 native_step=1,
                 native_unit_of_measurement=UnitOfElectricCurrent.AMPERE,
                 device_class=NumberDeviceClass.CURRENT,
+                entity_category=EntityCategory.CONFIG,
             ),
             NumberEntityDescription(
                 key="solar_minimum_current_control",
@@ -49,6 +50,7 @@ async def async_setup_entry(
                 native_step=1,
                 native_unit_of_measurement=UnitOfElectricCurrent.AMPERE,
                 device_class=NumberDeviceClass.CURRENT,
+                entity_category=EntityCategory.CONFIG,
             ),
             NumberEntityDescription(
                 key="custom_current_control",
@@ -58,6 +60,7 @@ async def async_setup_entry(
                 native_step=1,
                 native_unit_of_measurement=UnitOfElectricCurrent.AMPERE,
                 device_class=NumberDeviceClass.CURRENT,
+                entity_category=EntityCategory.CONFIG,
             ),
             NumberEntityDescription(
                 key="smart_energy_target_control",

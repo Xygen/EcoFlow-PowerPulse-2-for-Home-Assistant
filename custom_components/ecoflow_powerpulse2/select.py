@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from homeassistant.components.select import SelectEntity
 from homeassistant.config_entries import ConfigEntry
+from homeassistant.const import EntityCategory
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
@@ -37,6 +38,7 @@ class PowerPulse2PhaseSelect(PowerPulse2Entity, SelectEntity):
 
     _attr_translation_key = "phase_control"
     _attr_options = PHASE_OPTIONS
+    _attr_entity_category = EntityCategory.CONFIG
     _attr_entity_registry_enabled_default = False
 
     def __init__(self, coordinator: PowerPulse2Coordinator, serial: str) -> None:

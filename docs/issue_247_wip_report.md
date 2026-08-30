@@ -957,3 +957,24 @@ were available with values. A focused local regression test separately proves
 that a disconnected required source suppresses a cached value as
 `unavailable`, avoiding a disruptive live MQTT disconnect. Issue #4 /
 `ENTITY-01` is complete.
+
+## Issue #6 entity-model implementation (2026-08-30)
+
+`ENTITY-03` is implemented locally according to the revised analysis. Related
+Read-only and writable entities are intentionally not merged: observation must
+remain possible while a Control is unavailable, and a visible cached value
+must never bypass a Control's transport, mode, charging-state, readback, or
+safety gate.
+
+Normal setting observations now use internal exact-source state and bounded
+per-source TTLs. Missing or stale fields in a healthy device snapshot resolve
+to `unknown`; no continuously changing freshness/timestamp attributes are
+published. Fresh Direct values outrank Provider values, while remembered Smart
+payload settings cannot replace a missing current Smart observation. The Smart
+energy target is promoted from a disabled diagnostic sensor to a canonical
+normal sensor, with a narrow registry migration that preserves user-disabled
+entries. The entity-role matrix classifies configuration mirrors and Controls;
+raw duplicates stay disabled diagnostics, all unique IDs are preserved, and no
+write command or protocol mapping changes. Live Home Assistant validation
+remains required before removing `ENTITY-03` from the canonical backlog and
+closing issue #6.

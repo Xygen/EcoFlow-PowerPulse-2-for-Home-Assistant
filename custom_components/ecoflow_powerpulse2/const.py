@@ -36,6 +36,7 @@ class PowerPulse2SensorDescription(SensorEntityDescription):
 
     diagnostic: bool = False
     source_key: str | None = None
+    setting_observation_key: str | None = None
     required_source: Literal["coordinator", "direct", "powerocean"] = "coordinator"
     value_fn: Callable[[Any], Any] | None = None
 
@@ -70,12 +71,14 @@ SENSORS = (
     ),
     PowerPulse2SensorDescription(
         key="work_mode",
+        setting_observation_key="work_mode",
         translation_key="work_mode",
         device_class=SensorDeviceClass.ENUM,
         options=["unknown", "fast", "solar", "custom", "smart"],
     ),
     PowerPulse2SensorDescription(
         key="ready_by_timestamp",
+        setting_observation_key="ready_by_timestamp",
         translation_key="ready_by",
         device_class=SensorDeviceClass.TIMESTAMP,
         value_fn=as_timestamp,
@@ -114,20 +117,21 @@ SENSORS = (
     ),
     PowerPulse2SensorDescription(
         key="smart_charge_target_wh",
+        setting_observation_key="smart_charge_target_wh",
         translation_key="smart_charge_target",
         native_unit_of_measurement=UnitOfEnergy.WATT_HOUR,
         device_class=SensorDeviceClass.ENERGY,
-        diagnostic=True,
-        entity_registry_enabled_default=False,
     ),
     PowerPulse2SensorDescription(
         key="smart_target_type",
+        setting_observation_key="smart_target_type",
         translation_key="smart_target_type",
         device_class=SensorDeviceClass.ENUM,
         options=["energy", "distance"],
     ),
     PowerPulse2SensorDescription(
         key="smart_target_distance_km",
+        setting_observation_key="smart_target_distance_km",
         translation_key="smart_target_distance",
         native_unit_of_measurement=UnitOfLength.KILOMETERS,
         device_class=SensorDeviceClass.DISTANCE,
@@ -231,11 +235,13 @@ SENSORS = (
     ),
     PowerPulse2SensorDescription(
         key="current_limit_raw",
+        setting_observation_key="current_limit_raw",
         translation_key="maximum_output_current",
         native_unit_of_measurement=UnitOfElectricCurrent.AMPERE,
         device_class=SensorDeviceClass.CURRENT,
         suggested_display_precision=0,
         value_fn=tenths_to_float,
+        diagnostic=True,
     ),
     PowerPulse2SensorDescription(
         key="suspend_reason_raw",
@@ -258,11 +264,13 @@ SENSORS = (
     PowerPulse2SensorDescription(
         key="user_current_set_a",
         source_key="user_current_set_raw",
+        setting_observation_key="user_current_set_raw",
         translation_key="user_current_set",
         native_unit_of_measurement=UnitOfElectricCurrent.AMPERE,
         device_class=SensorDeviceClass.CURRENT,
         suggested_display_precision=0,
         value_fn=tenths_to_float,
+        diagnostic=True,
     ),
     PowerPulse2SensorDescription(
         key="solar_current_min_raw",
@@ -273,11 +281,13 @@ SENSORS = (
     PowerPulse2SensorDescription(
         key="solar_minimum_current_a",
         source_key="solar_current_min_raw",
+        setting_observation_key="solar_current_min_raw",
         translation_key="solar_minimum_current",
         native_unit_of_measurement=UnitOfElectricCurrent.AMPERE,
         device_class=SensorDeviceClass.CURRENT,
         suggested_display_precision=0,
         value_fn=tenths_to_float,
+        diagnostic=True,
     ),
     PowerPulse2SensorDescription(
         key="switch_bits_raw",
@@ -293,19 +303,25 @@ SENSORS = (
     ),
     PowerPulse2SensorDescription(
         key="phase_mode",
+        setting_observation_key="phase_mode",
         translation_key="phase_mode",
         device_class=SensorDeviceClass.ENUM,
         options=["unknown", "one_phase", "three_phase", "auto"],
+        diagnostic=True,
     ),
     PowerPulse2SensorDescription(
         key="screen_brightness_pct",
+        setting_observation_key="screen_brightness_pct",
         translation_key="screen_brightness",
         native_unit_of_measurement=PERCENTAGE,
+        diagnostic=True,
     ),
     PowerPulse2SensorDescription(
         key="indicator_brightness_pct",
+        setting_observation_key="indicator_brightness_pct",
         translation_key="indicator_brightness",
         native_unit_of_measurement=PERCENTAGE,
+        diagnostic=True,
     ),
     PowerPulse2SensorDescription(
         key="vehicle_consumption_raw",

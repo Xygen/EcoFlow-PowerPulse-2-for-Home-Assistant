@@ -55,6 +55,11 @@ from .frame_capture import (
 from .parser import extract_powerpulse_accessory_descriptor, parse_powerpulse2_payload
 from .passive_refresh import ConfirmedSettingsReplyGate, DelayedRefreshCoalescer
 from .phase_diagnostics import PhaseReadbackTracker
+from .setting_observation import (
+    SettingObservationTracker,
+    SettingSource,
+    setting_source_from_headers,
+)
 from .stream_recovery import automatic_recovery_due
 
 _LOGGER = logging.getLogger(__name__)
@@ -69,6 +74,13 @@ _DIRECT_STREAM_DIAGNOSTIC_ATTEMPTS = 16
 _HEARTBEAT_STREAM_FRESH_SECONDS = 90
 _AUTOMATIC_RECOVERY_STALE_SECONDS = 300
 _AUTOMATIC_RECOVERY_COOLDOWN_SECONDS = 1800
+_SETTING_SOURCE_FRESH_SECONDS: dict[SettingSource, float] = {
+    "direct_heartbeat_2_33": _HEARTBEAT_STREAM_FRESH_SECONDS,
+    "direct_settings_2_34": _HEARTBEAT_STREAM_FRESH_SECONDS,
+    "direct_fast_settings_241_44": _HEARTBEAT_STREAM_FRESH_SECONDS,
+    "provider_parent_accessory": UPDATE_INTERVAL_SECONDS * 2,
+    "provider_device_detail": UPDATE_INTERVAL_SECONDS * 2,
+}
 _DIRECT_SETTINGS_KEYS = frozenset(
     {
         "continuous_charging",
@@ -90,6 +102,26 @@ _DIRECT_SETTINGS_KEYS = frozenset(
         "ready_by_timestamp",
         "screen_brightness_pct",
         "screen_enabled",
+        "work_mode",
+    }
+)
+_SETTING_OBSERVATION_KEYS = frozenset(
+    {
+        "battery_discharge_disabled",
+        "continuous_charging",
+        "current_limit_raw",
+        "indicator_brightness_pct",
+        "indicator_enabled",
+        "phase_mode",
+        "plug_and_play",
+        "ready_by_timestamp",
+        "screen_brightness_pct",
+        "screen_enabled",
+        "solar_current_min_raw",
+        "smart_charge_target_wh",
+        "smart_target_distance_km",
+        "smart_target_type",
+        "user_current_set_raw",
         "work_mode",
     }
 )
@@ -138,6 +170,9 @@ class PowerPulse2Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
             maxlen=_CONTROL_DIAGNOSTIC_ATTEMPTS
         )
         self._phase_readbacks = PhaseReadbackTracker()
+        self._setting_observations = SettingObservationTracker(
+            _SETTING_SOURCE_FRESH_SECONDS
+        )
         self._direct_stream_attempts: deque[dict[str, Any]] = deque(
             maxlen=_DIRECT_STREAM_DIAGNOSTIC_ATTEMPTS
         )
@@ -271,6 +306,9 @@ class PowerPulse2Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
                 self._phase_readbacks.record(
                     target_serial, "provider_parent_accessory", values
                 )
+                self._record_setting_observations(
+                    target_serial, "provider_parent_accessory", values
+                )
                 if not values:
                     continue
                 updates.setdefault(target_serial, {}).update(values)
@@ -288,6 +326,9 @@ class PowerPulse2Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
         """Combine direct and already-fetched parent data before race-safe merge."""
         snapshot = await self.api.async_read(device)
         self._phase_readbacks.record(serial, "provider_device_detail", snapshot)
+        self._record_setting_observations(
+            serial, "provider_device_detail", snapshot
+        )
         snapshot.update(provider)
         self._last_polled_settings[serial] = dict(snapshot)
         self._last_polled_settings_at[serial] = time.monotonic()
@@ -398,16 +439,30 @@ class PowerPulse2Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
             if serial in self.devices and channel_carries_telemetry(channel)
             else {}
         )
+        received_at = datetime.now(UTC).isoformat()
+        received_monotonic = time.monotonic()
+        setting_source = setting_source_from_headers(protocol_headers)
+        observed_settings = {
+            key: parsed[key] for key in _SETTING_OBSERVATION_KEYS if key in parsed
+        }
+        if observed_settings and setting_source is not None:
+            self._setting_observations.record_snapshot(
+                serial=serial,
+                source=setting_source,
+                values=observed_settings,
+                keys=_SETTING_OBSERVATION_KEYS,
+                observed_at=received_at,
+                observed_monotonic=received_monotonic,
+            )
         is_direct_settings = parsed and any(
             header.get("cmd_func") == 241 and header.get("cmd_id") == 44
             for header in protocol_headers
         )
         if is_direct_settings:
-            reported_at = datetime.now(UTC).isoformat()
-            self._last_direct_settings_at[serial] = time.monotonic()
-            self._last_direct_settings_utc[serial] = reported_at
+            self._last_direct_settings_at[serial] = received_monotonic
+            self._last_direct_settings_utc[serial] = received_at
             self._phase_readbacks.record(
-                serial, "direct_241_44", parsed, timestamp=reported_at
+                serial, "direct_241_44", parsed, timestamp=received_at
             )
         if parsed and any(
             header.get("cmd_func") == 2 and header.get("cmd_id") == 33
@@ -538,6 +593,29 @@ class PowerPulse2Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
         if time.monotonic() - reported_at > _DIRECT_SETTINGS_FRESH_SECONDS:
             return frozenset()
         return _DIRECT_SETTINGS_KEYS
+
+    def _record_setting_observations(
+        self, serial: str, source: SettingSource, values: dict[str, Any]
+    ) -> None:
+        """Record fields from one qualified provider snapshot."""
+        observed_at = datetime.now(UTC).isoformat()
+        observed_monotonic = time.monotonic()
+        self._setting_observations.record_snapshot(
+            serial=serial,
+            source=source,
+            values=values,
+            keys=_SETTING_OBSERVATION_KEYS,
+            observed_at=observed_at,
+            observed_monotonic=observed_monotonic,
+        )
+
+    def setting_observation_value(self, serial: str, key: str) -> Any:
+        """Return a fresh current observation, excluding remembered settings."""
+        return self._setting_observations.current_value(
+            serial=serial,
+            key=key,
+            now=time.monotonic(),
+        )
 
     async def _async_refresh_after_settings_reply(self) -> None:
         """Refresh provider state after a confirmed official-app settings reply."""

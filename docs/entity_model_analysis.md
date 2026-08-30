@@ -518,3 +518,51 @@ müssen:
 Danach können source-aware Observation-State und gezielte Entity-Bereinigungen
 mit geringem Risiko und ohne unnötige Recorder- oder Polling-Last umgesetzt
 werden.
+
+## Implementierung
+
+Die Umsetzung arbeitet ausschließlich mit den bereits vorhandenen Reports und
+Polls. Intern werden Beobachtungen getrennt nach
+`direct_heartbeat_2_33`, `direct_settings_2_34`,
+`direct_fast_settings_241_44`, `provider_parent_accessory` und
+`provider_device_detail` gespeichert. Alle Quellen werden konservativ als
+partielle Reports behandelt, solange kein vollständiger Snapshot bewiesen ist.
+Ein fehlendes Feld erneuert deshalb seine Beobachtungszeit nicht.
+
+Direct-Beobachtungen gelten 90 Sekunden, Provider-Beobachtungen zwei reguläre
+30-Sekunden-Pollzyklen als frisch. Unter den frischen Kandidaten gilt die oben
+genannte Direct-Reihenfolge vor Parent-Accessory und Device-Detail. Nach Ablauf
+aller passenden Beobachtungen liefert die Read-only-Entity `unknown`; der alte
+Coordinator-Merge-Wert wird nicht als aktuelle Observation verwendet. Source,
+Zeitpunkt und TTL bleiben intern und erzeugen keine laufenden Entity-Attribute
+oder Recorder-Änderungen.
+
+Die Read-only-Sensoren verwenden diesen Current-Observation-State. Damit kann
+`_last_smart_settings` weiterhin vollständige Control-Payloads erhalten, ohne
+einen fehlenden aktuellen Smart-Wert in der Anzeige zu ersetzen. Setting-
+Binary-Sensoren bleiben bei gesundem Coordinator verfügbar und liefern nur bei
+einem expliziten Bool `on`/`off`, sonst `unknown`.
+
+### Umgesetzte Entity-Rollenmatrix
+
+| Gruppe | Observation | Control |
+| --- | --- | --- |
+| Betriebsmodus, Continuous charging | primäre Entity | primär, standardmäßig deaktiviert |
+| Smart-Zieltyp, Zielwert, Strecke, Bereit-vor | primäre Entity | primär, standardmäßig deaktiviert |
+| Phase, Maximalstrom, Solar-Mindeststrom, Custom-Strom | `DIAGNOSTIC` | `CONFIG`, standardmäßig deaktiviert |
+| Plug-and-Play, Batterieentladesperre | `DIAGNOSTIC` | `CONFIG`, standardmäßig deaktiviert |
+| Bildschirm/LED und Helligkeiten | `DIAGNOSTIC` | `CONFIG`, standardmäßig deaktiviert |
+| Raw-/technische Felder | `DIAGNOSTIC`, standardmäßig deaktiviert | entfällt |
+
+Das Smart-Energieziel wird entsprechend seiner primären Smart-Funktion von
+einer deaktivierten Diagnose-Entity zu einer normalen Observation. Die
+Registry-Migration aktiviert nur einen zuvor durch die Integration
+deaktivierten Eintrag und überschreibt keine Benutzerentscheidung. Alle Unique
+IDs bleiben erhalten.
+
+Read-only- und Control-Entities werden nicht entfernt: Sie tragen weiterhin
+unterschiedliche Observation- beziehungsweise Safety-Verträge. Die bisherigen
+Backend-, Transport-, Ladezustands- und Readback-Gates der Controls bleiben
+unverändert. Tests decken Source-Trennung und -Priorität, TTL-Ablauf, fehlende
+Felder in partiellen Reports, `unknown` für Boolean Settings, Entity-Rollen und
+die enge Registry-Migration ab. Live-Validierung bleibt vor Abschluss nötig.
