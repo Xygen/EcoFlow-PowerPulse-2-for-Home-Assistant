@@ -1555,3 +1555,14 @@ remaining unchanged. The existing bounded retry schedule is reused, so the
 change adds no background polling. `2/34` phase evidence is now retained under
 its separate source and mapping but is not used for write confirmation pending
 live post-write emission evidence.
+
+Installed smoke validation of `0.1.1-beta.5` confirmed the read-only side of
+this design. After a valid configuration check and restart, the integration
+entry loaded and the phase Control exposed `auto`. Diagnostics reported raw
+phase `0` independently in fresh `direct_241_44` and
+`provider_parent_accessory` snapshots, while the contemporaneous
+`provider_device_detail` snapshot explicitly omitted the raw and mapped phase
+fields. Both direct and heartbeat stream sensors were `on`, and no
+`ecoflow_powerpulse2` system-log entry was present. This check deliberately did
+not change the physical phase setting; Provider transition confirmation and
+the already-at-target fail-closed case still require controlled live writes.

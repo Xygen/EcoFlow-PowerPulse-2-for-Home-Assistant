@@ -998,3 +998,14 @@ continues to confirm immediately and a new mismatch keeps the operation
 fail-closed. Transport and charging interlocks and the bounded Provider retry
 schedule are unchanged. Live validation with stale `241/44`, including the
 already-at-target edge case, remains required before closing `PHASE-01`.
+
+HACS installed `v0.1.1-beta.5` after the 41-entry release archive had been
+verified to contain only `custom_components/ecoflow_powerpulse2/` files and no
+Python caches. Home Assistant accepted the configuration and restarted with
+the config entry loaded. The phase Control was available at `auto`; diagnostics
+kept `direct_241_44`, `provider_parent_accessory`, and
+`provider_device_detail` separate and showed exact raw phase `0` for both the
+Direct and Parent-Accessory sources while Device-Detail omitted the field. Both
+stream sensors were active and the system log contained no matching integration
+error. No live phase write was issued, so the two stale-Direct write cases stay
+open in the canonical backlog.
