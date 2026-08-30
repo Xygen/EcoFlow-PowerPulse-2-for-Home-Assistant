@@ -47,7 +47,6 @@ Current implementation baseline: `0.1.1-beta.4`.
 
 | ID | Priority | Open work | Completion evidence |
 | --- | --- | --- | --- |
-| `ENTITY-01` | Implemented locally; live validation pending | Issue #4 now separates sensor availability from individual field presence. Normal sensors remain available with a `None` value when a healthy device/source temporarily omits their field, while coordinator failure, a missing device, or a disconnected explicitly required direct/PowerOcean MQTT source still produces `unavailable`. Control entities and their mode/safety interlocks are unchanged. | Install the next bundled build and confirm that currently absent Smart/state-specific telemetry becomes `unknown`, source-backed sensors remain readable while their source is connected, a deliberately unavailable required source still produces `unavailable`, and all mode-/charging-gated controls retain their current availability behavior. |
 | `ENTITY-03` | After control validation | Reduce duplicate read-only and control entities as tracked in issue #6 once the corresponding controls are stable enough to act as canonical setting entities. | One canonical entity represents each validated setting where practical, raw diagnostics remain available, migrations preserve existing installations, and charging status + charging binary sensor remain intentionally separate. |
 
 ## Deferred and release work

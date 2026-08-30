@@ -1491,6 +1491,17 @@ This change is deliberately limited to the sensor platform. The charging
 binary sensor, connectivity diagnostics, buttons, switches, numbers, selects,
 and datetime controls retain their existing availability and safety rules. The
 local suite covers present values, healthy missing values, coordinator/device
-failure, and a failed required source with cached data; all 90 tests pass. Live
-Home Assistant validation is deferred to the next bundled build, so
-`ENTITY-01` remains in the canonical backlog until that check is complete.
+failure, and a failed required source with cached data; all 90 tests pass.
+
+Installed validation of `0.1.1-beta.4` completed the state matrix. After HACS
+installation and a valid configuration check, Home Assistant restarted with the
+config entry loaded. The seven absent Smart/state-specific sensors changed from
+`unavailable` to `unknown`: ready-by, calculated Smart energy, Smart target
+energy, distance and type, vehicle consumption, and suspend reason. The seven
+mode- or charging-gated button/datetime/number/select controls remained
+`unavailable`. All nine direct-wallbox sensors and all four PowerOcean session
+sensors exposed values, and the system log contained no
+`ecoflow_powerpulse2` error. The disconnected-source branch remains covered by
+the focused cached-value regression test rather than disrupting the healthy
+live MQTT sessions. `ENTITY-01` is complete and has been removed from the
+canonical backlog.

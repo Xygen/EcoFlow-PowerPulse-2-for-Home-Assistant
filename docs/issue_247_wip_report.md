@@ -946,6 +946,14 @@ produces `unavailable`, even if an older value remains cached.
 
 Only normal sensors are affected. All control availability, charging-state
 interlocks, and diagnostic connectivity entities are unchanged. The local
-90-test suite and Ruff pass. The implementation remains tracked as `ENTITY-01`
-until an installed build confirms the expected `unknown` states and unchanged
-control gating in Home Assistant.
+90-test suite and Ruff pass.
+
+HACS then installed `v0.1.1-beta.4`; configuration validation succeeded and the
+restarted Home Assistant entry loaded without a matching system-log error.
+Seven absent Smart/state-specific sensors were `unknown` instead of
+`unavailable`, while the same seven deliberately gated controls remained
+`unavailable`. Nine direct-wallbox sensors and four PowerOcean-session sensors
+were available with values. A focused local regression test separately proves
+that a disconnected required source suppresses a cached value as
+`unavailable`, avoiding a disruptive live MQTT disconnect. Issue #4 /
+`ENTITY-01` is complete.
