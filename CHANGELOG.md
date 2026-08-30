@@ -6,6 +6,15 @@ Current outstanding work is maintained only in
 
 ## Unreleased
 
+- Finalize `STREAM-01` from the previously completed controlled idle-window
+  validation. With the EcoFlow app closed and no manual reconnect, device
+  publish, or settings action, `automatic_wss_reconnect` rebuilt only the
+  listen-only C376 WSS session and confirmed a fresh direct report after
+  0.437 seconds; both report streams resumed and no reconnect loop followed.
+- Recheck the installed `0.1.1-beta.3` runtime before closure: the integration
+  entry is loaded, both independent stream sensors are active, and Home
+  Assistant has no matching `ecoflow_powerpulse2` system-log entry.
+
 ## 0.1.1-beta.3 - 2026-08-30
 
 - Keep the existing CP307 heartbeat telemetry under a consistently named

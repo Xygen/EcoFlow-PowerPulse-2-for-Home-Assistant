@@ -916,3 +916,20 @@ exercise the new 15-to-30-second interval because this particular Start was
 faster than 15 seconds. `CTRL-04` therefore remains the sole live-validation
 item from beta.2 until a naturally delayed Start crosses the old deadline
 without producing a false HA failure.
+
+## Completed automatic stream recovery (2026-08-30)
+
+`STREAM-01` is complete based on the controlled dev26 idle-window validation.
+After both previously observed C376 streams had been silent for at least five
+minutes, the integration recorded `automatic_wss_reconnect` with status
+`confirmed`. The EcoFlow app stayed closed, the manual reconnect button was not
+pressed, and no device publish or settings change was involved. Rebuilding only
+the hard-listen-only C376 WSS session restored the direct stream in 0.437
+seconds; both direct `241/44` and heartbeat `2/33` reporting resumed, and the
+30-minute cooldown prevented a reconnect loop.
+
+A final check of installed `0.1.1-beta.3` found the integration loaded, both
+stream sensors active, and no matching integration error in Home Assistant's
+system log. This closes validation of the existing bounded recovery policy; the
+separate question of deliberately allowing an idle stream to sleep remains
+tracked only as `STREAM-02` in the canonical backlog.

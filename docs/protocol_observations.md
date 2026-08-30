@@ -1446,3 +1446,27 @@ confirms the ordinary beta.2 Start/Stop path, but it does not close `CTRL-04`:
 the Start completed inside the former 15-second window, so a naturally delayed
 Start exceeding 15 seconds is still required to validate the extended portion
 of the 30-second deadline.
+
+## 2026-08-30: STREAM-01 closure from controlled idle evidence
+
+The controlled dev26 idle-window test already satisfies the automatic-recovery
+acceptance criteria. Both the direct `241/44` and heartbeat `2/33` streams had
+first been observed in the same coordinator runtime and subsequently became
+stale. The EcoFlow app remained closed, the manual reconnect button was not
+pressed, and no PowerPulse setting or device command was sent.
+
+At `2026-08-26T19:41:20.153193Z`, the bounded watchdog recorded an
+`automatic_wss_reconnect` attempt with status `confirmed`. It rebuilt only the
+hard-listen-only C376 WSS client; a fresh direct report arrived after 0.437
+seconds and both independent stream sensors returned to active. The 1,800-second
+attempt cooldown was in force and the observation produced no repeated
+reconnect loop. This is distinct from continuously keeping the stream awake:
+recovery remains ineligible while either stream is still reporting and cannot
+run until both previously observed streams have been stale for 300 seconds.
+
+Before closing the item, the installed `0.1.1-beta.3` runtime was checked again.
+The config entry was loaded, both stream sensors were `on`, and Home Assistant's
+system log contained no `ecoflow_powerpulse2` error. The current coordinator
+runtime began after the validated attempt, so its in-memory attempt trace is
+correctly empty; the retained controlled-test evidence above is the completion
+record. `STREAM-01` is complete and has been removed from the canonical backlog.
