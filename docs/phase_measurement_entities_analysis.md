@@ -5,165 +5,364 @@ Bezug: [Backlog `DATA-06`](backlog.md)
 
 ## Ergebnis in Kurzform
 
-Der Direct-Heartbeat `2/33` liefert für Protobuf-Feld `29` drei wiederholte
-Floatwerte für Spannungen und für Feld `30` drei wiederholte Floatwerte für
-Ströme. Die aktuelle Integration verwirft die Einzelwerte und veröffentlicht
-jeweils nur den größten gültigen Wert als kompakte Zusammenfassung.
-
-Das bestehende Aggregat soll aus Kompatibilitätsgründen erhalten bleiben. Die
-sechs Einzelwerte können zusätzlich als getrennte, standardmäßig deaktivierte
-Diagnose-Sensoren eingeführt werden. Vor einer produktiven Zuordnung zu
-`L1/L2/L3` muss jedoch nachgewiesen werden, dass die Reihenfolge der
-wiederholten Werte stabil und elektrisch eindeutig ist.
-
-## Ist-Zustand
-
-Der Parser akzeptiert sowohl einzelne Float-Felder als auch die gepackte
-Protobuf-Form. Er sammelt die Werte in zwei Listen:
-
-- Feld `29`: Phase voltage;
-- Feld `30`: Phase current.
-
-Danach setzt er aktuell:
+Der Direct-Heartbeat `2/33` enthält Protobuf-Feld `29` als wiederholte bzw.
+gepackte Floatwerte für Spannungen und Feld `30` entsprechend für Ströme. Der
+aktuelle Parser sammelt die gültigen Werte in Listen und veröffentlicht danach
+nur den jeweils größten Wert:
 
 - `phase_voltage_v = max(phase_voltages)`;
 - `phase_current_a = max(phase_currents)`.
 
-Diese beiden Werte werden außerdem als `direct_phase_voltage_v` und
-`direct_phase_current_a` für die Direct-Entities gespiegelt. Die bestehenden
-Entity-IDs und ihre Semantik als kompakte Maximalwerte dürfen durch die
-Erweiterung nicht verändert werden.
+Damit gehen die Einzelwerte verloren. Das bisherige Maximum soll aus
+Kompatibilitätsgründen erhalten bleiben, eine Erweiterung um Einzelwerte ist
+aber weiterhin sinnvoll.
 
-Die vorhandenen Live-Vergleiche bestätigen, dass drei Werte vorhanden sind und
-dass Spannung mal Strom nur eine scheinbare Leistung ergibt. Sie bestätigen
-aber nicht, dass der erste, zweite und dritte Listenwert dauerhaft sicher
-`L1`, `L2` und `L3` entsprechen.
+Die vorherige DATA-06-Analyse war an einer Stelle zu weitgehend: Aus dem
+Vorhandensein mehrerer Werte folgt noch nicht, dass daraus bereits sichere
+`phase_1`- bis `phase_3`-Entities abgeleitet werden können. Vor einer
+Implementierung müssen zusätzlich drei Eigenschaften mit realen Heartbeats
+belegt werden:
 
-## Nutzerproblem und Nutzen
+1. ob Feld `29` und Feld `30` pro `2/33` jeweils vollständige Snapshots oder
+   möglicherweise Teil-/Delta-Updates darstellen;
+2. ob die Positionen innerhalb der beiden wiederholten Felder über Zeit und
+   Betriebszustände stabil bleiben;
+3. ob `voltage[i]` und `current[i]` tatsächlich dieselbe physische
+   Leiter-/Phasenposition beschreiben.
 
-Das Aggregat beantwortet die Frage „wie hoch ist der größte beobachtete
-Phasenwert?“. Für Diagnose, Lastverteilung und die Erkennung einer einzelnen
-auffälligen Phase reicht das nicht aus. Einzel-Entities würden zusätzlich
-zeigen:
+Außerdem muss der Parser vor einer positionsbezogenen Auswertung geändert
+werden: Nicht-finite Werte dürfen nicht einfach aus der Liste entfernt werden,
+weil dadurch nachfolgende Werte ihre Position verschieben würden.
 
-- ob nur eine oder drei Phasen belastet werden;
-- ob eine Phase deutlich von den anderen abweicht;
-- ob Spannung und Strom derselben Phase gemeinsam bewertet werden können.
+DATA-06 ist deshalb **weitgehend analysiert, aber noch nicht
+implementierungsbereit**. Zuerst ist eine kleine Evidenz- und Parserphase
+notwendig.
 
-Wichtig ist, dass dadurch kein neuer Gesamtleistungswert aus Maximalwerten
-berechnet wird. Die bestehende Direct-Leistung bleibt die geeignete
-Real-Power-Entity; Einzelspannung und Einzelstrom sind Messwerte, aber keine
-automatische Ersatzberechnung für Leistung.
+## Gesicherter Ist-Zustand
 
-## Empfohlenes Entity-Design
+### Parser
 
-### Bestehende Entities unverändert
+Der Parser akzeptiert für Feld `29` und `30` sowohl einzelne `fixed32`-Floats
+als auch die gepackte Protobuf-Form. In beiden Fällen werden nur finite Werte
+in zwei Python-Listen übernommen:
 
-Die aktuellen normalen, aber standardmäßig deaktivierten Direct-Entities
-bleiben bestehen:
+- Feld `29` -> `phase_voltages`;
+- Feld `30` -> `phase_currents`.
 
-- `direct_phase_voltage` / `phase_voltage_v` als bisheriger Maximalwert;
-- `direct_phase_current` / `phase_current_a` als bisheriger Maximalwert.
+Danach setzt der Parser aktuell nur die Maxima. Diese Werte werden zusätzlich
+als `direct_phase_voltage_v` und `direct_phase_current_a` gespiegelt und bilden
+die Quelle der bestehenden Direct-Entities.
 
-Damit bleiben bestehende Dashboards, Automationen und Entity-IDs kompatibel.
+Die bestehenden Keys und Unique IDs dürfen durch DATA-06 nicht verändert
+werden.
 
-### Zusätzliche Einzel-Entities
+### Bisherige Leistungsinterpretation
 
-Als erste sichere Modellierung werden sechs zusätzliche Sensoren vorgeschlagen:
+Die vorhandenen direkten Leistungs-, Spannungs- und Stromvergleiche zeigen,
+dass `U * I` beziehungsweise `3 * U * I` eine Scheinleistungsabschätzung und
+keinen Ersatz für die native Direct-Leistung ergibt. Insbesondere sind die
+heutigen Spannungs- und Stromentitäten Maxima ihrer jeweiligen Arrays und
+keine nachgewiesenen phasenweise ausgerichteten Paare.
 
-| Messgröße | vorgeschlagene Schlüssel |
+Daher gilt weiterhin:
+
+- keine Gesamtleistungsberechnung aus den Maximalwerten;
+- keine Ableitung einer vermeintlich genaueren Wirkleistung aus Spannung und
+  Strom;
+- die native Direct-Leistung bleibt die maßgebliche Real-Power-Entity.
+
+## Noch nicht ausreichend belegt
+
+### Vollständiger Snapshot oder Delta
+
+Die bisherige Analyse nahm als bevorzugtes Design an, dass jede neue
+Direct-Meldung die komplette Spannungs- und Stromliste ersetzt. Dafür fehlt in
+der eingecheckten Evidenz noch ein ausreichender Nachweis.
+
+Vor der Implementierung muss deshalb in realen `2/33`-Frames geprüft werden:
+
+- ist Feld `29` in jedem relevanten Heartbeat vorhanden;
+- ist Feld `30` in jedem relevanten Heartbeat vorhanden;
+- erscheinen beide immer gemeinsam;
+- wie viele Werte enthalten sie jeweils;
+- ändert sich dieses Verhalten zwischen `unplugged`, `plugged_in`,
+  einphasigem Laden, dreiphasigem Laden, Start, Stop und Leistungsänderungen.
+
+Erst danach wird festgelegt, ob ein neuer Heartbeat den gesamten
+positionsbezogenen Messsatz ersetzt oder ob pro Messgröße beziehungsweise
+Position eigene Freshness-Zeitpunkte benötigt werden.
+
+### Positionsstabilität innerhalb eines Feldes
+
+Dass ein wiederholtes Feld drei Werte enthält, beweist noch nicht, dass
+Position `0`, `1` und `2` dauerhaft dieselbe elektrische Bedeutung behalten.
+
+Es darf daher vorerst nicht:
+
+- nach Wertgröße sortiert werden;
+- aus einer Spannung oder einem Strom auf `L1/L2/L3` geschlossen werden;
+- eine Position anhand des jeweils größten oder kleinsten Werts umbenannt
+  werden.
+
+### Paarung von Spannung und Strom
+
+Zusätzlich zur Stabilität innerhalb der Felder muss getrennt nachgewiesen
+werden, dass:
+
+```text
+field 29, position i
+```
+
+und
+
+```text
+field 30, position i
+```
+
+dieselbe physische Leiter-/Phasenposition beschreiben.
+
+Ohne diesen Nachweis wäre selbst ein Entity-Paar wie
+`phase_1_voltage`/`phase_1_current` semantisch zu stark, weil es bereits eine
+gemeinsame Phase suggeriert.
+
+Für eine spätere Benennung als `L1/L2/L3` ist darüber hinaus eine elektrische
+Referenz oder ein kontrollierter Installationsvergleich erforderlich.
+
+## Konkreter Parserfehler für eine zukünftige Positionsauswertung
+
+Der aktuelle Parser verwirft nicht-finite Werte, bevor die Liste aufgebaut ist.
+Für das heutige Maximum ist das korrekt. Für positionsbezogene Werte würde es
+aber die Positionen verschieben.
+
+Beispiel eines hypothetischen Rohwerts:
+
+```text
+[231.2, NaN, 230.8]
+```
+
+Der heutige Sammelmechanismus würde daraus effektiv:
+
+```text
+[231.2, 230.8]
+```
+
+machen. Eine spätere Zuordnung nach Listenindex würde den ursprünglichen dritten
+Wert fälschlich als zweiten Wert behandeln.
+
+Vor DATA-06 muss deshalb eine positionsstabile interne Repräsentation eingeführt
+werden, beispielsweise:
+
+```text
+[231.2, None, 230.8]
+```
+
+oder ein gleichwertiges festes Positionsmodell. Für die bestehenden Maxima
+kann anschließend weiterhin separat nur über valide Werte aggregiert werden.
+Damit bleibt die bestehende Semantik unverändert.
+
+## Robustheitsregeln für die Rohdaten
+
+Vor einer Entity-Implementierung müssen folgende Fälle definiert und getestet
+sein:
+
+### Erwartete Kardinalität
+
+- exakt drei Werte;
+- ein oder zwei Werte;
+- keine Werte;
+- mehr als drei Werte;
+- unterschiedliche Anzahl von Spannungs- und Stromwerten.
+
+Mehr als drei Werte sollten nicht still auf drei Werte gekürzt werden. Ein
+solcher Frame kann auf eine bisher falsch verstandene Struktur oder eine
+Protokolländerung hindeuten und sollte diagnostisch als Anomalie behandelt
+werden, bevor daraus Positions-Entities aktualisiert werden.
+
+### Packed und unpacked
+
+Der Parser muss die Reihenfolge erhalten bei:
+
+- drei einzelnen `fixed32`-Feldern;
+- einem gepackten Feld;
+- mehreren gepackten Segmenten;
+- einer Mischung aus packed und unpacked, sofern ein solcher realer Frame
+  überhaupt beobachtet wird.
+
+Eine gepackte Bytefolge, deren Länge kein Vielfaches von vier ist, darf nicht
+teilweise als gültige Positionsliste verwendet werden.
+
+### Nicht-finite Werte
+
+`NaN`, `+Inf` und `-Inf` dürfen keinen Messwert erzeugen, ihre ursprüngliche
+Position darf für eine positionsbezogene Auswertung aber nicht verloren gehen.
+
+### Nullwerte
+
+Ein vom Gerät ausdrücklich gelieferter `0.0 A`-Wert ist ein echter Messwert und
+muss als `0 A` erhalten bleiben.
+
+Eine nicht gelieferte Position darf dagegen nicht künstlich zu `0 A` werden.
+Solange keine vollständige Snapshot-Semantik belegt ist, darf aus einem
+fehlenden Element außerdem noch nicht automatisch geschlossen werden, dass die
+betreffende Phase physisch nicht benutzt wird.
+
+## Freshness, `unknown` und `unavailable`
+
+Die bestehende Integration trennt bereits grundsätzlich zwischen einer
+verfügbaren Datenquelle und dem Vorhandensein eines einzelnen Feldes:
+
+- gesunde Quelle, Feld fehlt -> Entity-Wert `unknown`;
+- erforderlicher Direct-Datenpfad nicht verfügbar/frisch -> Entity
+  `unavailable`.
+
+Dieses Modell soll für DATA-06 beibehalten werden.
+
+Wie fehlende einzelne Positionen innerhalb eines ansonsten frischen Heartbeats
+behandelt werden, hängt jedoch von der noch zu klärenden Snapshot-/Delta-Frage
+ab. Deshalb wird die frühere Festlegung „jede neue Meldung setzt fehlende
+Positionen sofort auf `unknown`“ vorerst zurückgenommen.
+
+Mögliche Zielmodelle sind:
+
+### Falls `2/33` vollständige Arrays liefert
+
+Jeder Heartbeat ersetzt den gesamten Positionssatz. Eine in diesem Snapshot
+nicht gelieferte beziehungsweise ungültige Position wird `unknown`.
+
+### Falls Teil-/Delta-Updates vorkommen
+
+Positionen beziehungsweise die beiden Arrays benötigen eigene
+Beobachtungszeitpunkte und eine klar definierte Freshness-Regel. Ein älterer
+Wert darf dann nicht still als aktuell erscheinen, muss aber auch nicht durch
+ein unrelated Teilupdate sofort gelöscht werden.
+
+## Empfohlenes Entity-Design nach Abschluss der Evidenzphase
+
+### Bestehende Aggregate erhalten
+
+Die bestehenden Entitäten bleiben mit unveränderten Keys und Unique IDs
+bestehen:
+
+- `phase_voltage_v` / `direct_phase_voltage_v`;
+- `phase_current_a` / `direct_phase_current_a`.
+
+Da es sich tatsächlich um Maximalwerte handelt, kann später geprüft werden, ob
+nur die sichtbaren Übersetzungen präziser als „maximale Phasenspannung“ und
+„maximaler Phasenstrom“ formuliert werden. Das wäre keine Änderung der Unique
+IDs.
+
+### Neue Positions-Entities erst nach Nachweis
+
+Dauerhafte Entity-Keys sollten erst festgelegt werden, wenn Positionsstabilität
+und Voltage/Current-Paarung belegt sind. Bis dahin ist eine interne oder
+Diagnose-Darstellung mit neutralen Begriffen wie `voltage_position_1` und
+`current_position_1` fachlich sauberer als `phase_1_*`.
+
+Sind Paarung und stabile Reihenfolge bestätigt, können beispielsweise sechs
+zusätzliche Sensoren entstehen:
+
+| Messgröße | mögliche Schlüssel nach Bestätigung |
 | --- | --- |
 | Spannung | `direct_phase_1_voltage_v`, `direct_phase_2_voltage_v`, `direct_phase_3_voltage_v` |
 | Strom | `direct_phase_1_current_a`, `direct_phase_2_current_a`, `direct_phase_3_current_a` |
 
-Die Bezeichnung `phase_1` bis `phase_3` ist zunächst sicherer als `L1` bis
-`L3`, solange die physische Zuordnung der Array-Positionen nicht nachgewiesen
-ist. Die sechs Sensoren sollten standardmäßig deaktiviert und als Diagnose
-klassifiziert werden, bis Reihenfolge, Verfügbarkeit und praktische
-Interpretation durch weitere Daten bestätigt sind.
+Sie sollten zunächst:
 
-Nach einer bestätigten festen Zuordnung kann geprüft werden, ob nutzerseitig
-sprechende Übersetzungen `L1`, `L2` und `L3` sinnvoll sind. Eine Umbenennung
-der bestehenden Aggregat-Entities ist nicht vorgesehen.
+- `EntityCategory.DIAGNOSTIC` verwenden;
+- standardmäßig deaktiviert sein;
+- Spannung mit `SensorDeviceClass.VOLTAGE` und `V` exponieren;
+- Strom mit `SensorDeviceClass.CURRENT` und `A` exponieren;
+- `SensorStateClass.MEASUREMENT` verwenden.
 
-## Daten- und Verfügbarkeitsregeln
+Eine normale Aktivierung oder Benennung als `L1/L2/L3` ist ein späterer Schritt
+und benötigt zusätzliche Evidenz.
 
-### Anzahl der Werte
+## Rundung und Recorder-Last
 
-- Drei valide Werte: alle drei Einzel-Entities liefern Werte.
-- Ein oder zwei valide Werte: nur die tatsächlich vorhandenen Positionen
-  liefern Werte; fehlende Positionen werden `unknown`, nicht `0`.
-- Keine validen Werte im aktuellen Direct-Report: Einzelwerte werden
-  `unknown`; der gesunde Direct-Datenpfad bleibt nicht deshalb
-  `unavailable`.
-- Ungültige, nicht-finite oder falsch lange Bytefolgen werden verworfen.
+Die bestehenden Maximalwerte werden bereits vor der Veröffentlichung gerundet:
 
-### One-phase-Betrieb
+- Spannung auf eine Nachkommastelle;
+- Strom auf zwei Nachkommastellen.
 
-Einphasiger Betrieb darf nicht durch künstliche Nullen für die nicht
-verwendeten Phasen dargestellt werden. `0 A` wäre eine physische Aussage und
-könnte mit einer echten Messung verwechselt werden. Nicht gelieferte Phasen
-bleiben daher `unknown`, sofern der Report ihre Positionen nicht ausdrücklich
-als Nullwert enthält.
+Die späteren Einzelwerte sollten dieselbe Normalisierung verwenden. Damit
+werden rohe Float32-Artefakte nicht als unnötige Home-Assistant-Zustandswechsel
+in den Recorder geschrieben.
 
-### Freshness und Merge
+Die Entscheidung für standardmäßig deaktivierte Diagnose-Entities reduziert
+zusätzlich Recorder- und UI-Last für Benutzer, die diese Detailwerte nicht
+benötigen.
 
-Die Einzelwerte müssen an den Direct-Report und dessen Zeitstempel gebunden
-bleiben. Das allgemeine Merge-Verhalten darf keine alte Einzelphase an eine
-neue unvollständige Liste anhängen, ohne dies als letzten bekannten Wert zu
-kennzeichnen. Für die Umsetzung ist deshalb zu entscheiden, ob Listen als
-vollständiger Snapshot ersetzt werden oder ob pro Position eigene
-Beobachtungszeitpunkte gespeichert werden.
+## Erforderliche Evidenz vor Implementierung
 
-Empfohlen wird zunächst ein vollständiger, positionsbezogener Snapshot: Jede
-Direct-Meldung setzt die sechs Werte aus genau dieser Meldung. Nicht enthaltene
-Positionen werden für diesen Snapshot `unknown`; ein separater letzter
-bekannter Wert kann höchstens als Diagnoseinformation erhalten bleiben.
+Mindestens eine kontrollierte Aufzeichnung soll vollständige Feld-29- und
+Feld-30-Rohwerte mit Zeitstempel für mehrere Betriebszustände dokumentieren:
 
-## Reihenfolge und Evidenzgrenze
+1. unplugged;
+2. Fahrzeug verbunden, aber nicht ladend;
+3. aktives einphasiges Laden;
+4. aktives dreiphasiges Laden;
+5. mindestens eine deutliche Leistungsänderung;
+6. Start und Stop beziehungsweise Session-Grenzen.
 
-Die vorhandenen Parser- und Live-Belege zeigen die Anzahl und physikalische
-Art der Werte, aber keine ausreichende Dokumentation einer stabilen
-Listenposition. Deshalb gelten folgende Grenzen:
+Dabei ist pro Heartbeat festzuhalten:
 
-- Keine automatische Umrechnung oder Sortierung nach Wertgröße.
-- Keine Zuordnung zu `L1/L2/L3` allein anhand von Spannung oder Strom.
-- Keine Paarbildung über zwei unabhängig eingetroffene Reports.
-- Kein Summieren der Maximalwerte zur Gesamtleistung.
+```text
+Timestamp
+charging state
+phase setting/readback
+field 29 raw ordered values
+field 30 raw ordered values
+charging power
+```
 
-Für `phase_1` bis `phase_3` genügt ein kontrollierter Nachweis, dass mehrere
-Reports dieselbe physische Reihenfolge beibehalten. Für die Namen `L1/L2/L3`
-ist zusätzlich eine elektrische Referenz oder ein kontrollierter
-Installationsvergleich erforderlich.
+Die Evidenzphase gilt erst als abgeschlossen, wenn daraus belastbar entschieden
+werden kann:
 
-## Erforderliche Tests vor Implementierung
+- Snapshot oder Delta;
+- erwartete Kardinalität;
+- stabile Positionen;
+- Paarung von Spannung und Strom derselben Position.
 
-1. Unpacked- und packed-Floatwerte werden positionsgetreu in drei Werte je
-   Messgröße übernommen.
-2. Die bisherigen Maximalwert-Keys bleiben unverändert.
-3. Reihenfolge und Werte werden nicht sortiert.
-4. Ein-, zwei- und dreielementige Listen erzeugen keine künstlichen Nullen.
-5. Nicht-finite Werte und ungültige Paketlängen werden sicher behandelt.
-6. Ein neuer unvollständiger Report lässt keine alte Einzelposition als
-   scheinbar aktuellen Messwert stehen.
-7. Einzelwerte erhalten korrekte Einheiten, Device Classes und
-   Measurement-State-Class.
-8. Neue Entities sind standardmäßig deaktiviert; bestehende Entity-IDs und
-   Übersetzungen bleiben unverändert.
-9. Fehlende Einzelwerte führen zu `unknown`, ein tatsächlich fehlender
-   Direct-Datenpfad zu `unavailable`.
+## Erforderliche Tests vor Entity-Implementierung
+
+1. Packed- und unpacked-Floatwerte werden in Wire-Reihenfolge erhalten.
+2. Nicht-finite Werte verschieben keine nachfolgenden Positionen.
+3. Die bisherigen Maximalwert-Keys und ihre Werte bleiben unverändert.
+4. Positionswerte werden niemals nach Größe sortiert.
+5. Ein-, zwei-, drei- und mehr als dreielementige Listen werden explizit
+   behandelt.
+6. Unterschiedliche Kardinalität von Feld `29` und `30` wird sicher behandelt.
+7. Ungültige packed-Längen werden nicht teilweise übernommen.
+8. Tatsächlich gelieferte `0.0`-Werte bleiben echte Nullwerte.
+9. Snapshot-/Delta-Verhalten folgt der zuvor dokumentierten Live-Evidenz.
+10. Einzelwerte erhalten korrekte Einheiten, Device Classes und
+    `MEASUREMENT`-State-Class.
+11. Neue Entities sind standardmäßig deaktiviert und diagnostisch.
+12. Bestehende Unique IDs bleiben unverändert.
+13. Fehlende Feldwerte und fehlender Direct-Datenpfad werden korrekt als
+    `unknown` beziehungsweise `unavailable` unterschieden.
+14. Eine spätere `phase_1`-Paarung wird nur freigegeben, wenn `voltage[i]` und
+    `current[i]` als dieselbe physische Position bestätigt sind.
 
 ## Empfehlung
 
-DATA-06 ist als Designanalyse abgeschlossen. Empfohlen wird ein zweistufiges
-Vorgehen:
+DATA-06 sollte nicht mehr als „Analysis complete; implementation pending“
+geführt werden, sondern als:
 
-1. Die sechs positionsbezogenen Direct-Diagnose-Sensoren mit vollständiger
-   Snapshot-/Freshness-Semantik implementieren, ohne bestehende Aggregatwerte
-   zu ändern.
-2. Erst nach stabiler Positions-Evidenz über eine nutzerseitige
-   `L1/L2/L3`-Benennung und eine eventuelle Aktivierung außerhalb der Diagnose
-   entscheiden.
+> **Analysis mostly complete; phase-array evidence validation pending**
 
-Die Analyse rechtfertigt weder das Entfernen der bestehenden Aggregatwerte
-noch die Berechnung einer neuen Gesamtleistung aus den sechs Einzel-Entities.
+Empfohlenes weiteres Vorgehen:
+
+1. Parser so vorbereiten, dass Rohpositionen einschließlich ungültiger Slots
+   positionsstabil untersucht werden können, ohne die bestehenden Aggregate zu
+   verändern.
+2. Kontrollierte reale `2/33`-Captures über die relevanten Betriebszustände
+   sammeln und Snapshot-/Delta-Semantik, Kardinalität, Positionsstabilität und
+   Voltage/Current-Paarung klären.
+3. Erst danach dauerhafte sechs Einzel-Entities definieren und implementieren.
+4. Nach zusätzlicher elektrischer Zuordnung separat über `L1/L2/L3`-Namen und
+   normale Aktivierung entscheiden.
+
+Unverändert gilt: DATA-06 rechtfertigt weder das Entfernen der bestehenden
+Aggregatwerte noch die Berechnung einer neuen Gesamtleistung aus Spannungs- und
+Strommaxima.
