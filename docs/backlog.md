@@ -15,7 +15,7 @@ Any upstream proposal must follow the upstream maintainer's chosen architecture.
 This integration's direct C376 MQTT path with bounded PowerOcean HTTP fallback
 is project evidence, not a prescription for another repository.
 
-Current implementation baseline: `0.1.1-beta.1`.
+Current implementation baseline: `0.1.1-beta.2`.
 
 ## Live validation and control safety
 
@@ -28,6 +28,7 @@ Current implementation baseline: `0.1.1-beta.1`.
 | `SAFE-02` | Research paused-state policy | In Solar mode with Continuous charging off, the app reportedly hid the Continuous switch while charging was paused for insufficient solar. HA treated `paused` as non-charging and exposed the switch. Enabling it in HA changed the confirmed state to on and was followed about 59 seconds later by `charging` at approximately 1.29 kW. Determine whether this accepted device behavior should remain intentionally available in HA or whether HA should mirror the app's stricter paused-state interlock. | Repeat a controlled paused-Solar sequence with app closed, capture SET/reply plus fresh direct/provider readback and heartbeat transition, verify disable as well as enable behavior, and document the safety/UI decision before changing the interlock. |
 | `CTRL-02` | Research | Investigate dynamic charging-current or power control during an active session separately from the stored maximum-current setting. | A captured official-app command, acknowledgement, physical readback, limits, and charging-state constraints are confirmed before exposing a control. |
 | `CTRL-03` | Research | Determine whether a user-requested Stop remains persistent with Plug-and-Play and Solar Continuous charging enabled. During beta installation the charger was observed charging again after an earlier Stop and a Home Assistant restart, but the observation does not prove that the restart caused the resume. | Controlled Stop tests isolate Plug-and-Play, Continuous charging, elapsed time, and HA reload/restart while recording command, fresh heartbeat transitions, and any automatic resume before changing control semantics. |
+| `CTRL-04` | Implemented in `0.1.1-beta.2`; live validation pending | Increase only the Start readback window from 15 to 30 seconds. On 2026-08-30 the `241/100` Start request at 09:16:40.719 local was acknowledged after 109 ms, but `charging` arrived only at 09:16:58.080, about 17.3 seconds after the request and therefore just after the previous timeout. Stop remains at 15 seconds and the intermediate `plugged_in` state is not accepted as successful Start confirmation. | Focused tests prove the separate 30-second Start and 15-second Stop deadlines and retain fail-closed confirmation states. A live Start taking more than 15 seconds must complete without a false HA error before closing this item. |
 
 ## Telemetry and protocol research
 
@@ -46,7 +47,7 @@ Current implementation baseline: `0.1.1-beta.1`.
 | ID | Priority | Open work | Completion evidence |
 | --- | --- | --- | --- |
 | `ENTITY-01` | High | Review generic sensor availability semantics tracked in issue #4 so a temporarily absent field becomes `unknown` where appropriate instead of making a healthy charger entity `unavailable`. | Tests distinguish healthy value, healthy-but-missing field, and genuinely unavailable coordinator/source states without introducing stale-value ambiguity. |
-| `ENTITY-02` | High | Complete the entity-metadata cleanup tracked in issue #5: add missing native device classes/unit constants, classify screen/LED controls as configuration where appropriate, and review measurement state classes. | Entity descriptions use Home Assistant-native metadata consistently; UI grouping and units are verified without changing protocol semantics or existing unique IDs. |
+| `ENTITY-02` | Implemented in `0.1.1-beta.2`; UI validation pending | Complete the entity-metadata cleanup tracked in issue #5: current, energy, and distance Number controls now use native device classes and unit constants; the Smart distance sensor uses native distance metadata; and screen/LED switches plus brightness controls are configuration entities. The state-class audit deliberately leaves targets, brightness settings, and raw diagnostics unclassified because they are not measurements. | Automated metadata tests pass, and the installed beta visibly groups the four screen/LED controls under configuration and exposes the intended native units/device classes without changing existing entity IDs. |
 | `ENTITY-03` | After control validation | Reduce duplicate read-only and control entities as tracked in issue #6 once the corresponding controls are stable enough to act as canonical setting entities. | One canonical entity represents each validated setting where practical, raw diagnostics remain available, migrations preserve existing installations, and charging status + charging binary sensor remain intentionally separate. |
 
 ## Deferred and release work

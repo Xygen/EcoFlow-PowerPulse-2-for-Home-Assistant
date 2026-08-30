@@ -2,9 +2,19 @@
 
 from __future__ import annotations
 
-from homeassistant.components.number import NumberEntity, NumberEntityDescription
+from homeassistant.components.number import (
+    NumberDeviceClass,
+    NumberEntity,
+    NumberEntityDescription,
+)
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import UnitOfElectricCurrent
+from homeassistant.const import (
+    PERCENTAGE,
+    EntityCategory,
+    UnitOfElectricCurrent,
+    UnitOfEnergy,
+    UnitOfLength,
+)
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
@@ -29,6 +39,7 @@ async def async_setup_entry(
                 native_max_value=16,
                 native_step=1,
                 native_unit_of_measurement=UnitOfElectricCurrent.AMPERE,
+                device_class=NumberDeviceClass.CURRENT,
             ),
             NumberEntityDescription(
                 key="solar_minimum_current_control",
@@ -37,6 +48,7 @@ async def async_setup_entry(
                 native_max_value=16,
                 native_step=1,
                 native_unit_of_measurement=UnitOfElectricCurrent.AMPERE,
+                device_class=NumberDeviceClass.CURRENT,
             ),
             NumberEntityDescription(
                 key="custom_current_control",
@@ -45,6 +57,7 @@ async def async_setup_entry(
                 native_max_value=16,
                 native_step=1,
                 native_unit_of_measurement=UnitOfElectricCurrent.AMPERE,
+                device_class=NumberDeviceClass.CURRENT,
             ),
             NumberEntityDescription(
                 key="smart_energy_target_control",
@@ -52,7 +65,8 @@ async def async_setup_entry(
                 native_min_value=1,
                 native_max_value=100,
                 native_step=1,
-                native_unit_of_measurement="kWh",
+                native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
+                device_class=NumberDeviceClass.ENERGY,
             ),
             NumberEntityDescription(
                 key="smart_distance_target_control",
@@ -60,7 +74,8 @@ async def async_setup_entry(
                 native_min_value=10,
                 native_max_value=600,
                 native_step=1,
-                native_unit_of_measurement="km",
+                native_unit_of_measurement=UnitOfLength.KILOMETERS,
+                device_class=NumberDeviceClass.DISTANCE,
             ),
             NumberEntityDescription(
                 key="screen_brightness_control",
@@ -68,7 +83,8 @@ async def async_setup_entry(
                 native_min_value=25,
                 native_max_value=100,
                 native_step=25,
-                native_unit_of_measurement="%",
+                native_unit_of_measurement=PERCENTAGE,
+                entity_category=EntityCategory.CONFIG,
             ),
             NumberEntityDescription(
                 key="indicator_brightness_control",
@@ -76,7 +92,8 @@ async def async_setup_entry(
                 native_min_value=25,
                 native_max_value=100,
                 native_step=25,
-                native_unit_of_measurement="%",
+                native_unit_of_measurement=PERCENTAGE,
+                entity_category=EntityCategory.CONFIG,
             ),
         )
     )

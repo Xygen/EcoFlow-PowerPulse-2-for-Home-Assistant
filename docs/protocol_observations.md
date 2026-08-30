@@ -1348,3 +1348,27 @@ The wallbox was then restored to Solar mode, automatic phase selection, and a
 by the user. The final state was `charge_complete`, charging off, and 0 W.
 Together with the 39-second Custom test, this completes `SAFE-01`; the item has
 therefore been removed from the canonical backlog.
+
+## 2026-08-30: delayed Start confirmation and 0.1.1-beta.2
+
+A later Start at `09:16:40.718512` local time produced a matched `241/100`
+reply at `09:16:40.827214`, so command transport was acknowledged after about
+109 ms. A newer heartbeat first reported `plugged_in` at `09:16:41.399626` and
+only reached `charging` at `09:16:58.080104`, approximately 17.3 seconds after
+the request. The previous 15-second readback window therefore raised a false
+failure shortly before the successful state arrived.
+
+Version `0.1.1-beta.2` gives Start a 30-second readback window while preserving
+the 15-second Stop window. It does not weaken outcome validation: `plugged_in`
+still cannot confirm Start, which continues to require a fresh `charging` or
+`paused` heartbeat. The change affects only how long HA waits for the same
+independent device evidence.
+
+The same beta completes the code side of the Home Assistant metadata audit.
+Current, energy, and distance Number controls now use native device classes and
+unit constants; the Smart distance sensor uses native distance metadata; and
+the screen/LED switches and brightness controls are device-configuration
+entities. No measurement state class was added to targets, brightness values,
+or raw diagnostics because they are configuration or protocol values rather
+than physical measurement series. No protocol path, payload, or unique ID is
+changed.

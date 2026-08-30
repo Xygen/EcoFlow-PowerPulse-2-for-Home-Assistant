@@ -6,6 +6,21 @@ Current outstanding work is maintained only in
 
 ## Unreleased
 
+## 0.1.1-beta.2 - 2026-08-30
+
+- Increase only the Start device-readback window from 15 to 30 seconds after a
+  live Start was acknowledged in 109 ms but reached `charging` after about
+  17.3 seconds. Stop retains its 15-second window and `plugged_in` remains an
+  invalid Start confirmation.
+- Add native current, energy, and distance device classes and replace literal
+  units on Number controls with Home Assistant constants.
+- Classify the Smart distance sensor as distance with the native kilometre
+  constant, and group the screen/LED switches and brightness controls under
+  device configuration.
+- Complete the numeric state-class review without marking configuration
+  targets, brightness values, or raw diagnostics as measurements. Existing
+  physical telemetry and energy totals already carry the appropriate classes.
+
 ## 0.1.1-beta.1 - 2026-08-29
 
 - Publish and install the prerelease through HACS using its explicit version,

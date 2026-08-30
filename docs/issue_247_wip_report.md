@@ -850,3 +850,20 @@ test, Solar mode, automatic phase selection, and the 16 A maximum were restored;
 Continuous charging remained enabled by user choice, with charging stopped and
 power at 0 W. `SAFE-01` is complete and has been removed from the canonical
 backlog.
+
+## 0.1.1-beta.2 timeout and entity metadata bundle (2026-08-30)
+
+One live Start exposed a narrow false-negative boundary: `241/100` transport
+acknowledgement arrived after about 109 ms, but fresh `charging` readback took
+about 17.3 seconds and missed the prior 15-second deadline. The beta extends
+only Start confirmation to 30 seconds. Stop remains at 15 seconds, and
+`plugged_in` is still rejected as Start confirmation, preserving the existing
+fail-closed device-state requirement.
+
+The bundled metadata cleanup adds Home Assistant-native current, energy, and
+distance metadata to the relevant Number controls, native distance metadata to
+the Smart-distance sensor, and configuration categorization to screen/LED
+switches and brightness controls. The state-class audit found no missing class
+on physical telemetry; configuration targets, brightness settings, and raw
+diagnostics intentionally remain without measurement state classes. The bundle
+changes no protocol mapping, command payload, or entity unique ID.

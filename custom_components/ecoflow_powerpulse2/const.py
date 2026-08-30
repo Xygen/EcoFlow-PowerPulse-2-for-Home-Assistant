@@ -16,6 +16,7 @@ from homeassistant.const import (
     UnitOfElectricCurrent,
     UnitOfElectricPotential,
     UnitOfEnergy,
+    UnitOfLength,
     UnitOfPower,
     UnitOfTime,
 )
@@ -117,7 +118,8 @@ SENSORS = (
     PowerPulse2SensorDescription(
         key="smart_target_distance_km",
         translation_key="smart_target_distance",
-        native_unit_of_measurement="km",
+        native_unit_of_measurement=UnitOfLength.KILOMETERS,
+        device_class=SensorDeviceClass.DISTANCE,
     ),
     PowerPulse2SensorDescription(
         key="smart_calculated_energy_wh",

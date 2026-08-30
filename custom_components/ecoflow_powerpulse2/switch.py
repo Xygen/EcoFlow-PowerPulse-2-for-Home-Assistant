@@ -6,6 +6,7 @@ from collections.abc import Awaitable, Callable
 
 from homeassistant.components.switch import SwitchEntity, SwitchEntityDescription
 from homeassistant.config_entries import ConfigEntry
+from homeassistant.const import EntityCategory
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
@@ -38,10 +39,12 @@ async def async_setup_entry(
             SwitchEntityDescription(
                 key="screen_control",
                 translation_key="screen_control",
+                entity_category=EntityCategory.CONFIG,
             ),
             SwitchEntityDescription(
                 key="indicator_control",
                 translation_key="indicator_control",
+                entity_category=EntityCategory.CONFIG,
             ),
         )
     )

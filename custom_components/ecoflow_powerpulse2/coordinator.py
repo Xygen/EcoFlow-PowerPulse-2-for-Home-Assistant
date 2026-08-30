@@ -16,7 +16,11 @@ from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
 from .api import PowerPulse2ApiClient
-from .charge_control import charge_action_allowed, charge_action_confirmed
+from .charge_control import (
+    charge_action_allowed,
+    charge_action_confirm_seconds,
+    charge_action_confirmed,
+)
 from .const import (
     CONF_EMAIL,
     CONF_PASSWORD,
@@ -62,7 +66,6 @@ _CONTROL_DIAGNOSTIC_ATTEMPTS = 32
 _DIRECT_STREAM_CONFIRM_SECONDS = 10
 _DIRECT_STREAM_DIAGNOSTIC_ATTEMPTS = 16
 _HEARTBEAT_STREAM_FRESH_SECONDS = 90
-_CHARGE_ACTION_CONFIRM_SECONDS = 15
 _AUTOMATIC_RECOVERY_STALE_SECONDS = 300
 _AUTOMATIC_RECOVERY_COOLDOWN_SECONDS = 1800
 _DIRECT_SETTINGS_KEYS = frozenset(
@@ -595,7 +598,7 @@ class PowerPulse2Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
                 self._reply_waiters.pop(waiter_key, None)
                 raise HomeAssistantError("No EcoFlow SET reply was received") from exc
 
-            deadline = time.monotonic() + _CHARGE_ACTION_CONFIRM_SECONDS
+            deadline = time.monotonic() + charge_action_confirm_seconds(action)
             while time.monotonic() < deadline:
                 reported_at = self._last_heartbeat_at.get(serial, 0)
                 status = (self.data or {}).get(serial, {}).get("charging_status")
