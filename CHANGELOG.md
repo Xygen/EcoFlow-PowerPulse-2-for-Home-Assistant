@@ -6,6 +6,14 @@ Current outstanding work is maintained only in
 
 ## Unreleased
 
+## 0.1.1-beta.4 - 2026-08-30
+
+- Implement the code side of issue #4 / `ENTITY-01` for normal sensors only.
+  Successful coordinator data with an omitted individual field now yields
+  Home Assistant `unknown`; coordinator failure, a missing device, or a
+  disconnected explicitly required direct/PowerOcean MQTT source still yields
+  `unavailable`. Buttons, switches, selects, numbers, datetimes, and their
+  safety or mode interlocks are unchanged pending live validation.
 - Finalize `STREAM-01` from the previously completed controlled idle-window
   validation. With the EcoFlow app closed and no manual reconnect, device
   publish, or settings action, `automatic_wss_reconnect` rebuilt only the

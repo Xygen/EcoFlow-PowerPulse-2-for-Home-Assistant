@@ -30,7 +30,7 @@ diagnostics.
 
 ## Current scope
 
-Version `0.1.1-beta.3` keeps automatic MQTT activity listen-only and provides
+Version `0.1.1-beta.4` keeps automatic MQTT activity listen-only and provides
 disabled-by-default, user-triggered controls:
 
 - EcoFlow app-account login and PowerPulse discovery

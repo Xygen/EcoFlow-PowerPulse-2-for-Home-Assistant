@@ -933,3 +933,19 @@ stream sensors active, and no matching integration error in Home Assistant's
 system log. This closes validation of the existing bounded recovery policy; the
 separate question of deliberately allowing an idle stream to sleep remains
 tracked only as `STREAM-02` in the canonical backlog.
+
+## Issue #4 sensor semantics implemented locally (2026-08-30)
+
+The generic sensor platform no longer equates an omitted individual telemetry
+field with an unavailable charger. With a successful coordinator update, a
+present device, and a usable required source, the sensor remains available and
+returns `None` so Home Assistant displays `unknown`. Direct-wallbox and
+PowerOcean-session descriptions now declare their required MQTT source; a
+disconnected required source, coordinator failure, or missing device still
+produces `unavailable`, even if an older value remains cached.
+
+Only normal sensors are affected. All control availability, charging-state
+interlocks, and diagnostic connectivity entities are unchanged. The local
+90-test suite and Ruff pass. The implementation remains tracked as `ENTITY-01`
+until an installed build confirms the expected `unknown` states and unchanged
+control gating in Home Assistant.

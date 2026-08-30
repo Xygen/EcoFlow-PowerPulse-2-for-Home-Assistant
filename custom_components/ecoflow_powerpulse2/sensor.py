@@ -11,6 +11,7 @@ from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from .const import SENSORS, PowerPulse2SensorDescription
 from .coordinator import PowerPulse2Coordinator
 from .entity import PowerPulse2Entity
+from .sensor_availability import telemetry_sensor_available, telemetry_sensor_value
 
 
 async def async_setup_entry(
@@ -44,13 +45,20 @@ class PowerPulse2Sensor(PowerPulse2Entity, SensorEntity):
 
     @property
     def available(self) -> bool:
-        source_key = self.entity_description.source_key or self.entity_description.key
-        return self.coordinator.last_update_success and source_key in self.coordinator.data.get(self.serial, {})
+        return telemetry_sensor_available(
+            coordinator_available=super().available,
+            device_present=self.serial in self.coordinator.data,
+            source_available=self.coordinator.telemetry_source_available(
+                self.serial, self.entity_description.required_source
+            ),
+        )
 
     @property
     def native_value(self):
         source_key = self.entity_description.source_key or self.entity_description.key
-        value = self.coordinator.data.get(self.serial, {}).get(source_key)
+        value = telemetry_sensor_value(
+            self.coordinator.data.get(self.serial, {}), source_key
+        )
         if self.entity_description.value_fn is not None:
             return self.entity_description.value_fn(value)
         return value

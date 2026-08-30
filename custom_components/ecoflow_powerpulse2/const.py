@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Literal
 
 from homeassistant.components.sensor import (
     SensorDeviceClass,
@@ -36,6 +36,7 @@ class PowerPulse2SensorDescription(SensorEntityDescription):
 
     diagnostic: bool = False
     source_key: str | None = None
+    required_source: Literal["coordinator", "direct", "powerocean"] = "coordinator"
     value_fn: Callable[[Any], Any] | None = None
 
 
@@ -43,6 +44,7 @@ SENSORS = (
     PowerPulse2SensorDescription(
         key="charging_power_w",
         source_key="direct_charging_power_w",
+        required_source="direct",
         translation_key="direct_charging_power",
         native_unit_of_measurement=UnitOfPower.WATT,
         device_class=SensorDeviceClass.POWER,
@@ -52,6 +54,7 @@ SENSORS = (
     PowerPulse2SensorDescription(
         key="charging_status",
         source_key="direct_charging_status",
+        required_source="direct",
         translation_key="direct_charging_status",
         device_class=SensorDeviceClass.ENUM,
         options=[
@@ -80,6 +83,7 @@ SENSORS = (
     PowerPulse2SensorDescription(
         key="phase_voltage_v",
         source_key="direct_phase_voltage_v",
+        required_source="direct",
         translation_key="direct_phase_voltage",
         native_unit_of_measurement=UnitOfElectricPotential.VOLT,
         device_class=SensorDeviceClass.VOLTAGE,
@@ -90,6 +94,7 @@ SENSORS = (
     PowerPulse2SensorDescription(
         key="phase_current_a",
         source_key="direct_phase_current_a",
+        required_source="direct",
         translation_key="direct_phase_current",
         native_unit_of_measurement=UnitOfElectricCurrent.AMPERE,
         device_class=SensorDeviceClass.CURRENT,
@@ -100,6 +105,7 @@ SENSORS = (
     PowerPulse2SensorDescription(
         key="session_duration_s",
         source_key="direct_session_duration_s",
+        required_source="direct",
         translation_key="direct_session_duration",
         native_unit_of_measurement=UnitOfTime.SECONDS,
         device_class=SensorDeviceClass.DURATION,
@@ -137,6 +143,7 @@ SENSORS = (
     PowerPulse2SensorDescription(
         key="total_energy_raw",
         source_key="direct_total_energy_raw",
+        required_source="direct",
         translation_key="direct_total_energy_raw",
         diagnostic=True,
         entity_registry_enabled_default=False,
@@ -144,6 +151,7 @@ SENSORS = (
     PowerPulse2SensorDescription(
         key="total_energy_kwh",
         source_key="direct_total_energy_raw",
+        required_source="direct",
         translation_key="direct_total_energy",
         native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
         device_class=SensorDeviceClass.ENERGY,
@@ -154,6 +162,7 @@ SENSORS = (
     PowerPulse2SensorDescription(
         key="session_energy_raw",
         source_key="direct_session_energy_raw",
+        required_source="direct",
         translation_key="direct_session_energy_raw",
         diagnostic=True,
         entity_registry_enabled_default=False,
@@ -161,6 +170,7 @@ SENSORS = (
     PowerPulse2SensorDescription(
         key="session_energy_kwh",
         source_key="direct_session_energy_raw",
+        required_source="direct",
         translation_key="direct_session_energy",
         native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
         device_class=SensorDeviceClass.ENERGY,
@@ -170,6 +180,7 @@ SENSORS = (
     ),
     PowerPulse2SensorDescription(
         key="powerocean_charging_power_w",
+        required_source="powerocean",
         translation_key="powerocean_charging_power",
         native_unit_of_measurement=UnitOfPower.WATT,
         device_class=SensorDeviceClass.POWER,
@@ -178,6 +189,7 @@ SENSORS = (
     ),
     PowerPulse2SensorDescription(
         key="powerocean_charging_status",
+        required_source="powerocean",
         translation_key="powerocean_charging_status",
         device_class=SensorDeviceClass.ENUM,
         options=[
@@ -193,6 +205,7 @@ SENSORS = (
     ),
     PowerPulse2SensorDescription(
         key="powerocean_session_duration_s",
+        required_source="powerocean",
         translation_key="powerocean_session_duration",
         native_unit_of_measurement=UnitOfTime.SECONDS,
         device_class=SensorDeviceClass.DURATION,
@@ -202,6 +215,7 @@ SENSORS = (
     PowerPulse2SensorDescription(
         key="powerocean_session_energy_kwh",
         source_key="powerocean_session_energy_wh",
+        required_source="powerocean",
         translation_key="powerocean_session_energy",
         native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
         device_class=SensorDeviceClass.ENERGY,

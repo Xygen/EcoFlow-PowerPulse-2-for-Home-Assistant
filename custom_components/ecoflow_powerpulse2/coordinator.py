@@ -658,6 +658,22 @@ class PowerPulse2Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
         client = self.mqtt_clients.get(serial)
         return serial in self.devices and client is not None and client.is_connected()
 
+    def telemetry_source_available(self, serial: str, source: str) -> bool:
+        """Return whether the source required by a telemetry sensor is usable."""
+        if serial not in self.devices:
+            return False
+        if source == "coordinator":
+            return True
+        if source == "direct":
+            return self.direct_stream_available(serial)
+        if source == "powerocean":
+            return any(
+                (client := self.mqtt_clients.get(observer_serial)) is not None
+                and client.is_connected()
+                for observer_serial in self.observer_devices
+            )
+        return False
+
     def direct_reconnect_available(self, serial: str) -> bool:
         """Return whether the direct WSS client can be rebuilt safely."""
         client = self.mqtt_clients.get(serial)

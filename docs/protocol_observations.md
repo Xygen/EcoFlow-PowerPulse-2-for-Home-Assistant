@@ -1470,3 +1470,27 @@ system log contained no `ecoflow_powerpulse2` error. The current coordinator
 runtime began after the validated attempt, so its in-memory attempt trace is
 correctly empty; the retained controlled-test evidence above is the completion
 record. `STREAM-01` is complete and has been removed from the canonical backlog.
+
+## 2026-08-30: ENTITY-01 sensor availability implementation
+
+Issue #4 exposed a semantic mismatch in the generic sensor platform: its
+`available` property required both a successful coordinator update and the
+individual field key to be present. Several Smart and state-specific values are
+legitimately absent outside the operating state that reports them, so this made
+a healthy charger appear unavailable at the entity level.
+
+The local implementation now treats field presence as value knowledge rather
+than source availability. A healthy coordinator, present device, and usable
+required source keep a normal sensor available; an omitted key returns `None`
+and therefore Home Assistant `unknown`. Sensor descriptions explicitly identify
+the direct charger or PowerOcean observer where one of those MQTT paths is
+required. A failed coordinator, missing device, disconnected required source,
+or cached value behind such a failed source remains `unavailable`.
+
+This change is deliberately limited to the sensor platform. The charging
+binary sensor, connectivity diagnostics, buttons, switches, numbers, selects,
+and datetime controls retain their existing availability and safety rules. The
+local suite covers present values, healthy missing values, coordinator/device
+failure, and a failed required source with cached data; all 90 tests pass. Live
+Home Assistant validation is deferred to the next bundled build, so
+`ENTITY-01` remains in the canonical backlog until that check is complete.
