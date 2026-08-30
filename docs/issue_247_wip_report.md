@@ -978,3 +978,23 @@ raw duplicates stay disabled diagnostics, all unique IDs are preserved, and no
 write command or protocol mapping changes. Live Home Assistant validation
 remains required before removing `ENTITY-03` from the canonical backlog and
 closing issue #6.
+
+## PHASE-01 implementation (2026-08-30)
+
+The local phase-control implementation now uses source-qualified evidence
+instead of the unattributed merged Provider snapshot. Fresh valid `241/44`
+remains authoritative. When it is unavailable, only an explicit, fresh
+Parent-Accessory `phaseSpecified` integer `0/1/2` can make the Control
+available; Device-Detail, missing or invalid raw values and conflicting newer
+Direct evidence are rejected. The separately mapped `2/34` phase report is
+retained for diagnostics but not yet promoted to a confirmation path.
+
+Generic Provider No-op is disabled specifically for phase. Provider post-write
+confirmation now requires a transition from a different source-qualified and
+fresh pre-write value to the target after SET plus matching SET_REPLY. An
+unchanged
+already-at-target cache is insufficient, while a new matching `241/44`
+continues to confirm immediately and a new mismatch keeps the operation
+fail-closed. Transport and charging interlocks and the bounded Provider retry
+schedule are unchanged. Live validation with stale `241/44`, including the
+already-at-target edge case, remains required before closing `PHASE-01`.

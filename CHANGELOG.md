@@ -6,6 +6,22 @@ Current outstanding work is maintained only in
 
 ## Unreleased
 
+## 0.1.1-beta.5 - 2026-08-30
+
+- Implement the code side of `PHASE-01` with source-qualified phase evidence.
+  Fresh valid `241/44` remains authoritative; only an explicit, fresh
+  PowerOcean Parent-Accessory raw value `0`, `1`, or `2` can make the phase
+  Control available as fallback. Device-detail, merged provider state,
+  missing fields, booleans, floats, non-finite and out-of-range values are
+  rejected. The differently mapped `2/34` phase report remains separate
+  diagnostic evidence and is not yet a write-confirmation source.
+- Disable generic Provider No-op only for phase writes. After SET plus matching
+  SET_REPLY, Direct target readback confirms immediately; Provider fallback
+  requires a post-write transition from a different source-qualified pre-write
+  value to the requested target. A Provider cache already at the target cannot
+  suppress or confirm a write. Existing transport, charging-state, backend
+  safety gates and bounded retry timings remain unchanged.
+
 - Implement the code side of issue #6 / `ENTITY-03` using the revised entity
   model analysis. Read-only settings remain the canonical visible
   observations, while writable Controls remain separate, default-disabled and

@@ -13,8 +13,11 @@ confirmation.
 Phase selection is narrower: provider `phaseSpecified` is now mapped as
 `0` Auto, `1` one phase, and `2` three phase, but provider cache lag means a
 fresh HTTP poll is not automatically fresh device-state evidence. Phase control
-therefore still requires dedicated source-aware confirmation semantics before
-the parent-accessory value can be used as a fallback.
+therefore uses the Parent-Accessory value only through a dedicated source-aware
+fallback: availability requires the field in the latest source snapshot and an
+exact raw `0/1/2`; post-write confirmation additionally requires a transition
+from a different pre-write value to the target. Generic Provider No-op is
+disabled for phase.
 Start/Stop uses its separate `241/100` route and requires a newer heartbeat with
 an allowed physical charging state after the matching reply.
 
@@ -41,7 +44,7 @@ mapping yet.
 | Maximum output current | Field `18` as current limit | Field `9`; `160` = 16 A | `1.4.8.4`; `160` = 16 A | `paramSet.currentOuputMax` |
 | Solar minimum current | — | — | `1.4.8.6`; `70` = 7 A and `60` = 6 A | `paramSet.solarCurrentMin` |
 | Custom/user current | — | — | `1.4.8.8`; `60` = 6 A and `110` = 11 A | `paramSet.userCurrentSet` |
-| Phase selection | — | Field `11`: `1` one phase, `2` three phase, `3` auto | `1.4.8.7`: `0` auto, `1` one phase, `2` three phase | `paramSet.phaseSpecified`: `0` auto, `1` one phase, `2` three phase; mapping confirmed, but cache-aware control-confirmation policy remains pending |
+| Phase selection | — | Field `11`: `1` one phase, `2` three phase, `3` auto; separately diagnosed, not yet a write-confirmation source | `1.4.8.7`: `0` auto, `1` one phase, `2` three phase; authoritative while fresh | `paramSet.phaseSpecified`: `0` auto, `1` one phase, `2` three phase; source-qualified fallback with exact raw validation and transition-based post-write confirmation |
 | Plug-and-Play | — | Field `2`: `0`/`1` | Bit `0x02` in `1.4.8.1`; confirmed by `16 -> 18 -> 16` | Bit `0x02` in `paramSet.switchBits` |
 | LED enabled | — | Field `13`: `0`/`1` | `1.4.8.21`, byte 1: `0`/`1` | — |
 | LED brightness | — | Field `14`, percent | `1.4.8.21`, byte 3: `25`/`50`/`75`/`100` | — |
@@ -117,7 +120,10 @@ ready-by and target settings; nested `4.21` controls screen and LED state plus
 their 25/50/75/100% brightness. Every write requires a same-sequence reply and
 then either matching direct `241/44` readback or a post-command raw provider
 snapshot that explicitly contains the expected key and value. Cached merged
-state alone never confirms a write.
+state alone never confirms a write. Phase is stricter: it never uses generic
+Provider No-op, ignores Device-Detail and merged state, and accepts Parent-
+Accessory confirmation only after a different pre-write value transitions to
+the requested target.
 
 Version 0.1.0 retains the dev29 disabled-by-default Start and Stop buttons. Their
 `241/100` reply waiter is keyed by command tuple and sequence. Availability

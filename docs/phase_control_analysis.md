@@ -471,3 +471,37 @@ Die Analyse rechtfertigt **keine generelle Lockerung der Controls** und keinen
 Fallback auf `provider_device_detail`. Die bestehenden Transport- und
 Ladezustands-Safety-Gates bleiben erhalten; geändert werden muss gezielt die
 source-aware No-op-/Readback-Qualifikation der Phase-Control.
+
+## Implementierung
+
+Die lokale Umsetzung folgt der konservativen Variante der Analyse:
+
+- `PhaseReadbackTracker` speichert zusätzlich monotone Beobachtungszeitpunkte,
+  ohne diese laufenden Werte in die öffentlichen Diagnosen aufzunehmen;
+- Control-Evidenz aus `direct_241_44` und `provider_parent_accessory` verlangt,
+  dass der letzte Snapshot das Rohfeld tatsächlich enthielt und der Rawwert
+  ein exakter, nicht-boolescher Integer aus `0/1/2` ist;
+- frisches `241/44` ist autoritativ. Ist es abgelaufen, blockiert eine jüngere,
+  widersprüchliche Direct-Beobachtung einen älteren Provider-Fallback;
+- `provider_device_detail` und zusammengeführte `_last_polled_settings` sind
+  keine Phase-Control-Quellen;
+- `direct_2_34` wird mit seinem bereits source-spezifisch normalisierten Modus
+  separat diagnostiziert, bleibt aber außerhalb von Availability und
+  Confirmation;
+- der generische Provider-No-op wird für Phase vollständig übersprungen;
+- vor dem Publish werden Transport, Ladezustand und qualifizierte
+  Phase-Evidenz erneut geprüft;
+- nach SET und same-sequence SET_REPLY bestätigt ein neuer passender `241/44`
+  sofort. Ohne Direct-Bestätigung kann nur ein expliziter Parent-Accessory-
+  Wechsel von einem frischen, abweichenden Pre-write-Wert zum Ziel bestätigen;
+- ein bereits vor dem Write identischer Providerwert kann weder den Publish
+  unterdrücken noch den Write allein bestätigen;
+- die vorhandenen kurzen Direct-Wartezeiten und begrenzten Provider-Retries
+  bleiben unverändert, sodass keine dauerhafte zusätzliche Polling-Last
+  entsteht.
+
+Die lokale Testmatrix deckt Direct-Priorität, Provider-Fallback, jüngere
+widersprüchliche Direct-Evidenz, fehlende Felder, Device-Detail-Ausschluss,
+exakte Rawvalidierung, getrenntes `2/34`, Provider-Transition, Already-at-target
+und abweichende beziehungsweise passende Post-write-Directwerte ab. Die oben
+beschriebene Live-Evidenz bleibt vor Abschluss von `PHASE-01` erforderlich.

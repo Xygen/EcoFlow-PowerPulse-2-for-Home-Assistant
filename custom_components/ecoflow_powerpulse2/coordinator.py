@@ -29,7 +29,6 @@ from .const import (
     UPDATE_INTERVAL_SECONDS,
 )
 from .control_readback import (
-    fresh_direct_value_available,
     fresh_polled_value_matches,
     matching_readback_source,
     provider_readback_attempt_details,
@@ -54,7 +53,7 @@ from .frame_capture import (
 )
 from .parser import extract_powerpulse_accessory_descriptor, parse_powerpulse2_payload
 from .passive_refresh import ConfirmedSettingsReplyGate, DelayedRefreshCoalescer
-from .phase_diagnostics import PhaseReadbackTracker
+from .phase_diagnostics import PhaseEvidence, PhaseReadbackTracker
 from .setting_observation import (
     SettingObservationTracker,
     SettingSource,
@@ -68,6 +67,7 @@ _DIRECT_SETTINGS_FRESH_SECONDS = 10
 _CONTROL_DIRECT_WAIT_SECONDS = 2
 _CONTROL_PROVIDER_RETRY_DELAYS = (0, 3, 5, 5, 5)
 _CONTROL_NOOP_FRESH_SECONDS = UPDATE_INTERVAL_SECONDS * 2
+_PHASE_PROVIDER_FRESH_SECONDS = UPDATE_INTERVAL_SECONDS * 2
 _CONTROL_DIAGNOSTIC_ATTEMPTS = 32
 _DIRECT_STREAM_CONFIRM_SECONDS = 10
 _DIRECT_STREAM_DIAGNOSTIC_ATTEMPTS = 16
@@ -462,7 +462,23 @@ class PowerPulse2Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
             self._last_direct_settings_at[serial] = received_monotonic
             self._last_direct_settings_utc[serial] = received_at
             self._phase_readbacks.record(
-                serial, "direct_241_44", parsed, timestamp=received_at
+                serial,
+                "direct_241_44",
+                parsed,
+                timestamp=received_at,
+                observed_monotonic=received_monotonic,
+            )
+        is_cp307_settings = parsed and any(
+            header.get("cmd_func") == 2 and header.get("cmd_id") == 34
+            for header in protocol_headers
+        )
+        if is_cp307_settings:
+            self._phase_readbacks.record(
+                serial,
+                "direct_2_34",
+                parsed,
+                timestamp=received_at,
+                observed_monotonic=received_monotonic,
             )
         if parsed and any(
             header.get("cmd_func") == 2 and header.get("cmd_id") == 33
@@ -888,17 +904,16 @@ class PowerPulse2Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
             self.async_update_listeners()
 
     def phase_control_available(self, serial: str) -> bool:
-        """Return whether phase control also has a confirmable direct readback."""
+        """Return whether phase control has a qualified readback strategy."""
         return (
             self.charging_sensitive_control_available(serial, "phase_mode")
-            and fresh_direct_value_available(
-                current_values=(self.data or {}).get(serial, {}),
-                direct_reported_at=self._last_direct_settings_at.get(serial, 0),
+            and self._phase_readbacks.control_evidence(
+                serial,
                 now=time.monotonic(),
-                max_age=_DIRECT_SETTINGS_FRESH_SECONDS,
-                key="phase_mode",
-                allowed_values={"auto", "one_phase", "three_phase"},
+                direct_max_age=_DIRECT_SETTINGS_FRESH_SECONDS,
+                provider_max_age=_PHASE_PROVIDER_FRESH_SECONDS,
             )
+            is not None
         )
 
     async def async_set_phase_mode(self, serial: str, option: str) -> None:
@@ -908,8 +923,8 @@ class PowerPulse2Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
             raise HomeAssistantError(f"Unsupported phase option: {option}")
         if not self.phase_control_available(serial):
             raise HomeAssistantError(
-                "Phase control is unavailable until fresh direct phase readback "
-                "and exactly one connected PowerOcean source are available"
+                "Phase control requires a qualified direct or PowerOcean "
+                "parent-accessory readback and exactly one connected source"
             )
 
         await self._async_write_settings(
@@ -917,6 +932,7 @@ class PowerPulse2Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
             {5: phase_values[option]},
             expected_key="phase_mode",
             expected_value=option,
+            phase_specific=True,
         )
 
     async def async_set_battery_discharge_disabled(
@@ -1226,6 +1242,7 @@ class PowerPulse2Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
         *,
         expected_key: str,
         expected_value: Any,
+        phase_specific: bool = False,
     ) -> None:
         """Publish one settings command and require reply plus confirmed readback."""
         if not control_allowed_for_status(
@@ -1241,6 +1258,7 @@ class PowerPulse2Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
                 settings,
                 expected_key=expected_key,
                 expected_value=expected_value,
+                phase_specific=phase_specific,
             )
 
     async def _async_write_settings_locked(
@@ -1250,23 +1268,34 @@ class PowerPulse2Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
         *,
         expected_key: str,
         expected_value: Any,
+        phase_specific: bool = False,
     ) -> None:
         if not self.settings_control_available(serial):
             raise HomeAssistantError(
                 "Control is unavailable until a direct device settings report "
                 "and exactly one connected PowerOcean source are available"
             )
-        now = time.monotonic()
-        if fresh_polled_value_matches(
-            polled_values=self._last_polled_settings.get(serial, {}),
-            polled_at=self._last_polled_settings_at.get(serial, 0),
-            now=now,
-            max_age=_CONTROL_NOOP_FRESH_SECONDS,
-            expected_key=expected_key,
-            expected_value=expected_value,
-        ):
-            self._record_control_readback("noop")
-            return
+        if phase_specific and not self.phase_control_available(serial):
+            raise HomeAssistantError(
+                "Phase control lost its qualified readback before publish"
+            )
+        prewrite_provider: PhaseEvidence | None = None
+        if phase_specific:
+            prewrite_provider = self._phase_readbacks.source_evidence(
+                serial, "provider_parent_accessory"
+            )
+        else:
+            now = time.monotonic()
+            if fresh_polled_value_matches(
+                polled_values=self._last_polled_settings.get(serial, {}),
+                polled_at=self._last_polled_settings_at.get(serial, 0),
+                now=now,
+                max_age=_CONTROL_NOOP_FRESH_SECONDS,
+                expected_key=expected_key,
+                expected_value=expected_value,
+            ):
+                self._record_control_readback("noop")
+                return
         observer_serial = next(iter(self.observer_devices))
         client = self.mqtt_clients[observer_serial]
         payload, sequence = build_powerpulse_settings_payload(
@@ -1288,13 +1317,21 @@ class PowerPulse2Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
             self._reply_waiters.pop(waiter_key, None)
             raise HomeAssistantError("No EcoFlow SET reply was received") from exc
 
-        source = await self._async_wait_for_control_readback(
-            serial,
-            issued_at=issued_at,
-            expected_key=expected_key,
-            expected_value=expected_value,
-            timeout=_CONTROL_DIRECT_WAIT_SECONDS,
-        )
+        if phase_specific:
+            source = await self._async_wait_for_phase_direct_readback(
+                serial,
+                issued_at=issued_at,
+                expected_value=expected_value,
+                timeout=_CONTROL_DIRECT_WAIT_SECONDS,
+            )
+        else:
+            source = await self._async_wait_for_control_readback(
+                serial,
+                issued_at=issued_at,
+                expected_key=expected_key,
+                expected_value=expected_value,
+                timeout=_CONTROL_DIRECT_WAIT_SECONDS,
+            )
         if source is not None:
             self._record_control_readback(source)
             return
@@ -1308,18 +1345,37 @@ class PowerPulse2Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
             except Exception as exc:
                 refresh_succeeded = False
                 _LOGGER.debug("Provider readback after settings write failed: %s", exc)
-            self._record_provider_readback_attempt(
-                serial,
-                issued_at=issued_at,
-                expected_key=expected_key,
-                expected_value=expected_value,
-                attempt=attempt,
-                delay=delay,
-                refresh_succeeded=refresh_succeeded,
-            )
-            source = self._control_readback_source(
-                serial, issued_at, expected_key, expected_value
-            )
+            if phase_specific:
+                source = self._phase_readbacks.confirmation_source(
+                    serial,
+                    issued_at=issued_at,
+                    expected_mode=expected_value,
+                    prewrite_provider=prewrite_provider,
+                    prewrite_max_age=_PHASE_PROVIDER_FRESH_SECONDS,
+                )
+                self._record_phase_provider_attempt(
+                    serial,
+                    issued_at=issued_at,
+                    expected_value=expected_value,
+                    prewrite_provider=prewrite_provider,
+                    attempt=attempt,
+                    delay=delay,
+                    refresh_succeeded=refresh_succeeded,
+                    matched_source=source,
+                )
+            else:
+                self._record_provider_readback_attempt(
+                    serial,
+                    issued_at=issued_at,
+                    expected_key=expected_key,
+                    expected_value=expected_value,
+                    attempt=attempt,
+                    delay=delay,
+                    refresh_succeeded=refresh_succeeded,
+                )
+                source = self._control_readback_source(
+                    serial, issued_at, expected_key, expected_value
+                )
             if source is not None:
                 self._record_control_readback(source)
                 return
@@ -1327,6 +1383,26 @@ class PowerPulse2Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
             "EcoFlow acknowledged the command, but neither direct nor provider "
             "readback confirmed it"
         )
+
+    async def _async_wait_for_phase_direct_readback(
+        self,
+        serial: str,
+        *,
+        issued_at: float,
+        expected_value: str,
+        timeout: float,
+    ) -> str | None:
+        """Wait briefly for authoritative post-write 241/44 evidence."""
+        deadline = time.monotonic() + timeout
+        while time.monotonic() < deadline:
+            evidence = self._phase_readbacks.source_evidence(serial, "direct_241_44")
+            if evidence is not None and evidence.observed_monotonic > issued_at:
+                return "direct" if evidence.mode == expected_value else None
+            await asyncio.sleep(0.2)
+        evidence = self._phase_readbacks.source_evidence(serial, "direct_241_44")
+        if evidence is not None and evidence.observed_monotonic > issued_at:
+            return "direct" if evidence.mode == expected_value else None
+        return None
 
     async def _async_wait_for_control_readback(
         self,
@@ -1398,6 +1474,49 @@ class PowerPulse2Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
                 "expected_key": expected_key,
                 "refresh_succeeded": refresh_succeeded,
                 **details,
+            }
+        )
+
+    def _record_phase_provider_attempt(
+        self,
+        serial: str,
+        *,
+        issued_at: float,
+        expected_value: str,
+        prewrite_provider: PhaseEvidence | None,
+        attempt: int,
+        delay: int,
+        refresh_succeeded: bool,
+        matched_source: str | None,
+    ) -> None:
+        """Retain bounded source-qualified phase confirmation diagnostics."""
+        provider = self._phase_readbacks.source_evidence(
+            serial, "provider_parent_accessory"
+        )
+        direct = self._phase_readbacks.source_evidence(serial, "direct_241_44")
+        self._control_provider_attempts.append(
+            {
+                "timestamp": datetime.now(UTC).isoformat(),
+                "attempt": attempt,
+                "delay_seconds": delay,
+                "expected_key": "phase_mode",
+                "refresh_succeeded": refresh_succeeded,
+                "source": "provider_parent_accessory",
+                "prewrite_value": (
+                    prewrite_provider.mode if prewrite_provider is not None else None
+                ),
+                "parent_snapshot_after_command": (
+                    provider is not None
+                    and provider.observed_monotonic > issued_at
+                ),
+                "parent_value": provider.mode if provider is not None else None,
+                "postwrite_direct_value": (
+                    direct.mode
+                    if direct is not None and direct.observed_monotonic > issued_at
+                    else None
+                ),
+                "matched": matched_source is not None,
+                "matched_source": matched_source,
             }
         )
 

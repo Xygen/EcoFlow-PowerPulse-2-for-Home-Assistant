@@ -1530,3 +1530,28 @@ rather than an unavailable device or a false `off`. The Smart energy target
 becomes a normal canonical sensor; its unique ID remains unchanged and the
 migration only clears an integration-applied disable flag. No payload, field
 mapping, additional poll, or protocol write behavior changes.
+
+## 2026-08-30: PHASE-01 source-qualified fallback implementation
+
+Phase control no longer depends exclusively on a fresh `241/44` report, but
+the fallback is deliberately narrower than the generic settings Provider
+readback. Availability first accepts a fresh, exact `direct_241_44` raw phase
+`0/1/2`. Otherwise only the latest explicit
+`provider_parent_accessory.phaseSpecified` value can qualify, again restricted
+to a non-boolean integer `0/1/2` and a two-poll freshness window.
+`provider_device_detail`, merged `_last_polled_settings`, missing fields,
+floats, non-finite values, and out-of-range values cannot qualify. A newer
+conflicting Direct observation blocks an older Provider fallback even after
+the strict ten-second Direct authority window has elapsed.
+
+Phase writes bypass generic Provider No-op. After the existing `241/102` SET
+and same-sequence reply, a newer matching `241/44` still confirms immediately;
+a newer differing `241/44` keeps the write fail-closed. Provider confirmation
+requires the Parent-Accessory source to move from an explicitly observed,
+fresh and different pre-write phase to the requested target after the command.
+A cache
+already showing the target can neither suppress the publish nor confirm it by
+remaining unchanged. The existing bounded retry schedule is reused, so the
+change adds no background polling. `2/34` phase evidence is now retained under
+its separate source and mapping but is not used for write confirmation pending
+live post-write emission evidence.
