@@ -47,7 +47,7 @@ Current implementation baseline: `0.1.1-beta.4`.
 
 | ID | Priority | Open work | Completion evidence |
 | --- | --- | --- | --- |
-| `ENTITY-03` | After control validation | Reduce duplicate read-only and control entities as tracked in issue #6 once the corresponding controls are stable enough to act as canonical setting entities. | One canonical entity represents each validated setting where practical, raw diagnostics remain available, migrations preserve existing installations, and charging status + charging binary sensor remain intentionally separate. |
+| `ENTITY-03` | Analysis complete; implementation revised | Do not merge Read-only setting sensors with write Controls merely because they expose related values. Controls may be unavailable when MQTT, mode, safety, or readback gates are not satisfied, while the active/last observed setting must remain readable. Define canonical observation entities, add per-setting source/freshness semantics, and only remove technical duplicates after proving no readback information is lost. See [`docs/entity_model_analysis.md`](entity_model_analysis.md). | Tests distinguish readable settings from writable controls, preserve visible values during control unavailability, expose stale/unknown semantics clearly, and confirm that unavailable Controls cannot write. |
 
 ## Deferred and release work
 
