@@ -5,145 +5,469 @@ Bezug: [Backlog `PHASE-01`](backlog.md)
 
 ## Ergebnis in Kurzform
 
-Der Root-Cause ist eine Verfügbarkeitslücke im **Direct-Readback**, nicht eine
-unklare Phasen-Zuordnung. Die Zuordnung ist durch gekoppelte Beobachtungen
-bestätigt:
+Die grundlegende Ursache ist weiterhin eine Verfügbarkeitslücke im schnellen
+Direct-Readback. Die Phasenzuordnung des bestätigten PowerOcean-Elternzubehör-
+Pfads ist inzwischen ausreichend isoliert:
 
-| Wert | Bedeutung |
+| Provider-/241/44-Rawwert | Bedeutung |
 | ---: | --- |
 | `0` | Auto |
 | `1` | einphasig |
 | `2` | dreiphasig |
 
-Der gültige Wert ist gelegentlich über den Direct-Stream `241/44` nicht frisch
-verfügbar. Derselbe Wert wurde im PowerOcean-Elternzubehör beobachtet. Diese
-Provider-Quelle wird diagnostisch erfasst, aber noch nicht zur Freigabe oder
-Bestätigung der Phase-Control verwendet.
+Der Direct-Report `241/44 -> 1.4.8.7` verwendet dieselbe Codierung. Der ebenfalls
+bestätigte CP307-Settings-Report `2/34`, Feld `11`, verwendet dagegen eine
+andere Codierung:
 
-## Aktueller Datenfluss
+| `2/34` Feld `11` | Bedeutung |
+| ---: | --- |
+| `1` | einphasig |
+| `2` | dreiphasig |
+| `3` | Auto |
 
-### Direct-Quelle
+Diese beiden Raw-Schemata dürfen nicht über dieselbe Mapping-Tabelle behandelt
+werden.
 
-Der Parser des C376-Settings-Reports `241/44` erzeugt sowohl
-`phase_specified_raw` als auch das normalisierte `phase_mode`. Der Coordinator
-merkt den Zeitpunkt des letzten Direct-Reports und verwendet eine feste
-Frischegrenze.
+Die bisherige Voranalyse war in einem entscheidenden Punkt zu optimistisch:
+Ein **frisch ausgeführter Provider-Poll ist nicht automatisch ein frischer
+Gerätezustand**. Beim kontrollierten Wechsel auf dreiphasig lieferte der erste
+Provider-Poll nach dem Wechsel noch den vorherigen Wert `1`; erst ein späterer
+Poll nach ungefähr zehn Sekunden lieferte `2`. Der PowerOcean-Provider kann
+also einen aktuellen HTTP-Snapshot mit gecachtem älteren Gerätezustand liefern.
 
-`phase_control_available()` verlangt derzeit:
+Daraus folgt: PHASE-01 ist **weitgehend analysiert, aber die Provider-
+Bestätigungssemantik muss vor der Implementierung noch präzisiert werden**.
+Insbesondere darf der Phase-Fallback nicht einfach in die bestehende generische
+`_last_polled_settings`-/No-op-/Readback-Logik eingehängt werden.
 
-1. einen gültigen Schreibpfad über genau einen PowerOcean-Beobachter,
-2. einen für den aktuellen Ladezustand zulässigen Control,
-3. einen frischen Direct-Report,
-4. einen gültigen normalisierten Wert (`auto`, `one_phase` oder `three_phase`).
+## Gesicherter Ist-Zustand
 
-Fehlt Bedingung 3, wird die Control `unavailable`, auch wenn ein gültiger
-Provider-Wert vorliegt.
+### Direct `241/44`
 
-### Provider-Quellen
+Der C376-Settings-Report `241/44` liefert unter `1.4.8.7`:
 
-Provider-Snapshots werden getrennt nach `provider_parent_accessory` und
-`provider_device_detail` erfasst. Die bisherigen Beobachtungen zeigen:
+```text
+0 = auto
+1 = one_phase
+2 = three_phase
+```
 
-- der Elternzubehör-Pfad kann `phaseSpecified` liefern und wurde gegen
-  Direct-Readback abgeglichen;
-- der Geräte-Detail-Pfad liefert den Phasenwert für dieses Gerät nicht
-  zuverlässig und darf daher nicht als gleichwertige Quelle gelten;
-- die Diagnose bewahrt Quellen, Zeitpunkte und Wertvalidität getrennt auf.
+Der Coordinator speichert den Zeitpunkt des letzten Direct-Settings-Reports
+und behandelt den Direct-Pfad nur für ein begrenztes Zeitfenster als frisch.
+`phase_control_available()` verlangt derzeit deshalb einen frischen gültigen
+`phase_mode`-Wert aus diesem Direct-Pfad.
 
-Damit ist der Provider-Elternwert ein möglicher Fallback, der
-Geräte-Detailwert aber kein geeigneter Ersatz.
+### Direct `2/34`
 
-## Root-Cause
+Der CP307-Settings-Report `2/34`, Feld `11`, ist ebenfalls als
+Phasen-Readback bestätigt, verwendet aber:
 
-Die aktuelle Implementierung koppelt die Freigabe der Phase-Control an die
-Frische des Direct-Streams. Diese Kopplung ist für sichere Direct-Bestätigung
-verständlich, bildet aber die vorhandene zweite Evidenzquelle noch nicht ab.
+```text
+1 = one_phase
+2 = three_phase
+3 = auto
+```
 
-Der Fehler ist daher eine fehlende **Readback-Quellenstrategie**:
+Die Semantik ist bestätigt. Noch nicht ausreichend belegt ist, ob `2/34` nach
+einem eigenen HA-Phase-Write zuverlässig und zeitnah emittiert wird. Deshalb
+soll dieser Pfad noch nicht automatisch als Write-Confirmation-Fallback
+eingestuft werden. Er gehört aber ausdrücklich in die Readback-Quellenanalyse.
 
-- Quelle A (Direct `241/44`) ist bevorzugt und zeitnah;
-- Quelle B (PowerOcean-Elternzubehör) ist langsamer, aber fachlich bestätigt;
-- die Entscheidung, wann B eine Control freigeben oder einen Write bestätigen
-  darf, ist noch nicht implementiert.
+### Provider `provider_parent_accessory`
 
-Einfach die bestehende Direct-Frischegrenze zu verlängern wäre keine Lösung.
-Das würde einen möglicherweise alten Direct-Wert als frisch behandeln und die
-Sicherheitsbedeutung der Frischegrenze verwässern.
+Der PowerOcean-Elternzubehör-Pfad liefert `paramSet.phaseSpecified`. Ein
+kontrollierter Auto -> einphasig -> dreiphasig -> Auto-Vergleich bestätigte:
 
-## Abgeleitete Zielregeln
+```text
+0 = auto
+1 = one_phase
+2 = three_phase
+```
 
-### Für die Anzeige
+Der Elternzubehörwert folgte den Direct-Readbacks, allerdings mit sichtbarer
+Provider-/Cache-Latenz. Beim Wechsel auf dreiphasig enthielt der erste erzwungene
+Provider-Poll noch den früheren Wert `1`; erst der nachfolgende Poll lieferte
+`2`.
 
-Der Read-only-Phasenwert kann aus einer validen Quelle angezeigt werden. Dabei
-sollten Quelle und Alter des Wertes nachvollziehbar bleiben. Ein fehlender
-aktueller Snapshot darf nicht automatisch einen gesunden Datenpfad als
-`unavailable` markieren.
+Damit ist die **Bedeutung** des Providerfelds bestätigt, nicht aber die Annahme,
+dass der Inhalt jedes neu abgefragten HTTP-Snapshots selbst neu erzeugte
+Geräteevidenz darstellt.
 
-### Für einen Write
+### Provider `provider_device_detail`
 
-Ein Provider-Fallback darf nur verwendet werden, wenn alle folgenden Regeln
-erfüllt sind:
+Der direkte Wallbox-Geräte-Detailpfad liefert den Phasenwert nicht zuverlässig
+und wird nicht als Control-Readback akzeptiert. Diese Trennung bleibt bestehen.
 
-1. Es handelt sich ausschließlich um den bestätigten
-   `provider_parent_accessory`-Pfad.
-2. Der Wert ist numerisch gültig und liegt in `0..2`.
-3. Der Snapshot besitzt einen erfassten Beobachtungszeitpunkt und liegt
-   innerhalb einer ausdrücklich festgelegten Provider-Frischegrenze.
-4. Es gibt keinen aktuelleren Direct-Wert mit abweichender Bedeutung.
-5. Nach dem Write kommen wie bisher ein passendes `set_reply` und ein neuer,
-   unabhängiger Readback zusammen.
+## Präzisierter Root-Cause
 
-Für eine besonders konservative erste Umsetzung sollte der Provider-Wert die
-Control nur dann freigeben, wenn der Direct-Stream nicht frisch ist, aber der
-Provider-Snapshot frisch und eindeutig ist. Bei widersprüchlichen Quellen
-bleibt die Control gesperrt.
+Der Root-Cause besteht aus zwei getrennten Problemen:
 
-### Für die Quellenpriorität
+1. Die Phase-Control ist heute ausschließlich an einen frischen `241/44`-
+   Readback gebunden und wird deshalb unnötig `unavailable`, obwohl eine zweite
+   bestätigte Readback-Quelle existiert.
+2. Die vorhandene generische Provider-Readback-Logik unterscheidet nicht stark
+   genug zwischen **Zeitpunkt des HTTP-Polls** und **Alter des darin enthaltenen
+   Gerätezustands** und verliert in `_last_polled_settings` außerdem die
+   konkrete Provider-Herkunft eines Feldes.
 
-Die empfohlene Priorität lautet:
+Deshalb darf PHASE-01 nicht nur durch „Providerwert zusätzlich zulassen“ gelöst
+werden. Es braucht eine source-aware, phase-spezifische Readback-Qualifikation.
 
-1. frischer Direct-Readback;
-2. frischer Provider-Elternzubehör-Readback;
-3. kein bestätigbarer Wert.
+## Warum die generische `_last_polled_settings`-Logik nicht genügt
 
-Der Provider-Geräte-Detailwert darf nicht in diese Prioritätskette aufgenommen
-werden, solange seine Semantik für dieses Gerät nicht bestätigt ist.
+Der Coordinator liest zunächst den direkten Wallbox-Provider-Snapshot und
+mischt danach die Werte des PowerOcean-Elternzubehörs hinein. Der resultierende
+kombinierte Snapshot wird anschließend in `_last_polled_settings` gespeichert.
 
-## Risiken und offene Entscheidungen
+Für allgemeine Settings ist das praktisch. Für PHASE-01 ist es zu schwach,
+weil die später gespeicherte Struktur nicht mehr beweist, ob ein Phasenwert
+ursprünglich aus:
 
-- Die Provider-Abfrage ist langsamer als der Direct-Stream. Die zulässige
-  Provider-Frischegrenze muss deshalb fachlich festgelegt und getestet werden.
-- Ein Provider-Snapshot kann einen älteren Zustand enthalten, der nach einer
-  gerade erfolgten Änderung noch nicht nachgezogen wurde.
-- Ein bloßer Wertvergleich ohne Zeitstempel genügt nicht als Write-Bestätigung.
-- Bei Direct-/Provider-Konflikt muss fail-closed gelten; automatische Auswahl
-  nach numerischer Nähe wäre falsch.
-- Der allgemeine Coordinator-Merge bewahrt fehlende Felder aus älteren Werten.
-  Für die Phase-Control muss daher zwischen dem sichtbaren letzten Wert und
-  einem frisch bestätigbaren Readback unterschieden werden.
+- `provider_parent_accessory`,
+- `provider_device_detail`,
+- oder einem zusammengeführten älteren Zustand
+
+stammt.
+
+PHASE-01 verlangt aber ausdrücklich, dass nur der bestätigte
+`provider_parent_accessory`-Pfad als Fallback qualifiziert werden darf.
+
+Der neue Fallback sollte deshalb nicht allein auf `_last_polled_settings`
+aufbauen, sondern auf einer source-qualified Phasenevidenz.
+
+## Poll-Frische ist nicht Zustands-Frische
+
+Für PHASE-01 müssen mindestens zwei Zeitbegriffe unterschieden werden:
+
+```text
+fetched_at
+    Zeitpunkt, zu dem Home Assistant die HTTP-Antwort erhalten hat
+
+state evidence age
+    Vertrauenswürdigkeit, dass der enthaltene Phasenwert den aktuellen
+    Gerätezustand repräsentiert
+```
+
+Der vorhandene Provider liefert keinen bekannten serverseitigen
+`phaseSpecified`-Änderungszeitstempel. Deshalb kann ein neuer HTTP-Poll einen
+alten Cachewert zurückgeben.
+
+Eine Regel wie:
+
+```text
+poll after command + expected value == success
+```
+
+ist für Phase allein nicht ausreichend.
+
+## Risiko 1: falscher No-op
+
+Die bestehende Settings-Logik besitzt eine No-op-Optimierung: Wenn ein
+hinreichend neuer Provider-Poll bereits den gewünschten Wert enthält, kann der
+Write übersprungen werden.
+
+Für einen cache-laggenden Phasenwert kann das falsch sein.
+
+Beispiel:
+
+```text
+Gerät tatsächlich: one_phase
+Provider-Cache:     auto
+Benutzer fordert:   auto
+```
+
+Wenn der Provider-Poll lokal noch als frisch gilt, könnte ein generischer
+No-op-Pfad den Write überspringen, obwohl der aktuelle Gerätezustand nicht dem
+Ziel entspricht.
+
+Daher gilt für PHASE-01:
+
+> Die generische Provider-No-op-Optimierung darf nicht ungeprüft für Phase
+> wiederverwendet werden.
+
+Eine erste konservative Implementierung sollte den Provider-No-op für Phase
+entweder vollständig deaktivieren oder nur unter deutlich stärkerer
+source-aware Evidenz zulassen.
+
+## Risiko 2: falsche Post-Write-Bestätigung durch Cache
+
+Auch ein Provider-Poll **nach** dem SET beweist nicht automatisch, dass der
+zurückgelieferte Zielwert durch diesen SET entstanden ist.
+
+Beispiel:
+
+```text
+Provider vor dem Write: three_phase
+Gerät tatsächlich:      one_phase
+Benutzer fordert:        three_phase
+SET_REPLY:               erfolgreich
+Provider-Poll danach:    weiterhin three_phase aus Cache
+```
+
+Ein reiner Test auf:
+
+```text
+polled_at > issued_at
+AND value == expected
+```
+
+würde diesen Fall fälschlich bestätigen.
+
+Für Phase muss deshalb die Readback-Strategie den **Pre-write-Zustand** und die
+Provider-Cache-Problematik berücksichtigen.
+
+Starke Provider-Evidenz ist insbesondere dann vorhanden, wenn nach dem Write
+eine zuvor andere Provider-Phase auf den Zielwert wechselt. Ein bereits vor dem
+Write identischer Providerwert ist dagegen als alleinige Post-Write-Bestätigung
+schwächer und sollte in der ersten Implementierung nicht als eindeutiger
+Transition-Beweis behandelt werden.
+
+## PhaseReadbackTracker: Diagnosewert ist nicht automatisch Controlwert
+
+Der vorhandene `PhaseReadbackTracker` trennt die Quellen sinnvoll und bewahrt
+für jede Quelle:
+
+- `last_snapshot_at`;
+- ob `phase_specified_raw` im letzten Snapshot vorhanden war;
+- `last_raw_at`;
+- den letzten gültigen Rawwert.
+
+Wenn ein neuer Snapshot kein Phasenfeld enthält, bleibt der ältere Rawwert
+absichtlich für Diagnostik erhalten, während
+`raw_present_in_last_snapshot = false` gesetzt wird.
+
+Das ist für Diagnose korrekt, darf für Control-Freigaben aber nicht zu einer
+Freshness-Verwechslung führen. Ein Provider-Fallback muss deshalb mindestens
+fordern:
+
+```text
+source == provider_parent_accessory
+AND raw_present_in_last_snapshot == true
+AND last_raw_at == last_snapshot_at
+AND raw_value is exactly one of {0, 1, 2}
+```
+
+Ein älterer bewahrter Diagnosewert darf nicht durch einen späteren Snapshot,
+der das Feld gar nicht enthält, implizit wieder „frisch“ werden.
+
+## Validierung des Providerwerts
+
+Die bisherige Formulierung „numerisch gültig und in `0..2`“ ist zu breit.
+Für einen Control-Fallback soll gelten:
+
+- kein `bool`;
+- kein Float-Zwischenwert wie `1.5`;
+- kein `NaN`/`Inf`;
+- ausschließlich semantisch exakte Werte `0`, `1`, `2`.
+
+Die Normalisierung soll source-spezifisch erfolgen:
+
+```text
+provider_parent_accessory / direct 241/44:
+0 -> auto
+1 -> one_phase
+2 -> three_phase
+
+CP307 2/34 field 11:
+1 -> one_phase
+2 -> three_phase
+3 -> auto
+```
+
+## Präzisierte Quellenpriorität
+
+Die Priorität sollte nicht pauschal „bei jedem Konflikt fail-closed“ lauten.
+Der Provider ist nachweislich langsamer und kann hinterherhinken. Ein frischer,
+gültiger Direct-Wert darf deshalb nicht allein durch einen abweichenden
+Provider-Cache entwertet werden.
+
+Empfohlene Priorität:
+
+1. **Frischer gültiger Direct-Readback `241/44`** ist authoritative für die
+   Phase-Control. Ein abweichender älterer/cached Providerwert ist diagnostisch,
+   sperrt den Direct-Pfad aber nicht automatisch.
+2. Falls `241/44` nicht qualifiziert ist, kann ein frischer und source-aware
+   qualifizierter `provider_parent_accessory`-Wert als Fallback dienen.
+3. `2/34` bleibt zunächst zusätzliche bestätigte Direct-Evidenz, bis sein
+   Emissionsverhalten nach eigenen Writes ausreichend belegt ist.
+4. `provider_device_detail` ist kein Fallback.
+5. Ist keine Quelle ausreichend qualifiziert, bleibt die Control
+   `unavailable` beziehungsweise die Write-Bestätigung fail-closed.
+
+Ein Konflikt ist besonders relevant, wenn Direct nicht mehr frisch genug für
+Autorität ist, aber noch jüngere widersprüchliche Evidenz gegen den
+Provider-Fallback vorliegt. Dieser Fall muss explizit getestet werden.
+
+## Availability und Write-Confirmation trennen
+
+Die bisherige Analyse vermischte teilweise die Frage „darf der Benutzer einen
+Write auslösen?“ mit „womit wird ein Write anschließend bestätigt?“.
+
+Diese beiden Entscheidungen sollten getrennt modelliert werden.
+
+### Availability
+
+Die Phase-Control darf nur verfügbar sein, wenn:
+
+1. der bestätigte Settings-Schreibpfad über genau einen PowerOcean-Beobachter
+   verfügbar ist;
+2. der aktuelle Ladezustand eine Phasenänderung erlaubt;
+3. eine sichere Readback-Strategie verfügbar ist:
+   - bevorzugt frischer gültiger `241/44`, oder
+   - qualifizierbarer `provider_parent_accessory`-Fallback;
+4. keine für den Fallback relevante unaufgelöste Quelleninkonsistenz vorliegt.
+
+### Write-Confirmation
+
+Nach dem Write bleiben folgende Anforderungen unverändert:
+
+1. passendes `241/102` SET wurde gesendet;
+2. passendes same-sequence SET_REPLY wurde empfangen;
+3. anschließend muss unabhängige Zustands-Evidenz den Zielwert bestätigen.
+
+Die **Transport- und Safety-Gates bleiben erhalten**. Die bisherige generische
+No-op- und Readback-Qualifikation muss für Phase jedoch source-aware erweitert
+oder separat implementiert werden.
+
+## Empfohlene Confirmation-State-Machine
+
+Konzeptionell:
+
+```text
+Pre-write phase evidence erfassen
+        |
+Safety-Gates unmittelbar vor Publish erneut prüfen
+        |
+241/102 SET
+        |
+matching SET_REPLY
+        |
+kurzes Direct-Fenster
+        |
+        +-- neuer 241/44 mit Zielwert --> bestätigt
+        |
+        +-- kein qualifizierter Direct-Readback
+                |
+                +-- provider_parent_accessory gezielt pollen
+                        |
+                        +-- Feld explizit vorhanden
+                        +-- exakter Rawwert 0/1/2
+                        +-- source-qualified Snapshot
+                        +-- Cache-/Pre-write-Regeln erfüllt
+                                |
+                                +-- Zielwert --> bestätigt
+                                +-- sonst --> weiter pollen / fail-closed
+```
+
+Der Provider-Fallback soll weiterhin nur in einem begrenzten Fenster mit
+gebundenen Retry-Zeiten arbeiten und keine zusätzliche dauerhafte Polling-Last
+erzeugen.
+
+## Anzeige und Read-only-Zustand
+
+Read-only-Anzeige und Control-Sicherheit dürfen unterschiedliche Freshness-
+Anforderungen haben.
+
+Für die Anzeige kann der letzte bekannte gültige Phasenwert weiterhin nützlich
+sein, solange Quelle und Alter nachvollziehbar bleiben. Für einen Write oder
+eine Bestätigung ist dagegen eine strengere control-grade Qualifikation
+notwendig.
+
+Ein fehlendes Phasenfeld in einem ansonsten erfolgreich gelesenen Snapshot
+soll den Datenpfad nicht automatisch als `unavailable` markieren. Für Control-
+Evidenz darf ein fehlendes Feld jedoch nicht als aktuelle Bestätigung gelten.
+
+## Dokumentationskonsistenz
+
+`data_paths_overview.md` enthält derzeit noch die ältere Aussage, der Provider-
+Wert `phaseSpecified` sei unbestätigt und nicht für Confirmation geeignet.
+Diese Aussage ist hinsichtlich **Mapping** inzwischen überholt:
+
+```text
+0 = auto
+1 = one_phase
+2 = three_phase
+```
+
+ist durch den kontrollierten Vergleich bestätigt.
+
+Was weiterhin **nicht** vollständig freigegeben ist, ist die Verwendung des
+Providerwerts als Control-Confirmation wegen Cache-/Freshness-Semantik. Das
+Overview sollte deshalb bei nächster Bearbeitung zwischen „Mapping bestätigt“
+und „Confirmation policy noch nicht implementiert“ unterscheiden.
 
 ## Erforderliche Tests vor Implementierung
 
-Die Testabdeckung sollte mindestens diese Fälle enthalten:
+Mindestens folgende Fälle müssen abgedeckt werden:
 
-1. frischer Direct-Wert: Control verfügbar, Direct ist bevorzugte Quelle;
-2. Direct veraltet, frischer gültiger Provider-Elternwert: Fallback zulässig;
-3. beide Quellen veraltet: Control `unavailable`;
+1. frischer `241/44`-Wert: Control verfügbar, Direct authoritative;
+2. frischer Direct widerspricht gecachtem Provider: Direct bleibt nutzbar;
+3. Direct veraltet, expliziter gültiger Parent-Accessory-Wert vorhanden:
+   Fallback grundsätzlich möglich;
 4. Provider-Geräte-Detailwert allein vorhanden: kein Fallback;
-5. Providerwert außerhalb `0..2`, fehlend oder falsch typisiert: kein Fallback;
-6. Direct und Provider widersprechen sich: kein automatisches Freigeben;
-7. Provider-Readback nach einem Phase-Write bestätigt nur bei neuem Snapshot;
-8. bestehende Direct- und Provider-Diagnose bleiben getrennt und redigiert;
-9. ein Control-Service kann bei gesperrtem Fallback weiterhin nicht schreiben.
+5. Providerwert fehlt im letzten Parent-Snapshot: alter Diagnosewert darf nicht
+   als frisch gelten;
+6. Providerwert `bool`, `1.5`, `NaN`, `Inf`, `<0`, `>2`: kein Fallback;
+7. Provider `0/1/2` wird korrekt gemappt; `2/34` verwendet separat `1/2/3`;
+8. generischer `_last_polled_settings`-Merge kann keinen nicht-attribuierten
+   Phasenwert als Fallback bestätigen;
+9. Phase-No-op wird nicht allein durch einen lokal frischen, möglicherweise
+   gecachten Providerwert ausgelöst;
+10. SET_REPLY plus bereits vor dem Write identischer Providerzielwert gilt
+    nicht automatisch als eindeutiger Transition-Beweis;
+11. SET_REPLY plus nachgewiesener Providerwechsel vom Vorwert zum Zielwert kann
+    als starke Fallback-Evidenz qualifiziert werden;
+12. neuer `241/44` nach dem Write mit Zielwert bestätigt weiterhin sofort;
+13. neuer `241/44` nach dem Write mit abweichendem Wert lässt den Write
+    fail-closed;
+14. `2/34`-Readbacks werden separat diagnostiziert; eine spätere Nutzung als
+    Confirmation benötigt eigene Emissions-/Freshness-Evidenz;
+15. ein Control-Service kann bei gesperrter Availability weiterhin keinen
+    Write erzwingen;
+16. bestehende Source-Diagnostik bleibt getrennt und privacy-safe;
+17. Provider-Retries bleiben zeitlich begrenzt und erzeugen keine dauerhafte
+    zusätzliche Polling-Last.
+
+## Erforderliche Live-Evidenz
+
+Vor Abschluss von PHASE-01 sollte mindestens ein kontrollierter Test mit
+schlafendem/stalem `241/44` erfolgen:
+
+1. Ausgangsphase und letzter Providerwert dokumentieren;
+2. Direct-Stream bewusst nicht als Confirmation verfügbar;
+3. Phasenänderung über Home Assistant auslösen;
+4. SET und same-sequence SET_REPLY dokumentieren;
+5. mehrere Parent-Accessory-Polls mit Zeitstempel und Rohwert erfassen;
+6. zeigen, ob und wann der Provider vom Vorwert auf den Zielwert wechselt;
+7. bestätigen, dass die HA-Operation weder zu früh erfolgreich noch fälschlich
+   fehlgeschlagen ist.
+
+Zusätzlich ist ein No-op-Sonderfall sinnvoll, bei dem der Provider vor dem Write
+bereits den Zielwert enthält. Dieser Test zeigt, ob der Cachewert allein eine
+unsichere Write-Unterdrückung oder Bestätigung verursachen könnte.
 
 ## Empfehlung
 
-PHASE-01 ist ausreichend analysiert für einen kleinen, isolierten Folge-Change:
+PHASE-01 sollte derzeit geführt werden als:
 
-- eine eigene Readback-Qualifikation für Phase ergänzen,
-- nur `provider_parent_accessory` als nachrangige Quelle zulassen,
-- Quellenzeitpunkt und Frische explizit berücksichtigen,
-- bestehende Write-Gates und die unabhängige Bestätigung unverändert lassen.
+> **Analysis mostly complete; provider confirmation semantics need refinement**
 
-Die Analyse rechtfertigt keine generelle Lockerung der Controls und keinen
-Fallback auf den Geräte-Detail-Provider.
+Empfohlenes weiteres Vorgehen:
+
+1. Phase-Readback intern source-aware modellieren; nicht allein
+   `_last_polled_settings` verwenden.
+2. Provider-No-op für Phase zunächst konservativ deaktivieren oder separat
+   streng qualifizieren.
+3. Provider-Post-Write-Bestätigung gegen bekannte Cache-Latenz absichern und
+   Pre-write-Evidenz berücksichtigen.
+4. Frischen `241/44` weiterhin als authoritative behandeln; ein hinterherhinkender
+   Providerwert soll einen frischen Direct-Readback nicht sperren.
+5. `2/34` als bestätigte zusätzliche Direct-Quelle dokumentieren, aber erst nach
+   gezielter Live-Evidenz als Write-Confirmation-Pfad freigeben.
+6. Nach Implementierung die Fallback-Logik mit schlafendem `241/44` live
+   validieren.
+
+Die Analyse rechtfertigt **keine generelle Lockerung der Controls** und keinen
+Fallback auf `provider_device_detail`. Die bestehenden Transport- und
+Ladezustands-Safety-Gates bleiben erhalten; geändert werden muss gezielt die
+source-aware No-op-/Readback-Qualifikation der Phase-Control.
