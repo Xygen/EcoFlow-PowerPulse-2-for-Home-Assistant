@@ -1272,7 +1272,8 @@ with maximum current and phase selection, confirming the new interlock did not
 break idle availability. Smart mode could not be selected from HA after the
 restart because the complete retained Smart block had not yet been republished;
 the coordinator correctly failed closed instead of inventing companion values.
-Active-session interlock validation remains open.
+At this point active-session validation was still open; the 2026-08-30 section
+below records its completion.
 
 The phase diagnostic test selected one phase and three phases separately,
 forced a provider refresh after each direct confirmation, and finally restored
@@ -1290,3 +1291,60 @@ earlier. No HA Start action was issued after restart. A new Stop reached
 phase tests. Because Plug-and-Play and Solar Continuous charging were both on,
 the single observation is retained for controlled follow-up under `CTRL-03`
 rather than attributed to the HA restart.
+
+## 2026-08-29: beta Custom charging interlock validation
+
+The active Custom portion of `SAFE-01` was run at the minimum bounded load:
+maximum output current 6 A, Custom current 6 A, and one phase. A Start request
+at `17:24:13.995781Z` reached a fresh `charging` heartbeat. Mode, phase,
+maximum current, Custom current, Solar minimum current, and Continuous charging
+all became unavailable in HA. Plug-and-Play, battery-discharge blocking,
+screen, screen brightness, LED, and LED brightness remained available exactly
+as established by the official-app matrix. Calling `number.set_value` on the
+unavailable Custom-current entity produced no state result and no observable
+change. Stop was issued at `17:24:53.448592Z`, limiting the active window to
+about 39 seconds. This completes the Custom half of the beta interlock test;
+Smart was completed in the subsequent 2026-08-30 test below.
+
+## 2026-08-30: Continuous charging while Solar-paused
+
+The user observed a distinct paused-state case. In Solar mode with Continuous
+charging disabled and insufficient solar, the official app did not expose the
+Continuous switch. HA did expose it because the current safety helper treats
+`paused` as a known non-charging state. The user enabled Continuous charging
+from HA. Readback changed to on at approximately `08:58:33` local time, and a
+fresh heartbeat changed to `charging` at `08:59:32`, followed by roughly
+`1289.6 W`. This strongly indicates that the device accepted the write and used
+the stored 6 A Solar minimum to resume charging despite the app UI restriction.
+
+This is not yet a decision to keep or remove the capability. A controlled
+repeat must correlate SET, reply, direct/provider setting readback, and the
+heartbeat transition with the app closed, and must test disabling as well as
+enabling. `SAFE-02` in the canonical backlog owns that policy question so it is
+not duplicated as an open item elsewhere.
+
+## 2026-08-30: beta Smart charging interlock validation
+
+The official app republished a complete usable Smart configuration before the
+test: ready by 12:10 local time and 30 kWh. Before Start, HA showed the retained
+ready-by timestamp as `2026-08-30T10:10:40+00:00` and the 30 kWh target. The
+target-type entity remained unavailable because no retained distance companion
+value was present; this is a separate completeness gate and did not weaken the
+charging interlock.
+
+Start at `07:12:03.195127Z` reached a fresh `charging` state. Mode, phase,
+maximum current, Smart ready-by, Smart target type, Smart energy, and Smart
+distance were all unavailable. Plug-and-Play, battery-discharge blocking,
+screen, screen brightness, LED, and LED brightness remained available. A
+same-value `number.set_value` call against the unavailable 30 kWh Smart-energy
+entity returned an empty result. Diagnostics recorded only the expected
+matched `241/100` Start (sequence 123) and Stop (sequence 208) commands during
+the active interval and no `241/102` settings publish. Stop at
+`07:12:46.799973Z` limited charging to about 44 seconds at one phase and the
+minimum 6 A limit.
+
+The wallbox was then restored to Solar mode, automatic phase selection, and a
+16 A maximum output current. Continuous charging remains enabled as configured
+by the user. The final state was `charge_complete`, charging off, and 0 W.
+Together with the 39-second Custom test, this completes `SAFE-01`; the item has
+therefore been removed from the canonical backlog.

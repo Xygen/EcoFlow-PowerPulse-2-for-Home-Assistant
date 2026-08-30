@@ -14,8 +14,10 @@ Current outstanding work is maintained only in
 - Live-confirm the new source-separated phase diagnostics: the parent
   PowerOcean accessory field follows `0/1/2` for Auto/one/three phase, while
   the device-detail source omits the field.
-- Confirm the new Custom-current interlock remains available while stopped;
-  active-session validation of the Custom and Smart locks remains pending.
+- Confirm the Custom and Smart charging interlocks at the minimum one-phase
+  6 A load: all charging-sensitive controls became unavailable, the permitted
+  accessory controls remained available, and unavailable service calls did not
+  publish a settings command.
 - Extend the charging-time safety interlock to the mode-specific controls
   confirmed locked by the official app: Custom charging current and all four
   Smart settings (ready-by time, target type, energy, and distance). The

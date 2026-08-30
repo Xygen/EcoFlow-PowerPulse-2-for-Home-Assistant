@@ -805,8 +805,8 @@ through the same fail-closed charging-state helper already used for mode,
 phase, maximum current, Solar minimum current, and Continuous charging. This is
 enforced both in entity availability and immediately before publishing, so a
 direct service call cannot bypass the UI interlock. The full local suite passes
-with 78 tests; live validation of the next installed build remains tracked only
-as `SAFE-01` in the canonical backlog.
+with 78 tests. The live validation that was pending at this point was completed
+on 2026-08-30 and is summarized below.
 
 ## 0.1.1-beta.1 validation bundle (2026-08-29)
 
@@ -821,7 +821,8 @@ The published GitHub prerelease and its installation ZIP were hash-verified,
 then HACS installed the explicit beta version. Home Assistant loaded the entry
 after restart with both PowerPulse streams active and no matching integration
 error. Stopped-state validation kept the Custom-current, maximum-current, and
-phase controls available; the charging-state portion of `SAFE-01` remains open.
+phase controls available. The subsequent active-session results are recorded
+below.
 
 The new diagnostic separation produced a complete provider mapping from the
 parent PowerOcean accessory report: raw `0`, `1`, and `2` aligned with fresh
@@ -831,3 +832,21 @@ captured the slower provider path retaining the preceding one-phase value before
 it advanced to `2`, validating the need for per-source timestamps and freshness
 checks. The mapping is now established, but it is not yet used as a phase-write
 fallback.
+
+## Completed Custom and Smart interlocks (2026-08-30)
+
+Live validation completed both charging-time safety branches at the lowest
+practical load: one phase and a 6 A maximum. The Custom session lasted about
+39 seconds and the Smart session about 44 seconds. During charging, mode,
+phase, maximum current, the relevant mode-specific values, Solar minimum
+current, and Continuous charging were unavailable. Plug-and-Play,
+battery-discharge blocking, screen, LED, and both brightness controls remained
+available, matching the established official-app behavior.
+
+Direct service calls against unavailable Custom and Smart number entities
+returned no state result. The Smart interval contained only its matched
+`241/100` Start and Stop commands and no `241/102` settings publish. After the
+test, Solar mode, automatic phase selection, and the 16 A maximum were restored;
+Continuous charging remained enabled by user choice, with charging stopped and
+power at 0 W. `SAFE-01` is complete and has been removed from the canonical
+backlog.
