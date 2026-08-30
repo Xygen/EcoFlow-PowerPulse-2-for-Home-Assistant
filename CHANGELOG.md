@@ -20,6 +20,10 @@ Current outstanding work is maintained only in
 - Live-confirm the Home Assistant device page groups Bildschirm,
   Bildschirmhelligkeit, LED-Anzeige, and LED-Helligkeit together under
   **Configuration** after installing the prerelease.
+- Complete an autonomous Home Assistant stop/start smoke test without a false
+  action error. Start returned successfully after about 7.8 seconds and fresh
+  `charging` readback arrived after about 7.9 seconds; the separate live
+  >15-second acceptance criterion therefore remains open.
 - Complete the numeric state-class review without marking configuration
   targets, brightness values, or raw diagnostics as measurements. Existing
   physical telemetry and energy totals already carry the appropriate classes.

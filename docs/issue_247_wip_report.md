@@ -874,3 +874,20 @@ classes with native units, while the device page grouped Bildschirm,
 Bildschirmhelligkeit, LED-Anzeige, and LED-Helligkeit together under
 **Configuration**. Issue #5 / `ENTITY-02` is therefore complete and no longer
 appears in the canonical backlog.
+
+## Autonomous beta.2 Start smoke test (2026-08-30)
+
+An autonomous live cycle started from an actively charging vehicle at about
+1.79 kW. No configuration was changed. Stop completed successfully after
+about 8.2 seconds and produced fresh `charge_complete` readback. The immediate
+Start then returned without an HA action error after about 7.8 seconds, with a
+matched `241/100` reply after roughly 104 ms and fresh `charging` readback
+about 7.9 seconds after the HA call. Actual current subsequently resumed at
+about 1.27 kW / 5.7 A, restoring the initial charging state; both MQTT streams
+remained active and the available settings were unchanged.
+
+This confirms the normal installed beta.2 Start/Stop path. It does not yet
+exercise the new 15-to-30-second interval because this particular Start was
+faster than 15 seconds. `CTRL-04` therefore remains the sole live-validation
+item from beta.2 until a naturally delayed Start crosses the old deadline
+without producing a false HA failure.

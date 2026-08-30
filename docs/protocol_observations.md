@@ -1381,3 +1381,28 @@ device-page screenshot visually confirmed that all four appear together under
 **Configuration**: Bildschirm, Bildschirmhelligkeit, LED-Anzeige, and
 LED-Helligkeit. This completes the metadata cleanup without changing entity
 IDs; `ENTITY-02` has been removed from the canonical backlog.
+
+## 2026-08-30: autonomous beta.2 Start smoke test
+
+With the vehicle already charging, HA reported `charging`, approximately
+`1785.1 W`, and both direct and heartbeat streams active. No configuration
+entity was changed. The Stop button call returned successfully after about
+8.2 seconds; the matched `241/100` request/reply (sequence 127) occurred at
+`07:48:06.678441Z` / `07:48:06.747167Z`, and fresh readback changed to
+`charge_complete` at `07:48:09.058897Z`.
+
+The subsequent Start button call began at `07:48:19.027Z` and returned without
+an HA action error after about 7.8 seconds. Diagnostics recorded the matched
+`241/100` request/reply (sequence 107) at `07:48:22.787329Z` /
+`07:48:22.891048Z`; fresh `charging` readback arrived at
+`07:48:26.967964Z`. This is about 7.9 seconds from the HA call and about
+4.2 seconds from the observed MQTT request. Actual current resumed afterward:
+HA reported `1267.5 W` and `5.7 A` at `07:49:25.602687Z` while both streams
+remained active.
+
+The wallbox was thereby returned to its initial high-level state of actively
+charging, and all available configuration values remained unchanged. This
+confirms the ordinary beta.2 Start/Stop path, but it does not close `CTRL-04`:
+the Start completed inside the former 15-second window, so a naturally delayed
+Start exceeding 15 seconds is still required to validate the extended portion
+of the 30-second deadline.
