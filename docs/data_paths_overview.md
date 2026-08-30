@@ -10,8 +10,11 @@ value. Read entities therefore use confirmed device or provider reports. The
 Version 0.1.0 settings controls are evidence-gated and require acknowledgement
 plus either fresh direct device readback or a post-command raw provider
 confirmation.
-Phase selection is narrower: provider `phaseSpecified` has no confirmed mapping,
-so that control requires a fresh direct `phase_mode` report.
+Phase selection is narrower: provider `phaseSpecified` is now mapped as
+`0` Auto, `1` one phase, and `2` three phase, but provider cache lag means a
+fresh HTTP poll is not automatically fresh device-state evidence. Phase control
+therefore still requires dedicated source-aware confirmation semantics before
+the parent-accessory value can be used as a fallback.
 Start/Stop uses its separate `241/100` route and requires a newer heartbeat with
 an allowed physical charging state after the matching reply.
 
@@ -38,7 +41,7 @@ mapping yet.
 | Maximum output current | Field `18` as current limit | Field `9`; `160` = 16 A | `1.4.8.4`; `160` = 16 A | `paramSet.currentOuputMax` |
 | Solar minimum current | — | — | `1.4.8.6`; `70` = 7 A and `60` = 6 A | `paramSet.solarCurrentMin` |
 | Custom/user current | — | — | `1.4.8.8`; `60` = 6 A and `110` = 11 A | `paramSet.userCurrentSet` |
-| Phase selection | — | Field `11`: `1` one phase, `2` three phase, `3` auto | `1.4.8.7`: `0` auto, `1` one phase, `2` three phase | `paramSet.phaseSpecified`, raw and not suitable for confirmation yet |
+| Phase selection | — | Field `11`: `1` one phase, `2` three phase, `3` auto | `1.4.8.7`: `0` auto, `1` one phase, `2` three phase | `paramSet.phaseSpecified`: `0` auto, `1` one phase, `2` three phase; mapping confirmed, but cache-aware control-confirmation policy remains pending |
 | Plug-and-Play | — | Field `2`: `0`/`1` | Bit `0x02` in `1.4.8.1`; confirmed by `16 -> 18 -> 16` | Bit `0x02` in `paramSet.switchBits` |
 | LED enabled | — | Field `13`: `0`/`1` | `1.4.8.21`, byte 1: `0`/`1` | — |
 | LED brightness | — | Field `14`, percent | `1.4.8.21`, byte 3: `25`/`50`/`75`/`100` | — |
@@ -154,13 +157,24 @@ Charging continued at approximately 1.29 kW throughout.
 The 2026-08-26 idle test showed why the paths cannot share one blanket rule.
 Mode and flag updates appeared in the provider snapshot about 12–15 seconds
 after their SETs, so dev23 checks that strict raw path through approximately 20
-seconds. Two acknowledged phase SETs produced no direct phase report, and the
-provider exposed only the unconfirmed raw `phaseSpecified` field. dev23 therefore
-keeps the other controls usable with provider fallback but makes phase selection
-unavailable whenever recent direct `phase_mode` readback is absent.
-After installing dev23 and restarting HA, the revived direct path reported
-`one_phase`, proving that at least one earlier acknowledged phase SET had been
-applied. This does not establish the provider `phaseSpecified` mapping.
+seconds. Two acknowledged phase SETs produced no direct phase report, and at
+that point the provider exposed only the not-yet-confirmed raw
+`phaseSpecified` field. dev23 therefore kept the other controls usable with
+provider fallback but made phase selection unavailable whenever recent direct
+`phase_mode` readback was absent. After installing dev23 and restarting HA, the
+revived direct path reported `one_phase`, proving that at least one earlier
+acknowledged phase SET had been applied.
+
+A later controlled phase diagnostic resolved the provider mapping. Selecting
+one phase and three phases separately, forcing a provider refresh after each
+direct confirmation, and finally restoring Auto showed parent-accessory
+`phaseSpecified` raw values `1`, `2`, and `0` respectively. The first
+three-phase provider poll still held the earlier `1`; a second poll roughly ten
+seconds later delivered `2`. The mapping is therefore confirmed, while the
+observed cache lag is exactly why PHASE-01 still requires source-aware
+freshness, No-op, and post-write confirmation semantics before the provider is
+used for phase-control confirmation. The wallbox device-detail source did not
+reliably carry the phase field.
 
 dev24 distinguishes the still-connected MQTT transport from freshness of the
 direct report. A diagnostic binary sensor marks `241/44` fresh for ten seconds
