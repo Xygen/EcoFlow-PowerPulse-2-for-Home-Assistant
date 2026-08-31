@@ -15,7 +15,7 @@ Any upstream proposal must follow the upstream maintainer's chosen architecture.
 This integration's direct C376 MQTT path with bounded PowerOcean HTTP fallback
 is project evidence, not a prescription for another repository.
 
-Current implementation baseline: `0.1.1-beta.5`.
+Current implementation baseline: `0.1.1-beta.6`.
 
 ## Live validation and control safety
 
@@ -44,6 +44,10 @@ Current implementation baseline: `0.1.1-beta.5`.
 | `DIAG-01` | Analysis complete; implementation pending | Keep the existing privacy-conscious PowerPulse diagnostics architecture and adapt only the useful mature patterns from `shuette42/ecoflow-energy-ha`: end-to-end per-message-type sampling instead of bucket tails, bounded seen/kept/dropped statistics, reserved SET/SET-reply type capacity, truthful empty-capture metadata, subscription-derived `app_writes_watched`, combined connection-versus-data-freshness reporting, a bounded `unmapped_fields` inventory suited to the manual PowerPulse wire parser, and one final recursive privacy guard. Preserve existing raw-payload omission for PowerOcean observers/GETs, runtime-only fingerprints, command correlation and explicit truncation. No extra polling, Recorder entities, persistent raw capture, or runtime dependency on the other integration. See [`docs/diagnostics_analysis.md`](diagnostics_analysis.md). | Implement in small bounded changes: first sampling/statistics/write reserve; then capture-health metadata; then final privacy guard; then bounded unmapped-field summaries. Tests prove memory bounds, long-window coverage, preservation of rare reports and writes, reconciled seen/kept/dropped counts, truthful empty captures, subscription-backed write-watch status, connection/freshness separation, privacy-safe length-preserving masking without corrupting pre-sanitized hex, malformed-payload tolerance, and standalone operation without `ecoflow_energy`. |
 
 ## Home Assistant entity model
+
+| ID | Priority | Open work | Completion evidence |
+| --- | --- | --- | --- |
+| `SMART-01` | Implemented locally; live validation pending | Resolve [Issue #9](https://github.com/Xygen/EcoFlow-PowerPulse-2-for-Home-Assistant/issues/9): a versioned, per-config-entry and per-serial Smart draft now persists ready-by, target type, energy and distance. Outside Smart, Controls modify only this local draft; inside Smart they retain every live write gate. Smart activation validates the selected target bundle and sends it atomically through the existing fail-closed SET-reply/readback path. Current Smart observations remain device-derived. Vehicle consumption deliberately remains non-persistent device context to prevent reuse across vehicles. See [`docs/smart_mode_bootstrap_analysis.md`](smart_mode_bootstrap_analysis.md). | Unit tests prove local-only staging, persistence/reload, target-type-specific validation, no staged observation leak, per-serial isolation and unchanged confirmed-write behavior. Install the next build, stage an energy bundle in Solar, reload the integration, verify the draft remains visible without MQTT SET, then activate Smart and capture SET, matching reply and fresh readback. Repeat the missing-field failure once; then remove this item and close issue #9. |
 
 ## Deferred and release work
 

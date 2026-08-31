@@ -97,19 +97,15 @@ class PowerPulse2SmartTargetSelect(PowerPulse2Entity, SelectEntity):
 
     @property
     def available(self) -> bool:
-        values = self.coordinator.data.get(self.serial, {})
-        return (
-            self.coordinator.settings_control_available(self.serial)
-            and values.get("work_mode") == "smart"
-            and self.coordinator.smart_target_type_control_available(self.serial)
-            and self.coordinator.charging_sensitive_control_available(
-                self.serial, "smart_target_type"
-            )
+        return self.coordinator.smart_control_available(
+            self.serial, "smart_target_type"
         )
 
     @property
     def current_option(self) -> str | None:
-        value = self.coordinator.data.get(self.serial, {}).get("smart_target_type")
+        value = self.coordinator.staged_smart_setting(
+            self.serial, "smart_target_type"
+        )
         return value if value in self.options else None
 
     async def async_select_option(self, option: str) -> None:

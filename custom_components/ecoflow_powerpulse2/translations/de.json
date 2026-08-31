@@ -111,8 +111,8 @@
       "maximum_output_current_control": {"name": "Maximaler Ausgangsstrom"},
       "solar_minimum_current_control": {"name": "Solar-Mindestladestrom"},
       "custom_current_control": {"name": "Benutzerdefinierter Ladestrom"},
-      "smart_energy_target_control": {"name": "Smart-Zielenergie"},
-      "smart_distance_target_control": {"name": "Smart-Zielstrecke"},
+      "smart_energy_target_control": {"name": "Smart-Konfiguration – Zielenergie"},
+      "smart_distance_target_control": {"name": "Smart-Konfiguration – Zielstrecke"},
       "screen_brightness_control": {"name": "Bildschirmhelligkeit"},
       "indicator_brightness_control": {"name": "LED-Helligkeit"}
     },
@@ -126,7 +126,7 @@
         "state": {"fast": "Schnellladung", "solar": "Solar-Modus", "custom": "Benutzerdefiniert", "smart": "Smart-Modus"}
       },
       "smart_target_type_control": {
-        "name": "Smart-Zieltyp",
+        "name": "Smart-Konfiguration – Zieltyp",
         "state": {"energy": "Energie", "distance": "Strecke"}
       }
     },
@@ -138,7 +138,7 @@
       "indicator_control": {"name": "LED-Anzeige"}
     },
     "datetime": {
-      "smart_ready_by_control": {"name": "Smart – Bereit vor"}
+      "smart_ready_by_control": {"name": "Smart-Konfiguration – Bereit vor"}
     }
   }
 }

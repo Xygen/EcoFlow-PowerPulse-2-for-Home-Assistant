@@ -36,19 +36,15 @@ class PowerPulse2ReadyByDateTime(PowerPulse2Entity, DateTimeEntity):
 
     @property
     def available(self) -> bool:
-        values = self.coordinator.data.get(self.serial, {})
-        return (
-            self.coordinator.settings_control_available(self.serial)
-            and values.get("work_mode") == "smart"
-            and isinstance(values.get("ready_by_timestamp"), int)
-            and self.coordinator.charging_sensitive_control_available(
-                self.serial, "ready_by_timestamp"
-            )
+        return self.coordinator.smart_control_available(
+            self.serial, "ready_by_timestamp"
         )
 
     @property
     def native_value(self) -> datetime | None:
-        value = self.coordinator.data.get(self.serial, {}).get("ready_by_timestamp")
+        value = self.coordinator.staged_smart_setting(
+            self.serial, "ready_by_timestamp"
+        )
         return datetime.fromtimestamp(value, UTC) if isinstance(value, int) else None
 
     async def async_set_value(self, value: datetime) -> None:

@@ -64,6 +64,25 @@ main settings read paths. Restoring the Solar minimum from 7 A to 6 A updated
 the Home Assistant entities after about 1.77 seconds through `241/44`; the
 provider fallback completed only about 20.26 seconds after the app SET.
 
+## Local Smart staging path
+
+Smart configuration Controls now have a deliberately separate local path. It
+is neither a fifth device read source nor confirmation that the charger applied
+a value:
+
+| Value | Current Smart observation | Local staged Control | Smart activation |
+| --- | --- | --- | --- |
+| Ready-by time | Qualified device/provider report only | Persisted per serial | Required |
+| Target type | Qualified device/provider report only | Persisted per serial | Required |
+| Energy target | Qualified device/provider report only | Persisted per serial | Required only for `energy` |
+| Distance target | Qualified device/provider report only | Persisted per serial | Required only for `distance` |
+| Vehicle consumption | Runtime device context only | Never persisted | Required to derive a distance payload when no same-runtime basis exists |
+
+Edits in Solar, Fast or Custom stop at the staged Control column and publish no
+MQTT command. Selecting Smart validates the complete selected bundle, then
+uses the established `241/102` SET, matching SET_REPLY and qualified readback.
+Staged values never fill missing Read-only observation sensors.
+
 ## Separate direct-wallbox and PowerOcean session entities
 
 The existing CP307 heartbeat sensors remain separate and keep their established

@@ -45,6 +45,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     from .coordinator import PowerPulse2Coordinator
 
     coordinator = PowerPulse2Coordinator(hass, entry)
+    await coordinator.async_load_smart_staging()
     await coordinator.async_config_entry_first_refresh()
     entry.runtime_data = coordinator
     _enable_new_canonical_sensor_defaults(hass, list(coordinator.devices), DOMAIN)

@@ -6,6 +6,19 @@ Current outstanding work is maintained only in
 
 ## Unreleased
 
+## 0.1.1-beta.6 - 2026-08-31
+
+- Implement the code side of issue #9 / `SMART-01` with a versioned,
+  per-config-entry and per-device Smart staging store. Smart ready-by, target
+  type, energy and distance Controls remain editable outside Smart but update
+  only the local persisted draft; entering Smart validates and atomically sends
+  the complete selected bundle through the existing SET_REPLY/readback path.
+- Keep Smart observations strictly device-derived, preserve all active-Smart
+  transport and charging interlocks, replace the dual-target prerequisite with
+  selected-target validation, and provide specific incomplete-bundle errors.
+  Vehicle consumption remains non-persistent device context so distance
+  activation cannot silently reuse another vehicle's stale consumption.
+
 ## 0.1.1-beta.5 - 2026-08-30
 
 - Implement the code side of `PHASE-01` with source-qualified phase evidence.

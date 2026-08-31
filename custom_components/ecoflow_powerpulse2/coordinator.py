@@ -13,6 +13,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
+from homeassistant.helpers.storage import Store
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
 from .api import PowerPulse2ApiClient
@@ -59,6 +60,12 @@ from .setting_observation import (
     SettingSource,
     setting_source_from_headers,
 )
+from .smart_staging import (
+    STAGED_SMART_KEYS,
+    SmartStaging,
+    SmartStagingError,
+    validate_smart_bundle,
+)
 from .stream_recovery import automatic_recovery_due
 
 _LOGGER = logging.getLogger(__name__)
@@ -72,6 +79,7 @@ _CONTROL_DIAGNOSTIC_ATTEMPTS = 32
 _DIRECT_STREAM_CONFIRM_SECONDS = 10
 _DIRECT_STREAM_DIAGNOSTIC_ATTEMPTS = 16
 _HEARTBEAT_STREAM_FRESH_SECONDS = 90
+_SMART_STAGING_STORE_VERSION = 1
 _AUTOMATIC_RECOVERY_STALE_SECONDS = 300
 _AUTOMATIC_RECOVERY_COOLDOWN_SECONDS = 1800
 _SETTING_SOURCE_FRESH_SECONDS: dict[SettingSource, float] = {
@@ -182,8 +190,78 @@ class PowerPulse2Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
         self._control_lock = asyncio.Lock()
         self._direct_stream_lock = asyncio.Lock()
         self._last_smart_settings: dict[str, dict[str, Any]] = {}
+        self._smart_staging = SmartStaging()
+        self._smart_staging_store: Store[dict[str, Any]] = Store(
+            hass,
+            _SMART_STAGING_STORE_VERSION,
+            f"{DOMAIN}.smart_staging.{entry.entry_id}",
+        )
+        self._smart_staging_lock = asyncio.Lock()
+        self._smart_staging_tasks: set[asyncio.Task[None]] = set()
         self._shutting_down = False
         self._initialized = False
+
+    async def async_load_smart_staging(self) -> None:
+        """Load privacy-safe staged Smart input before device discovery."""
+        try:
+            stored = await self._smart_staging_store.async_load()
+        except Exception as exc:
+            _LOGGER.warning("Stored Smart configuration could not be loaded: %s", exc)
+            stored = None
+        self._smart_staging.load(stored)
+
+    async def _async_apply_smart_staging(
+        self, serial: str, changes: dict[str, Any]
+    ) -> bool:
+        """Validate and atomically persist one serial's semantic changes."""
+        async with self._smart_staging_lock:
+            previous = self._smart_staging.export()
+            try:
+                changed = self._smart_staging.update(serial, changes)
+            except SmartStagingError as exc:
+                raise HomeAssistantError(str(exc)) from exc
+            if not changed:
+                return False
+            try:
+                await self._smart_staging_store.async_save(
+                    self._smart_staging.export()
+                )
+            except Exception as exc:
+                self._smart_staging.load(previous)
+                raise HomeAssistantError(
+                    "Smart configuration could not be persisted"
+                ) from exc
+        return True
+
+    async def _async_update_smart_staging_from_device(
+        self, serial: str, changes: dict[str, Any]
+    ) -> None:
+        """Persist qualified Smart device input without failing telemetry."""
+        try:
+            changed = await self._async_apply_smart_staging(serial, changes)
+        except HomeAssistantError as exc:
+            _LOGGER.warning("Smart device configuration was not persisted: %s", exc)
+            return
+        if changed:
+            self.async_update_listeners()
+
+    def _schedule_smart_staging_from_device(
+        self, serial: str, changes: dict[str, Any]
+    ) -> None:
+        """Schedule a rare semantic device-to-stage update on the HA loop."""
+        task = self.hass.async_create_task(
+            self._async_update_smart_staging_from_device(serial, changes),
+            f"{DOMAIN} stage reported Smart configuration",
+        )
+        self._smart_staging_tasks.add(task)
+        task.add_done_callback(self._smart_staging_tasks.discard)
+
+    async def _async_update_smart_staging(
+        self, serial: str, changes: dict[str, Any]
+    ) -> None:
+        """Persist one validated local draft before completing a service call."""
+        if await self._async_apply_smart_staging(serial, changes):
+            self.async_update_listeners()
 
     @property
     def mqtt_frames(self) -> list[dict[str, Any]]:
@@ -961,6 +1039,7 @@ class PowerPulse2Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
 
     async def async_set_work_mode(self, serial: str, mode: str) -> None:
         """Select a live-confirmed charging mode with its required companion data."""
+        staged_after_write: dict[str, Any] | None = None
         if mode == "fast":
             settings: dict[int, int | bytes] = {2: 1}
         elif mode == "solar":
@@ -975,16 +1054,26 @@ class PowerPulse2Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
                 6: self._required_int_setting(serial, "user_current_set_raw"),
             }
         elif mode == "smart":
+            staged_after_write = self._smart_settings_candidate(serial)
             settings = {
                 1: self._required_int_setting(serial, "switch_bits_raw"),
                 2: 4,
-                7: self._smart_settings_payload(serial),
+                7: self._smart_settings_payload(serial, staged_after_write),
             }
         else:
             raise HomeAssistantError(f"Unsupported charging mode: {mode}")
         await self._async_write_settings(
             serial, settings, expected_key="work_mode", expected_value=mode
         )
+        if staged_after_write is not None:
+            await self._async_update_smart_staging(
+                serial,
+                {
+                    key: staged_after_write[key]
+                    for key in STAGED_SMART_KEYS
+                    if key in staged_after_write
+                },
+            )
 
     async def async_set_custom_current(self, serial: str, amps: float) -> None:
         """Set the whole-ampere current used in Custom mode."""
@@ -1043,19 +1132,20 @@ class PowerPulse2Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
         expected_value: Any,
     ) -> None:
         if (self.data or {}).get(serial, {}).get("work_mode") != "smart":
-            raise HomeAssistantError("Smart settings require Smart mode")
-        cached = dict(self._last_smart_settings.get(serial, {}))
-        cached.update(overrides)
+            await self._async_update_smart_staging(serial, overrides)
+            return
+        candidate = self._smart_settings_candidate(serial, overrides)
         await self._async_write_settings(
             serial,
             {
                 1: self._required_int_setting(serial, "switch_bits_raw"),
                 2: 4,
-                7: self._smart_settings_payload(serial, cached),
+                7: self._smart_settings_payload(serial, candidate),
             },
             expected_key=expected_key,
             expected_value=expected_value,
         )
+        await self._async_update_smart_staging(serial, overrides)
 
     def _remember_smart_settings(self, serial: str, values: dict[str, Any]) -> None:
         keys = (
@@ -1069,25 +1159,63 @@ class PowerPulse2Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
         remembered = self._last_smart_settings.setdefault(serial, {})
         remembered.update({key: values[key] for key in keys if key in values})
 
+        if values.get("work_mode") != "smart":
+            return
+        device_changes = {
+            key: values[key] for key in STAGED_SMART_KEYS if key in values
+        }
+        if not device_changes:
+            return
+        if all(
+            self._smart_staging.value(serial, key) == value
+            for key, value in device_changes.items()
+        ):
+            return
+        self._schedule_smart_staging_from_device(serial, device_changes)
+
     def remembered_smart_setting(self, serial: str, key: str) -> Any:
         """Return a last device-reported Smart value for mode-transition controls."""
         return self._last_smart_settings.get(serial, {}).get(key)
 
-    def smart_target_type_control_available(self, serial: str) -> bool:
-        """Require a reusable value for both target types before switching alone."""
-        smart = self._last_smart_settings.get(serial, {})
-        return all(
-            isinstance(smart.get(key), int) and smart[key] > 0
-            for key in ("smart_charge_target_wh", "smart_target_distance_km")
+    def staged_smart_setting(self, serial: str, key: str) -> Any:
+        """Return a local draft value, then volatile device context for controls."""
+        staged = self._smart_staging.value(serial, key)
+        return (
+            staged
+            if staged is not None
+            else self._last_smart_settings.get(serial, {}).get(key)
         )
+
+    def smart_staging_available(self, serial: str) -> bool:
+        """Allow local draft edits whenever this loaded entry owns the device."""
+        return self.last_update_success and serial in self.devices
+
+    def smart_control_available(self, serial: str, key: str) -> bool:
+        """Use local staging outside Smart and all live gates inside Smart."""
+        if (self.data or {}).get(serial, {}).get("work_mode") != "smart":
+            return self.smart_staging_available(serial)
+        return self.charging_sensitive_control_available(serial, key)
+
+    def _smart_settings_candidate(
+        self, serial: str, overrides: dict[str, Any] | None = None
+    ) -> dict[str, Any]:
+        """Combine volatile device context with persistent user-owned input."""
+        smart = dict(self._last_smart_settings.get(serial, {}))
+        smart.update(self._smart_staging.values(serial))
+        if overrides:
+            smart.update(overrides)
+        return smart
 
     def _smart_settings_payload(
         self, serial: str, values: dict[str, Any] | None = None
     ) -> bytes:
-        smart = dict(self._last_smart_settings.get(serial, {}))
-        previous_distance = smart.get("smart_target_distance_km")
-        if values:
-            smart.update(values)
+        device_context = dict(self._last_smart_settings.get(serial, {}))
+        previous_distance = device_context.get("smart_target_distance_km")
+        smart = self._smart_settings_candidate(serial, values)
+        try:
+            validate_smart_bundle(smart)
+        except SmartStagingError as exc:
+            raise HomeAssistantError(str(exc)) from exc
         ready_by = smart.get("ready_by_timestamp")
         target_type = smart.get("smart_target_type")
         target = (
@@ -1095,12 +1223,6 @@ class PowerPulse2Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
             if target_type == "energy"
             else smart.get("smart_target_distance_km")
         )
-        if (
-            not isinstance(ready_by, int)
-            or target_type not in ("energy", "distance")
-            or not isinstance(target, int)
-        ):
-            raise HomeAssistantError("Stored Smart settings are unavailable")
         calculated = smart.get("smart_calculated_energy_wh")
         if target_type == "distance":
             consumption = smart.get("vehicle_consumption_raw")
@@ -1116,7 +1238,7 @@ class PowerPulse2Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
                     calculated = round(target * calculated / previous_distance)
                 else:
                     raise HomeAssistantError(
-                        "Vehicle consumption for the Smart distance target is unavailable"
+                        "Smart distance target requires vehicle consumption"
                     )
         return build_powerpulse_smart_settings(
             ready_by_timestamp=ready_by,
@@ -1536,6 +1658,8 @@ class PowerPulse2Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
     async def async_shutdown(self) -> None:
         self._shutting_down = True
         await self._settings_refresh.async_close()
+        if self._smart_staging_tasks:
+            await asyncio.gather(*self._smart_staging_tasks, return_exceptions=True)
         for waiter in self._reply_waiters.values():
             if not waiter.done():
                 waiter.cancel()

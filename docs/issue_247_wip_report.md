@@ -1009,3 +1009,23 @@ Direct and Parent-Accessory sources while Device-Detail omitted the field. Both
 stream sensors were active and the system log contained no matching integration
 error. No live phase write was issued, so the two stale-Direct write cases stay
 open in the canonical backlog.
+
+## SMART-01 local staging implementation (2026-08-31)
+
+Issue #9 is implemented locally without weakening the existing device-write
+gates. A Home Assistant Store is loaded before the first coordinator refresh
+and holds only ready-by, target type, energy and distance per Config Entry and
+wallbox serial. Outside Smart, the four Smart Controls remain available as
+local configuration and persist changes without an MQTT SET. Inside Smart,
+they continue to require the established transport, charging-state,
+SET_REPLY and qualified readback sequence; the staged draft advances only
+after success.
+
+Energy no longer requires a distance value and distance no longer requires a
+separate energy target. Activation reports the specifically missing field.
+Vehicle consumption and calculated distance energy remain runtime-only device
+context rather than persistent user input, preventing reuse after a vehicle
+change. The Read-only Smart sensors still use only source-qualified device
+observations. The 131-test local suite, Ruff and compilation pass; persistence
+across a real integration reload and one confirmed Solar-to-Smart activation
+remain the live acceptance steps in the canonical backlog.

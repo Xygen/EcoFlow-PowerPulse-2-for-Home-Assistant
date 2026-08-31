@@ -1566,3 +1566,27 @@ fields. Both direct and heartbeat stream sensors were `on`, and no
 `ecoflow_powerpulse2` system-log entry was present. This check deliberately did
 not change the physical phase setting; Provider transition confirmation and
 the already-at-target fail-closed case still require controlled live writes.
+
+## 2026-08-31: SMART-01 persistent local configuration path
+
+The Smart bootstrap fix adds no protocol field and changes no acknowledgement
+semantics. It introduces a local, versioned Store containing only the four
+user-owned Smart inputs: ready-by timestamp, target type, energy target and
+distance target. The Store is scoped first by Config Entry and then by charger
+serial, loaded before the first device refresh, and written only for semantic
+changes. Malformed stored devices and fields are isolated; a failed user-driven
+save is rolled back and reported as a failed service call.
+
+While the reported work mode is not Smart, these Controls update only the
+Store and emit no `241/102`. Selecting Smart validates the target-specific
+bundle before the existing atomic mode-plus-Smart payload is built. While
+already in Smart, all prior transport, charging lock, SET_REPLY and fresh
+readback requirements remain in force, and staging is updated only after the
+write succeeds. Observation sensors do not read this Store.
+
+`vehicle_consumption_raw` and calculated distance energy deliberately remain
+volatile device context. They may depend on the connected vehicle and are not
+safe to reuse blindly after a restart or vehicle change. A staged distance
+bundle therefore remains editable and persistent, but its device activation
+fails closed with `Smart distance target requires vehicle consumption` unless
+the current runtime has a valid basis for the calculated-energy field.

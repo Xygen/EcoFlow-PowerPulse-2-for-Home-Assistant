@@ -118,6 +118,14 @@ class PowerPulse2CurrentNumber(PowerPulse2Entity, NumberEntity):
 
     @property
     def available(self) -> bool:
+        if self.entity_description.key == "smart_energy_target_control":
+            return self.coordinator.smart_control_available(
+                self.serial, "smart_charge_target_wh"
+            )
+        if self.entity_description.key == "smart_distance_target_control":
+            return self.coordinator.smart_control_available(
+                self.serial, "smart_target_distance_km"
+            )
         if not self.coordinator.settings_control_available(self.serial):
             return False
         values = self.coordinator.data.get(self.serial, {})
@@ -138,10 +146,6 @@ class PowerPulse2CurrentNumber(PowerPulse2Entity, NumberEntity):
             )
         if self.entity_description.key == "custom_current_control":
             return values.get("work_mode") == "custom"
-        if self.entity_description.key == "smart_energy_target_control":
-            return values.get("work_mode") == "smart"
-        if self.entity_description.key == "smart_distance_target_control":
-            return values.get("work_mode") == "smart"
         if self.entity_description.key == "screen_brightness_control":
             return values.get("screen_enabled") is True
         if self.entity_description.key == "indicator_brightness_control":
@@ -159,9 +163,10 @@ class PowerPulse2CurrentNumber(PowerPulse2Entity, NumberEntity):
             "screen_brightness_control": "screen_brightness_pct",
             "indicator_brightness_control": "indicator_brightness_pct",
         }[self.entity_description.key]
-        value = self.coordinator.data.get(self.serial, {}).get(key)
-        if value is None and self.entity_description.key.startswith("smart_"):
-            value = self.coordinator.remembered_smart_setting(self.serial, key)
+        if self.entity_description.key.startswith("smart_"):
+            value = self.coordinator.staged_smart_setting(self.serial, key)
+        else:
+            value = self.coordinator.data.get(self.serial, {}).get(key)
         if not isinstance(value, (int, float)):
             return None
         if self.entity_description.key == "smart_energy_target_control":
