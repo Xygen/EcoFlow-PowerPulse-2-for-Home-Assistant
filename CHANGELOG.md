@@ -6,6 +6,8 @@ Current outstanding work is maintained only in
 
 ## Unreleased
 
+## 0.1.1-beta.8 - 2026-08-31
+
 - Implement the code side of `DIAG-01` in diagnostic schema 12: representative
   whole-window per-type sampling, bounded reconciled capture statistics and a
   SET/SET-reply type reserve within the existing 48-type/16-sample limits.

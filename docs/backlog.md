@@ -15,7 +15,7 @@ Any upstream proposal must follow the upstream maintainer's chosen architecture.
 This integration's direct C376 MQTT path with bounded PowerOcean HTTP fallback
 is project evidence, not a prescription for another repository.
 
-Current implementation baseline: `0.1.1-beta.7`.
+Current implementation baseline: `0.1.1-beta.8`.
 
 ## Live validation and control safety
 
