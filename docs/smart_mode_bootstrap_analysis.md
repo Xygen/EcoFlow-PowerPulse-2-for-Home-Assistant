@@ -1,8 +1,7 @@
 # Issue #9: Smart-Modus nach Reload wieder bootstrapfähig machen
 
 Stand: 2026-08-31
-Bezug: [GitHub Issue #9](https://github.com/Xygen/EcoFlow-PowerPulse-2-for-Home-Assistant/issues/9),
-[Backlog `SMART-01`](backlog.md)
+Bezug: [GitHub Issue #9](https://github.com/Xygen/EcoFlow-PowerPulse-2-for-Home-Assistant/issues/9)
 
 ## Ergebnis in Kurzform
 
@@ -152,13 +151,19 @@ unvollständigen Gerätebefehl zuzulassen.
 - Serialisierungs-/Schemafehler im Store werden fail-closed behandelt und
   beeinträchtigen keine anderen Wallboxen.
 
-## Verbleibende Live-Validierung
+## Live-Validierung in 0.1.1-beta.6
 
-Nach der Implementierung ist nur ein kontrollierter Smart-Moduswechsel am
-Gerät nötig: in Solar eine Energie- oder Distanzkonfiguration stagen, Smart
-wählen, SET/Reply und frischen Readback erfassen sowie nach Reload wiederholen.
-Die Voranalyse, Datenmodellierung und Unit-Tests benötigen kein verbundenes
-Fahrzeug.
+Am 2026-08-31 wurden in Solar Zieltyp `energy`, 30 kWh und der Folgetag um
+12:00 Uhr lokal gestaged. Alle Werte blieben nach einem gezielten Reload des
+Config Entry sichtbar; im PowerPulse-Kommandostrom entstand dabei kein
+`241/102`. Die anschließende Smart-Aktivierung erzeugte genau einen
+`241/102`-Request mit Sequenz 225, erhielt die passende SET_REPLY und wurde
+durch den frischen Moduswert `smart` bestätigt. Das Fahrzeug war abgesteckt.
+
+Ein zweiter Versuch mit Zieltyp `distance`, aber ohne Distanzwert, wurde mit
+`Smart distance target must be 10 to 600 whole km` vor dem Publish abgewiesen;
+es entstand kein weiterer `241/102`. Zieltyp und Betriebsmodus wurden danach
+auf `energy` beziehungsweise den ursprünglichen Solar-Modus zurückgestellt.
 
 ## Implementierungsstand und kritische Abweichung
 

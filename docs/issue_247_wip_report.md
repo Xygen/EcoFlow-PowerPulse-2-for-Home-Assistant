@@ -1026,6 +1026,24 @@ separate energy target. Activation reports the specifically missing field.
 Vehicle consumption and calculated distance energy remain runtime-only device
 context rather than persistent user input, preventing reuse after a vehicle
 change. The Read-only Smart sensors still use only source-qualified device
-observations. The 131-test local suite, Ruff and compilation pass; persistence
-across a real integration reload and one confirmed Solar-to-Smart activation
-remain the live acceptance steps in the canonical backlog.
+observations. The 131-test local suite, Ruff and compilation pass. The
+subsequent installed reload and Solar-to-Smart validation are recorded below.
+
+## SMART-01 installed validation (2026-08-31)
+
+HACS installed `v0.1.1-beta.6`; Home Assistant accepted the configuration,
+restarted, and loaded the config entry. In Solar mode, an energy draft with
+30 kWh and ready-by 2026-09-01 12:00 local survived a config-entry reload.
+Only the unrelated periodic PowerOcean observer traffic continued while the
+draft was edited; no PowerPulse `241/102` was emitted.
+
+Selecting Smart then produced sequence 225 with one `241/102` request, its
+matching reply, and fresh `smart` readback. With target type changed locally to
+distance and no distance value present, activation failed before publish with
+the specific range error and the `241/102` count stayed unchanged. The draft
+was returned to energy and the wallbox to its original Solar mode. The first
+Solar request exposed the existing generic Provider No-op race: a stale
+Provider value still said Solar although Direct said Smart, so no SET was
+sent. After Provider caught up, sequence 189 carried the real Solar SET,
+matching reply, and confirmed readback. This is evidence for the existing
+Provider-readback backlog, not a SMART-01 staging failure.

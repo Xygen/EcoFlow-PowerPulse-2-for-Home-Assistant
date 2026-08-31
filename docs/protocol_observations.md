@@ -1590,3 +1590,19 @@ safe to reuse blindly after a restart or vehicle change. A staged distance
 bundle therefore remains editable and persistent, but its device activation
 fails closed with `Smart distance target requires vehicle consumption` unless
 the current runtime has a valid basis for the calculated-energy field.
+
+Installed `0.1.1-beta.6` confirmed the separation between local staging and
+device writes. Editing an energy draft in Solar and reloading the Config Entry
+preserved the draft without a PowerPulse `241/102`. Smart activation emitted
+one `241/102` with sequence 225; the same-sequence reply and fresh `smart`
+report confirmed it. A distance activation with no staged distance failed
+validation before MQTT and added no command frame. The charger was unplugged
+throughout and was restored to Solar with sequence 189 and a matching reply.
+
+The restore also reproduced a separate generic Provider No-op hazard. The
+first Solar selection was suppressed because a fresh polled Provider cache
+still reported Solar while newer Direct evidence reported Smart. After the
+Provider cache advanced to Smart, the same Solar selection published and was
+confirmed. This does not alter the Smart staging protocol, but it strengthens
+the case that generic No-op decisions must not outrank conflicting newer
+Direct evidence.

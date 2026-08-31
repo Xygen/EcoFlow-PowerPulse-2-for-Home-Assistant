@@ -18,6 +18,9 @@ Current outstanding work is maintained only in
   selected-target validation, and provide specific incomplete-bundle errors.
   Vehicle consumption remains non-persistent device context so distance
   activation cannot silently reuse another vehicle's stale consumption.
+- Live-validate the local draft across a config-entry reload, an atomic
+  Solar-to-Smart activation with a matched `241/102` reply and fresh readback,
+  and a missing-distance rejection before publish. Restore Solar afterward.
 
 ## 0.1.1-beta.5 - 2026-08-30
 
