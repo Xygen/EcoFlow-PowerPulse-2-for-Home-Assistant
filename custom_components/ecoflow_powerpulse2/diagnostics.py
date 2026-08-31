@@ -67,7 +67,18 @@ async def async_get_config_entry_diagnostics(
             for serial, device in coordinator.observer_devices.items()
         ],
         "mqtt_mode": "listen_only",
-        "mqtt_capture_schema": 11,
+        "mqtt_capture_schema": 12,
+        "mqtt_capture": {
+            "schema": 12,
+            "statistics": coordinator.mqtt_capture_statistics,
+            "samples": {
+                "recent": list(coordinator.mqtt_frames),
+                "per_type": coordinator.mqtt_frame_buckets,
+                "commands": list(coordinator.mqtt_command_frames),
+                "requests": list(coordinator.mqtt_request_frames),
+                "correlations": coordinator.mqtt_command_correlations,
+            },
+        },
         "passive_settings_refresh": coordinator.passive_settings_refresh,
         "phase_readback_sources": coordinator.phase_readback_sources,
         "mqtt_frames": list(coordinator.mqtt_frames),

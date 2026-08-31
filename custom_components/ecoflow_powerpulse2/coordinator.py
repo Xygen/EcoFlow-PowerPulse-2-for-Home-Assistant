@@ -206,6 +206,11 @@ class PowerPulse2Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
         return self._frame_capture.bucket_snapshot()
 
     @property
+    def mqtt_capture_statistics(self) -> dict[str, Any]:
+        """Return bounded capture retention and drop statistics."""
+        return self._frame_capture.statistics
+
+    @property
     def mqtt_command_correlations(self) -> list[dict[str, Any]]:
         """Return passive command requests and replies grouped by sequence."""
         return self._frame_capture.command_correlations

@@ -6,6 +6,11 @@ Current outstanding work is maintained only in
 
 ## Unreleased
 
+- Start `DIAG-01` with bounded, end-to-end per-message-type sampling that keeps
+  the first and latest observations, reserves message-type capacity for SET
+  traffic, and exports reconcilable seen/retained/dropped capture statistics.
+  Sampling-budget drops and message-type-budget drops are reported separately.
+
 ## 0.1.1-beta.5 - 2026-08-30
 
 - Implement the code side of `PHASE-01` with source-qualified phase evidence.

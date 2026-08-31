@@ -563,9 +563,87 @@ def test_command_bucket_survives_frequent_telemetry() -> None:
     assert buckets["observed_set:2/81"]["samples"][0]["timestamp"] == "command"
     assert buckets["property:2/33"]["count"] == 10
     assert [sample["timestamp"] for sample in buckets["property:2/33"]["samples"]] == [
-        "telemetry-8",
+        "telemetry-0",
         "telemetry-9",
     ]
+
+
+def test_long_window_sampling_keeps_first_latest_and_bounds() -> None:
+    capture = DiagnosticFrameCapture(max_samples_per_bucket=6)
+    for index in range(1_000):
+        capture.record(_frame("property", 2, 33, f"telemetry-{index}"))
+
+    samples = capture.bucket_snapshot()["property:2/33"]["samples"]
+    assert len(samples) <= 6
+    assert samples[0]["timestamp"] == "telemetry-0"
+    assert samples[-1]["timestamp"] == "telemetry-999"
+    assert any(
+        100 < int(sample["timestamp"].removeprefix("telemetry-")) < 900
+        for sample in samples[1:-1]
+    )
+    assert capture.statistics["frames_seen"] == 1_000
+    assert capture.statistics["frames_kept"] == len(samples)
+    assert capture.statistics["frames_dropped_sample_budget"] == 1_000 - len(samples)
+
+
+def test_command_bucket_reserve_and_dropped_type_stats() -> None:
+    capture = DiagnosticFrameCapture(
+        max_buckets=3,
+        reserved_command_buckets=1,
+        max_dropped_types=1,
+    )
+    capture.record(_frame("property", 2, 31, "telemetry-1"))
+    capture.record(_frame("property", 2, 32, "telemetry-2"))
+    capture.record(_frame("property", 2, 33, "dropped-1"))
+    capture.record(_frame("property", 2, 34, "dropped-2"))
+    capture.record(_frame("observed_set", 2, 81, "command"))
+
+    buckets = capture.bucket_snapshot()
+    assert "observed_set:2/81" in buckets
+    assert len(buckets) == 3
+    assert capture.statistics == {
+        "frames_seen": 5,
+        "frames_kept": 3,
+        "frames_dropped_sample_budget": 0,
+        "frames_dropped_type_budget": 2,
+        "dropped_per_type": {"property:2/33": 1},
+        "dropped_types_untracked": 1,
+        "per_type": {
+            "property:2/31": {
+                "seen": 1,
+                "kept_samples": 1,
+                "dropped_samples": 0,
+            },
+            "property:2/32": {
+                "seen": 1,
+                "kept_samples": 1,
+                "dropped_samples": 0,
+            },
+            "observed_set:2/81": {
+                "seen": 1,
+                "kept_samples": 1,
+                "dropped_samples": 0,
+            },
+        },
+    }
+
+
+def test_capture_statistics_reconcile_retained_and_dropped_frames() -> None:
+    capture = DiagnosticFrameCapture(max_samples_per_bucket=2)
+    for index in range(10):
+        capture.record(_frame("property", 2, 33, f"telemetry-{index}"))
+
+    statistics = capture.statistics
+    assert statistics["frames_seen"] == (
+        statistics["frames_kept"]
+        + statistics["frames_dropped_sample_budget"]
+        + statistics["frames_dropped_type_budget"]
+    )
+    assert statistics["per_type"]["property:2/33"] == {
+        "seen": 10,
+        "kept_samples": 2,
+        "dropped_samples": 8,
+    }
 
 
 def test_get_request_view_survives_frequent_telemetry() -> None:

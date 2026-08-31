@@ -577,6 +577,8 @@ class DiagnosticFrameCapture:
         max_requests: int = 24,
         max_buckets: int = 48,
         max_samples_per_bucket: int = 16,
+        reserved_command_buckets: int = 8,
+        max_dropped_types: int = 16,
         max_correlations: int = 48,
         fingerprint_key: bytes | None = None,
     ) -> None:
@@ -585,6 +587,8 @@ class DiagnosticFrameCapture:
         self._max_requests = max_requests
         self._max_buckets = max_buckets
         self._max_samples_per_bucket = max_samples_per_bucket
+        self._reserved_command_buckets = min(reserved_command_buckets, max_buckets)
+        self._max_dropped_types = max_dropped_types
         self._max_correlations = max_correlations
         self._fingerprint_key = fingerprint_key or token_bytes(32)
         self._recent: list[dict[str, Any]] = []
@@ -592,6 +596,10 @@ class DiagnosticFrameCapture:
         self._requests: list[dict[str, Any]] = []
         self._buckets: OrderedDict[str, dict[str, Any]] = OrderedDict()
         self._correlations: OrderedDict[str, dict[str, Any]] = OrderedDict()
+        self._frames_seen = 0
+        self._frames_dropped_type_budget = 0
+        self._dropped_per_type: OrderedDict[str, int] = OrderedDict()
+        self._dropped_types_untracked = 0
 
     def inspect_observer_command_payloads(
         self, payload: bytes
@@ -604,6 +612,7 @@ class DiagnosticFrameCapture:
     def record(self, frame: dict[str, Any]) -> None:
         """Record one already-redacted frame in all applicable views."""
         stored = dict(frame)
+        self._frames_seen += 1
         self._append_bounded(self._recent, stored, self._max_recent)
 
         channel = str(stored.get("channel", "other"))
@@ -616,8 +625,9 @@ class DiagnosticFrameCapture:
         bucket_key = _bucket_key(stored)
         bucket = self._buckets.get(bucket_key)
         if bucket is None:
-            if len(self._buckets) >= self._max_buckets:
-                self._buckets.popitem(last=False)
+            if not self._make_bucket_space(channel):
+                self._record_dropped_type(bucket_key)
+                return
             bucket = {
                 "channel": channel,
                 "command_pairs": _command_pairs(stored),
@@ -625,6 +635,7 @@ class DiagnosticFrameCapture:
                 "first_timestamp": stored.get("timestamp"),
                 "last_timestamp": stored.get("timestamp"),
                 "samples": [],
+                "sample_stride": 1,
             }
             self._buckets[bucket_key] = bucket
         else:
@@ -632,11 +643,82 @@ class DiagnosticFrameCapture:
 
         bucket["count"] += 1
         bucket["last_timestamp"] = stored.get("timestamp")
-        self._append_bounded(
-            bucket["samples"],
-            stored,
-            self._max_samples_per_bucket,
+        self._record_long_window_sample(bucket, stored)
+
+    def _make_bucket_space(self, channel: str) -> bool:
+        """Keep bucket capacity reserved for SET traffic."""
+        if len(self._buckets) >= self._max_buckets:
+            return False
+        if channel in COMMAND_CHANNELS:
+            return True
+        command_count = sum(
+            bucket["channel"] in COMMAND_CHANNELS
+            for bucket in self._buckets.values()
         )
+        non_command_limit = self._max_buckets - max(
+            0, self._reserved_command_buckets - command_count
+        )
+        return len(self._buckets) < non_command_limit
+
+    def _record_dropped_type(self, bucket_key: str) -> None:
+        self._frames_dropped_type_budget += 1
+        if bucket_key in self._dropped_per_type:
+            self._dropped_per_type[bucket_key] += 1
+        elif len(self._dropped_per_type) < self._max_dropped_types:
+            self._dropped_per_type[bucket_key] = 1
+        else:
+            self._dropped_types_untracked += 1
+
+    def _record_long_window_sample(
+        self, bucket: dict[str, Any], frame: dict[str, Any]
+    ) -> None:
+        """Retain first/latest frames and bounded samples across the full window."""
+        samples = bucket["samples"]
+        limit = self._max_samples_per_bucket
+        if limit <= 0:
+            return
+        if len(samples) < limit:
+            samples.append(frame)
+            return
+        if limit == 1:
+            samples[0] = frame
+            return
+        stride = bucket["sample_stride"]
+        if (bucket["count"] - 1) % stride == 0:
+            # Compact older interior samples before increasing the interval.
+            interior = samples[1:-1:2]
+            samples[:] = [samples[0], *interior, frame]
+            bucket["sample_stride"] = stride * 2
+        else:
+            samples[-1] = frame
+
+    @property
+    def statistics(self) -> dict[str, Any]:
+        """Return bounded, reconcilable capture statistics."""
+        frames_kept = sum(
+            len(bucket["samples"]) for bucket in self._buckets.values()
+        )
+        frames_dropped_sample_budget = (
+            self._frames_seen
+            - frames_kept
+            - self._frames_dropped_type_budget
+        )
+        return {
+            "frames_seen": self._frames_seen,
+            "frames_kept": frames_kept,
+            "frames_dropped_sample_budget": frames_dropped_sample_budget,
+            "frames_dropped_type_budget": self._frames_dropped_type_budget,
+            "dropped_per_type": dict(self._dropped_per_type),
+            "dropped_types_untracked": self._dropped_types_untracked,
+            "per_type": {
+                key: {
+                    "seen": bucket["count"],
+                    "kept_samples": len(bucket["samples"]),
+                    "dropped_samples": bucket["count"] - len(bucket["samples"]),
+                }
+                for key, bucket in self._buckets.items()
+            },
+        }
 
     @property
     def recent(self) -> list[dict[str, Any]]:
@@ -657,7 +739,11 @@ class DiagnosticFrameCapture:
         """Return per-channel and per-command samples for diagnostics."""
         return {
             key: {
-                **{name: value for name, value in bucket.items() if name != "samples"},
+                **{
+                    name: value
+                    for name, value in bucket.items()
+                    if name not in {"samples", "sample_stride"}
+                },
                 "samples": [dict(frame) for frame in bucket["samples"]],
             }
             for key, bucket in self._buckets.items()
