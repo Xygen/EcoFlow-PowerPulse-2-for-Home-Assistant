@@ -1215,6 +1215,64 @@ retained its mixture of empty byte fields and zero varints. This is a controlled
 negative result only: it excludes both fields as the direct phase-selection
 value but does not assign their positive meaning. `DATA-02` remains open.
 
+On 2026-08-31, with the vehicle unplugged, Home Assistant changed only the
+stored maximum output current from 16 A to 15 A and restored it to 16 A. Fresh
+direct `241/44` readback changed the known scalar field `4` from `160` to
+`150`, confirming that the captured after-frame belonged to the requested
+setting change. Field `5` remained a 16-byte value with the same privacy-safe
+signature, and field `9` remained a 14-byte value with the same signature.
+Neither field therefore represents the maximum-output-current setting either.
+Both writes were Direct-confirmed, the original value was restored, and no
+integration log entry occurred. This is further negative evidence only; no
+entity or control is added for either unknown field.
+
+The same unplugged Home Assistant sequence then changed only Solar minimum
+current from 6 A to 7 A and restored 6 A. Direct `241/44` field `6` changed
+from `60` to `70` as expected, while the same privacy-safe signatures of the
+16-byte field `5` and 14-byte field `9` remained unchanged. Fields 5 and 9 are
+therefore not the Solar-minimum-current setting either. Both writes had fresh
+Direct confirmation, the original value was restored, and no integration log
+entry occurred.
+
+A follow-up structural review found that field `5` is itself a nested block
+containing two opaque four-byte values and two varints, both `15`. Field `9` is
+a nested block of five empty byte fields and two zero varints. Neither shape
+matches any of the confirmed scalar controls: flags use field `1`, mode field
+`2`, maximum current field `4`, Solar minimum current field `6`, phase field
+`7`, Custom current field `8`, display settings field `21`, and Smart settings
+field `31`. The opaque bytes are not exposed or interpreted.
+
+Consequently there is no further justified no-vehicle scalar-control test for
+`DATA-02`: repeating a mapped control would only add another negative result.
+The next informative capture must instead compare a different device operating
+state (for example connected, charging, paused or completed) or a previously
+unobserved official-app setting, with all existing mapped values recorded as
+controls. Until then, fields 5 and 9 remain diagnostics-only.
+
+## DATA-03: heartbeat current-setpoint and setting flags (2026-08-31)
+
+The direct heartbeat `2/33` uses a different schema from the fast settings
+report. Its current unplugged samples contained field `1=1`, field `17=60` and
+field `18=160`. During a reversible Solar-minimum-current change from 6 A to
+7 A, direct `241/44` promptly changed the confirmed stored field `6` from `60`
+to `70`. The following regular heartbeat still reported field `17=60` and
+field `18=160`. Field 17 is therefore not the stored Solar-minimum-current
+setting. Earlier controlled Custom-current changes from 6 A to 11 A likewise
+did not make field 17 follow the configured Custom value.
+
+The observed `switchBits` assignments are already bounded: `0x01` is
+battery-discharge disable, `0x02` Plug-and-Play and `0x10` Solar Continuous
+charging. The current direct value `18` combines the two known bits `0x02` and
+`0x10`; no additional non-zero bit was observed. The Plug-and-Play entity was
+not registered in this Home Assistant instance, so its current enabled state
+was established only from direct device readback and was not changed by this
+investigation.
+
+No remaining unassigned bit can be safely toggled from Home Assistant. A real
+charging-session comparison must correlate field 17 with the active current,
+mode, configured limits and power before it is given a user-facing meaning.
+Until then it remains the diagnostic `charge_current_set_raw` value.
+
 ## 2026-08-29: one-phase real-power comparison
 
 A connected vehicle charged in Solar mode with phase selection set to Auto;
