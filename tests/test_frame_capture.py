@@ -563,7 +563,7 @@ def test_command_bucket_survives_frequent_telemetry() -> None:
     assert buckets["observed_set:2/81"]["samples"][0]["timestamp"] == "command"
     assert buckets["property:2/33"]["count"] == 10
     assert [sample["timestamp"] for sample in buckets["property:2/33"]["samples"]] == [
-        "telemetry-8",
+        "telemetry-0",
         "telemetry-9",
     ]
 
@@ -619,4 +619,160 @@ def test_command_correlation_counts_retries_and_reply_by_sequence() -> None:
             "reply_pairs": ["96/97"],
             "status": "matched",
         }
+    ]
+
+
+def test_representative_sampling_keeps_first_latest_and_long_window() -> None:
+    capture = DiagnosticFrameCapture(max_samples_per_bucket=8)
+    for minute in range(24 * 60):
+        capture.record(_frame("property", 2, 33, f"minute-{minute}"))
+
+    samples = capture.bucket_snapshot()["property:2/33"]["samples"]
+    minutes = [int(sample["timestamp"].split("-")[1]) for sample in samples]
+    assert minutes[0] == 0
+    assert minutes[-1] == 1439
+    assert len(minutes) == 8
+    assert any(1 <= minute < 720 for minute in minutes)
+    assert any(720 <= minute < 1439 for minute in minutes)
+
+
+def test_capture_statistics_reconcile_and_respect_sample_bound() -> None:
+    capture = DiagnosticFrameCapture(max_samples_per_bucket=4)
+    for index in range(100):
+        capture.record(_frame("property", 2, 33, str(index)))
+
+    statistics = capture.statistics
+    assert statistics["frames_seen"] == 100
+    assert statistics["frames_kept"] == 4
+    assert statistics["frames_dropped"] == 96
+    assert statistics["frames_seen"] == (
+        statistics["frames_kept"] + statistics["frames_dropped"]
+    )
+    assert statistics["per_type"]["property:2/33"] == {
+        "seen": 100,
+        "kept": 4,
+        "dropped": 96,
+    }
+
+
+def test_empty_capture_still_reports_limits_statistics_and_unmapped_metadata() -> None:
+    capture = DiagnosticFrameCapture()
+
+    assert capture.limits["message_types"] == 48
+    assert capture.limits["reserved_write_types"] == 8
+    assert capture.statistics == {
+        "frames_seen": 0,
+        "frames_kept": 0,
+        "frames_dropped": 0,
+        "frames_dropped_type_budget": 0,
+        "dropped_per_type": {},
+        "dropped_types_untracked": 0,
+        "per_type": {},
+    }
+    assert capture.unmapped_fields == {
+        "commands": {},
+        "commands_truncated": 0,
+        "malformed_payloads": 0,
+    }
+
+
+def test_type_budget_and_dropped_type_names_are_bounded() -> None:
+    capture = DiagnosticFrameCapture(
+        max_buckets=2,
+        command_bucket_reserve=1,
+        dropped_type_limit=1,
+    )
+    for cmd_id in range(10, 14):
+        capture.record(_frame("property", 2, cmd_id, str(cmd_id)))
+
+    assert len(capture.bucket_snapshot()) == 1
+    assert len(capture.statistics["dropped_per_type"]) == 1
+    assert capture.statistics["dropped_types_untracked"] == 2
+
+
+def test_write_reserve_survives_telemetry_and_repeated_write_type() -> None:
+    capture = DiagnosticFrameCapture(max_buckets=4, command_bucket_reserve=2)
+    for index in range(20):
+        capture.record(_frame("property", 2, index, f"telemetry-{index}"))
+    for index in range(30):
+        capture.record(_frame("observed_set", 241, 102, f"periodic-{index}"))
+    capture.record(_frame("observed_set", 241, 100, "rare-start"))
+    capture.record(_frame("set_reply", 96, 97, "rare-third-type"))
+    capture.record(_frame("observed_set", 241, 102, "periodic-again"))
+
+    buckets = capture.bucket_snapshot()
+    assert len(buckets) <= 4
+    assert "observed_set:241/100" in buckets
+    assert "set_reply:96/97" in buckets
+    assert "observed_set:241/102" not in buckets
+    assert capture.statistics["frames_dropped_type_budget"] == 1
+
+
+def test_unmapped_inventory_omits_mapped_values_and_byte_content() -> None:
+    pdata = b"".join(
+        (
+            encode_field_varint(1, 9),
+            encode_field_varint(99, 123456),
+            encode_field_bytes(100, b"secret-vehicle-id"),
+        )
+    )
+    header = b"".join(
+        (
+            encode_field_bytes(1, pdata),
+            encode_field_varint(8, 2),
+            encode_field_varint(9, 34),
+        )
+    )
+    capture = DiagnosticFrameCapture()
+    capture.record(
+        _frame("property", 2, 34, "now"),
+        payload=encode_field_bytes(1, header),
+    )
+
+    inventory = capture.unmapped_fields
+    assert inventory["commands"]["2/34"]["fields"] == [
+        {"field": 99, "wire_type": 0, "count": 1},
+        {"field": 100, "wire_type": 2, "count": 1, "last_length": 17},
+    ]
+    assert "123456" not in repr(inventory)
+    assert "secret" not in repr(inventory)
+
+
+def test_unmapped_inventory_tolerates_malformed_command_body() -> None:
+    header = b"".join(
+        (
+            encode_field_bytes(1, b"\x80"),
+            encode_field_varint(8, 2),
+            encode_field_varint(9, 34),
+        )
+    )
+    capture = DiagnosticFrameCapture()
+    capture.record(
+        _frame("property", 2, 34, "now"),
+        payload=encode_field_bytes(1, header),
+    )
+
+    assert capture.unmapped_fields["malformed_payloads"] == 1
+
+
+def test_unmapped_inventory_reaches_direct_param_set_path() -> None:
+    param_set = encode_field_varint(1, 16) + encode_field_varint(55, 9876)
+    level_four = encode_field_bytes(8, param_set)
+    level_one = encode_field_bytes(4, level_four)
+    pdata = encode_field_bytes(1, level_one)
+    header = b"".join(
+        (
+            encode_field_bytes(1, pdata),
+            encode_field_varint(8, 241),
+            encode_field_varint(9, 44),
+        )
+    )
+    capture = DiagnosticFrameCapture()
+    capture.record(
+        _frame("property", 241, 44, "now"),
+        payload=encode_field_bytes(1, header),
+    )
+
+    assert capture.unmapped_fields["commands"]["241/44"]["fields"] == [
+        {"field": 55, "wire_type": 0, "count": 1}
     ]

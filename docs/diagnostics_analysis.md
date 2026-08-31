@@ -708,3 +708,37 @@ Langzeit-Sampling und Write-Type-Reserve** beginnen. Diese Punkte liefern den
 größten diagnostischen Nutzen bei geringem Risiko und ohne Änderung der
 Netzwerk- oder Control-Pfade. Privacy-Guard und unmapped-field inventory folgen
 als separate, leicht reviewbare Changes.
+
+## Implementierungsstand 2026-08-31
+
+Die Phasen A bis D sind lokal in Diagnose-Schema 12 umgesetzt. Pro Nachrichtentyp
+bleiben erstes und jüngstes Sample sowie eine deterministische Stichprobe über
+das gesamte Beobachtungsfenster erhalten. Das bisherige Gesamtlimit von 48
+Typ-Buckets und 16 Samples je Typ wächst nicht; acht Typ-Slots sind innerhalb
+dieses Budgets für `observed_set`/`set_reply` reserviert. Seltene neue Writes
+können dadurch einen häufig wiederholten Write-Typ verdrängen, während ein
+erneutes periodisches Auftreten den selteneren Typ nicht sofort wieder entfernt.
+
+Der neue, stets vorhandene `mqtt_capture`-Block enthält Policy, Grenzen,
+reconciliierte Zähler, Source-Status, Samples und die begrenzte
+`unmapped_fields`-Inventur. `app_writes_watched` ist nur wahr, wenn MQTT verbunden
+ist und sowohl `app_set` als auch `app_set_reply` tatsächlich mit Rückgabecode
+null abonniert wurden. Direct- und Heartbeat-Status weisen `connected`,
+`last_report`, einmalig berechnetes `age_s`, Freshness und Schwelle getrennt aus.
+
+Für ausgewählte, bereits manuell geparste Command-Familien werden ausschließlich
+noch nicht gemappte Feldnummer, Wire-Typ, Auftretenszahl und bei Bytefeldern die
+Länge gesammelt. Werte und Byteinhalte werden nicht exportiert; Command- und
+Feldzahl sind hart begrenzt und fehlerhafte Protobuf-Bodies erhöhen nur einen
+Fehlerzähler. Ein finaler rekursiver Guard maskiert bekannte sowie seriennummern-
+ähnliche Identifikatoren längenerhaltend, behandelt auch Dictionary-Keys mit
+eindeutigen Aliasen und lässt bereits bereinigtes `redacted_hex` sowie
+Runtime-Fingerprints unverändert. Die Direct-Byte-Redaction maskiert zusätzlich
+unbekannte ASCII-Seriennummern vor der Hex-Kodierung, ohne Payload-Längen oder
+Protobuf-Längenfelder zu verändern.
+
+Die bestehenden Legacy-Schlüssel bleiben für kompatible Auswertungen erhalten.
+Es wurden weder Subscription-, Publish-, Polling-, Entity- noch Persistenzpfade
+ergänzt. 144 lokale Tests, Ruff und Python-Kompilierung sind erfolgreich; offen
+ist nur die Prüfung eines realen, von Home Assistant erzeugten Schema-12-Exports
+nach Installation des nächsten Builds.

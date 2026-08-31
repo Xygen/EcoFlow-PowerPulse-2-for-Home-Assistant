@@ -36,6 +36,7 @@ from .control_readback import (
 )
 from .control_safety import control_allowed_for_status
 from .data_merge import merge_snapshot_after_read
+from .diagnostic_support import redact_serial_shaped_bytes
 from .ecoflow.cloud_mqtt import EcoFlowMQTTClient
 from .ecoflow.energy_stream import (
     build_powerpulse_charge_action_payload,
@@ -282,6 +283,33 @@ class PowerPulse2Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
     def mqtt_frame_buckets(self) -> dict[str, dict[str, Any]]:
         """Return frames grouped by channel and protocol command tuple."""
         return self._frame_capture.bucket_snapshot()
+
+    @property
+    def mqtt_capture_limits(self) -> dict[str, int]:
+        """Return hard diagnostic memory bounds."""
+        return self._frame_capture.limits
+
+    @property
+    def mqtt_capture_policy(self) -> dict[str, Any]:
+        """Return static capture behavior without exposing payload data."""
+        return {
+            "listen_only_capture": True,
+            "statistics_scope": "per_type_samples",
+            "observer_payloads_omitted": True,
+            "get_payloads_omitted": True,
+            "direct_payloads_length_preserving_redaction": True,
+            "max_frame_bytes": _MAX_FRAME_BYTES,
+        }
+
+    @property
+    def mqtt_capture_statistics(self) -> dict[str, Any]:
+        """Return bounded capture counters."""
+        return self._frame_capture.statistics
+
+    @property
+    def mqtt_unmapped_fields(self) -> dict[str, Any]:
+        """Return privacy-safe unmapped field-number hints."""
+        return self._frame_capture.unmapped_fields
 
     @property
     def mqtt_command_correlations(self) -> list[dict[str, Any]]:
@@ -656,7 +684,7 @@ class PowerPulse2Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
             ),
             "payload_omitted": is_observer or channel == "observed_get",
         }
-        self._frame_capture.record(frame)
+        self._frame_capture.record(frame, payload=payload)
         own_settings_reply = False
         if channel == "set_reply":
             for header in protocol_headers:
@@ -1633,12 +1661,9 @@ class PowerPulse2Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
         return {**self.devices, **self.observer_devices}
 
     def _redact(self, payload: bytes) -> bytes:
-        redacted = payload
-        for secret in (*self._mqtt_sources, self.api.user_id):
-            encoded = secret.encode("ascii", errors="ignore")
-            if encoded:
-                redacted = redacted.replace(encoded, b"X" * len(encoded))
-        return redacted
+        return redact_serial_shaped_bytes(
+            payload, (*self._mqtt_sources, self.api.user_id)
+        )
 
     async def async_shutdown(self) -> None:
         self._shutting_down = True

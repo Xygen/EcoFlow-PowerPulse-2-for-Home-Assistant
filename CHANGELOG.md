@@ -6,6 +6,18 @@ Current outstanding work is maintained only in
 
 ## Unreleased
 
+- Implement the code side of `DIAG-01` in diagnostic schema 12: representative
+  whole-window per-type sampling, bounded reconciled capture statistics and a
+  SET/SET-reply type reserve within the existing 48-type/16-sample limits.
+- Add truthful empty-capture policy/limits, subscription-derived
+  `app_writes_watched`, separate connection and Direct/heartbeat freshness,
+  and a bounded unmapped-field inventory that exposes no unknown values or
+  byte content.
+- Add length-preserving masking for unknown Direct serial-shaped identifiers
+  and a final recursive export privacy guard while preserving Observer/GET raw
+  omission, runtime fingerprints, legacy diagnostic keys and all existing
+  network, polling, entity and control behavior.
+
 ## 0.1.1-beta.7 - 2026-08-31
 
 - Match the official app's Smart-distance payload by sending calculated-energy

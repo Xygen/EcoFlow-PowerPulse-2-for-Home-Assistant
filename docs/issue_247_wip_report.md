@@ -1063,3 +1063,19 @@ The local follow-up removes the unnecessary vehicle-consumption prerequisite
 and deliberately mirrors the official zero-field request. The device's fresh
 calculated-energy report remains an observation and is not guessed or persisted
 as user input. Vehicle-profile influence remains separate `DATA-04` research.
+
+## DIAG-01 schema 12 implementation (2026-08-31)
+
+The local diagnostics implementation now retains representative per-message
+samples across the full runtime window instead of only bucket tails. It adds
+bounded reconciled capture counters, reserves write-type capacity within the
+unchanged 48-type budget, reports actual app-write subscription coverage and
+separates MQTT connection from Direct/heartbeat freshness. A bounded inventory
+records only unmapped field number, wire type, count and byte length for selected
+known command families.
+
+Observer and GET raw payloads remain omitted. Direct identifiers receive
+length-preserving masking before hex encoding and the complete export passes a
+final recursive privacy guard. Legacy diagnostic keys and all network, polling,
+entity and control behavior remain unchanged. The 144-test local suite, Ruff
+and compilation pass; an installed schema-12 export check remains pending.

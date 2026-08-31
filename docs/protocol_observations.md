@@ -1621,3 +1621,22 @@ and `vehicleInfo.currentVehicleComsumption` was still absent from the provider
 snapshot. Therefore field 3 = 0 is a valid official request meaning that the
 EcoFlow device/backend supplies the calculation; a Home Assistant distance
 write must not be blocked by or guessed from the optional vehicle field.
+
+## 2026-08-31: diagnostic schema 12 adds bounded long-window evidence
+
+DIAG-01 changes only how already observed MQTT evidence is retained and
+exported. Per-type samples now preserve first/latest frames plus a deterministic
+runtime-wide reservoir, with bounded seen/kept/dropped statistics and a reserved
+SET/SET-reply type partition. The MQTT subscriptions themselves are unchanged;
+`app_writes_watched` merely reflects successful existing `app_set` and
+`app_set_reply` subscription results. Connection state and timestamp-derived
+Direct/heartbeat freshness are reported separately.
+
+For the selected command families `2/33`, `2/34`, `96/97`, `209/8`, `241/44`,
+`241/100` and `241/102`, a bounded research inventory excludes fields consumed
+by the current manual parser and records remaining field number, wire type,
+count and length only. It does not retain unknown numeric values or byte
+content, infer a field meaning, create an entity, or authorize a control.
+Malformed bodies cannot abort diagnostics. Observer and GET parent payloads
+remain omitted, and a final recursive export guard provides defense in depth
+for identifiers without modifying pre-sanitized hex or runtime fingerprints.

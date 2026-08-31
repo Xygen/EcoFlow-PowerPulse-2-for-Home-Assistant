@@ -24,6 +24,24 @@ _SAFE_OBSERVER_COMMAND_LIMITS = {
 _MAX_SAFE_SMALL_VARINT = 255
 _MAX_SAFE_COMMAND_NESTING_DEPTH = 3
 _MAX_SAFE_COMMAND_FIELDS = 32
+_DEFAULT_COMMAND_BUCKET_RESERVE = 8
+_DEFAULT_DROPPED_TYPE_LIMIT = 24
+_DEFAULT_UNMAPPED_COMMAND_LIMIT = 16
+_DEFAULT_UNMAPPED_FIELD_LIMIT = 32
+
+# Only fields already consumed by the manual parser are excluded. Unknown
+# length-delimited values are represented by their length, never their bytes.
+_MAPPED_COMMAND_FIELDS: dict[tuple[int, int], frozenset[int]] = {
+    (2, 33): frozenset({1, 9, 17, 18, 28, 29, 30, 41, 42, 102}),
+    (2, 34): frozenset({1, 2, 9, 11, 13, 14, 15, 16, 22}),
+    (96, 97): frozenset({1}),
+    (209, 8): frozenset({1, 5, 6, 8, 9, 10, 11, 18}),
+    # 241/44 is inventoried at the decoded paramSet path 1.4.8, not at the
+    # otherwise uninformative top-level wrapper.
+    (241, 44): frozenset({1, 2, 4, 6, 7, 8, 21, 31}),
+    (241, 100): frozenset({1, 4}),
+    (241, 102): frozenset({1, 4}),
+}
 
 
 def classify_mqtt_topic(topic: str) -> str:
@@ -578,6 +596,10 @@ class DiagnosticFrameCapture:
         max_buckets: int = 48,
         max_samples_per_bucket: int = 16,
         max_correlations: int = 48,
+        command_bucket_reserve: int | None = None,
+        dropped_type_limit: int = _DEFAULT_DROPPED_TYPE_LIMIT,
+        unmapped_command_limit: int = _DEFAULT_UNMAPPED_COMMAND_LIMIT,
+        unmapped_field_limit: int = _DEFAULT_UNMAPPED_FIELD_LIMIT,
         fingerprint_key: bytes | None = None,
     ) -> None:
         self._max_recent = max_recent
@@ -586,12 +608,35 @@ class DiagnosticFrameCapture:
         self._max_buckets = max_buckets
         self._max_samples_per_bucket = max_samples_per_bucket
         self._max_correlations = max_correlations
+        default_scaled_reserve = (
+            min(_DEFAULT_COMMAND_BUCKET_RESERVE, max(1, max_buckets // 6))
+            if max_buckets
+            else 0
+        )
+        requested_reserve = (
+            default_scaled_reserve
+            if command_bucket_reserve is None
+            else max(0, command_bucket_reserve)
+        )
+        self._command_bucket_reserve = min(requested_reserve, max_buckets)
+        self._regular_bucket_limit = max_buckets - self._command_bucket_reserve
+        self._dropped_type_limit = max(0, dropped_type_limit)
+        self._unmapped_command_limit = max(0, unmapped_command_limit)
+        self._unmapped_field_limit = max(0, unmapped_field_limit)
         self._fingerprint_key = fingerprint_key or token_bytes(32)
         self._recent: list[dict[str, Any]] = []
         self._commands: list[dict[str, Any]] = []
         self._requests: list[dict[str, Any]] = []
         self._buckets: OrderedDict[str, dict[str, Any]] = OrderedDict()
         self._correlations: OrderedDict[str, dict[str, Any]] = OrderedDict()
+        self._frames_seen = 0
+        self._type_budget_drops = 0
+        self._dropped_types: OrderedDict[str, int] = OrderedDict()
+        self._dropped_types_untracked = 0
+        self._command_type_seen: OrderedDict[str, int] = OrderedDict()
+        self._unmapped_fields: OrderedDict[str, dict[str, Any]] = OrderedDict()
+        self._unmapped_commands_truncated = 0
+        self._unmapped_malformed_payloads = 0
 
     def inspect_observer_command_payloads(
         self, payload: bytes
@@ -601,42 +646,44 @@ class DiagnosticFrameCapture:
             payload, fingerprint_key=self._fingerprint_key
         )
 
-    def record(self, frame: dict[str, Any]) -> None:
+    def record(self, frame: dict[str, Any], *, payload: bytes | None = None) -> None:
         """Record one already-redacted frame in all applicable views."""
         stored = dict(frame)
+        self._frames_seen += 1
+        ordinal = self._frames_seen
         self._append_bounded(self._recent, stored, self._max_recent)
 
         channel = str(stored.get("channel", "other"))
         if channel in COMMAND_CHANNELS:
+            self._record_command_type_seen(_bucket_key(stored))
             self._append_bounded(self._commands, stored, self._max_commands)
             self._record_command_correlations(stored)
         if channel in REQUEST_CHANNELS:
             self._append_bounded(self._requests, stored, self._max_requests)
 
+        if payload is not None:
+            self._observe_unmapped_fields(payload)
+
         bucket_key = _bucket_key(stored)
         bucket = self._buckets.get(bucket_key)
         if bucket is None:
-            if len(self._buckets) >= self._max_buckets:
-                self._buckets.popitem(last=False)
+            if not self._admit_bucket(bucket_key, channel):
+                self._type_budget_drops += 1
+                self._record_dropped_type(bucket_key, 1)
+                return
             bucket = {
                 "channel": channel,
                 "command_pairs": _command_pairs(stored),
                 "count": 0,
                 "first_timestamp": stored.get("timestamp"),
                 "last_timestamp": stored.get("timestamp"),
-                "samples": [],
+                "_sample_records": [],
             }
             self._buckets[bucket_key] = bucket
-        else:
-            self._buckets.move_to_end(bucket_key)
 
         bucket["count"] += 1
         bucket["last_timestamp"] = stored.get("timestamp")
-        self._append_bounded(
-            bucket["samples"],
-            stored,
-            self._max_samples_per_bucket,
-        )
+        self._sample_representatively(bucket["_sample_records"], ordinal, stored)
 
     @property
     def recent(self) -> list[dict[str, Any]]:
@@ -657,10 +704,74 @@ class DiagnosticFrameCapture:
         """Return per-channel and per-command samples for diagnostics."""
         return {
             key: {
-                **{name: value for name, value in bucket.items() if name != "samples"},
-                "samples": [dict(frame) for frame in bucket["samples"]],
+                **{
+                    name: value
+                    for name, value in bucket.items()
+                    if name != "_sample_records"
+                },
+                "kept": len(bucket["_sample_records"]),
+                "dropped": bucket["count"] - len(bucket["_sample_records"]),
+                "samples": [
+                    dict(record[2])
+                    for record in sorted(
+                        bucket["_sample_records"], key=lambda item: item[0]
+                    )
+                ],
             }
             for key, bucket in self._buckets.items()
+        }
+
+    @property
+    def limits(self) -> dict[str, int]:
+        """Return the hard in-memory capture bounds."""
+        return {
+            "recent_frames": self._max_recent,
+            "command_frames": self._max_commands,
+            "request_frames": self._max_requests,
+            "message_types": self._max_buckets,
+            "reserved_write_types": self._command_bucket_reserve,
+            "samples_per_type": self._max_samples_per_bucket,
+            "correlations": self._max_correlations,
+            "named_dropped_types": self._dropped_type_limit,
+            "unmapped_commands": self._unmapped_command_limit,
+            "unmapped_fields_per_command": self._unmapped_field_limit,
+        }
+
+    @property
+    def statistics(self) -> dict[str, Any]:
+        """Return bounded, internally reconciled capture counters."""
+        kept = sum(len(bucket["_sample_records"]) for bucket in self._buckets.values())
+        return {
+            "frames_seen": self._frames_seen,
+            "frames_kept": kept,
+            "frames_dropped": self._frames_seen - kept,
+            "frames_dropped_type_budget": self._type_budget_drops,
+            "dropped_per_type": dict(self._dropped_types),
+            "dropped_types_untracked": self._dropped_types_untracked,
+            "per_type": {
+                key: {
+                    "seen": bucket["count"],
+                    "kept": len(bucket["_sample_records"]),
+                    "dropped": bucket["count"] - len(bucket["_sample_records"]),
+                }
+                for key, bucket in self._buckets.items()
+            },
+        }
+
+    @property
+    def unmapped_fields(self) -> dict[str, Any]:
+        """Return bounded field-number/wire-type research hints."""
+        return {
+            "commands": {
+                key: {
+                    "frames_seen": command["frames_seen"],
+                    "fields": list(command["fields"].values()),
+                    "fields_truncated": command["fields_truncated"],
+                }
+                for key, command in self._unmapped_fields.items()
+            },
+            "commands_truncated": self._unmapped_commands_truncated,
+            "malformed_payloads": self._unmapped_malformed_payloads,
         }
 
     @property
@@ -725,8 +836,180 @@ class DiagnosticFrameCapture:
                 if pair not in correlation[pairs_key]:
                     correlation[pairs_key].append(pair)
 
+    def _admit_bucket(self, bucket_key: str, channel: str) -> bool:
+        """Admit a type without allowing telemetry to consume write capacity."""
+        is_command = channel in COMMAND_CHANNELS
+        if is_command:
+            total_seen = self._command_type_seen.get(bucket_key, 1)
+            command_keys = [
+                key
+                for key, bucket in self._buckets.items()
+                if bucket["channel"] in COMMAND_CHANNELS
+            ]
+            if len(command_keys) < self._command_bucket_reserve:
+                return True
+            if not command_keys:
+                return False
+            victim = max(
+                command_keys,
+                key=lambda key: (
+                    self._command_type_seen.get(key, self._buckets[key]["count"]),
+                    -command_keys.index(key),
+                ),
+            )
+            victim_seen = self._command_type_seen.get(
+                victim, self._buckets[victim]["count"]
+            )
+            if total_seen >= victim_seen:
+                return False
+            self._evict_bucket(victim)
+            return True
+
+        regular_keys = [
+            key
+            for key, bucket in self._buckets.items()
+            if bucket["channel"] not in COMMAND_CHANNELS
+        ]
+        if len(regular_keys) < self._regular_bucket_limit:
+            return True
+        if not regular_keys:
+            return False
+        self._evict_bucket(regular_keys[0])
+        return True
+
+    def _record_command_type_seen(self, bucket_key: str) -> None:
+        self._command_type_seen[bucket_key] = (
+            self._command_type_seen.get(bucket_key, 0) + 1
+        )
+        self._command_type_seen.move_to_end(bucket_key)
+        while len(self._command_type_seen) > max(
+            1, self._command_bucket_reserve * 4
+        ):
+            self._command_type_seen.popitem(last=False)
+
+    def _evict_bucket(self, bucket_key: str) -> None:
+        bucket = self._buckets.pop(bucket_key)
+        self._record_dropped_type(bucket_key, int(bucket["count"]))
+
+    def _record_dropped_type(self, bucket_key: str, count: int) -> None:
+        if bucket_key in self._dropped_types:
+            self._dropped_types[bucket_key] += count
+            return
+        if len(self._dropped_types) < self._dropped_type_limit:
+            self._dropped_types[bucket_key] = count
+        else:
+            self._dropped_types_untracked += 1
+
+    def _sample_representatively(
+        self,
+        records: list[tuple[int, int, dict[str, Any]]],
+        ordinal: int,
+        frame: dict[str, Any],
+    ) -> None:
+        """Keep first/latest plus a deterministic reservoir across the window."""
+        maximum = self._max_samples_per_bucket
+        if maximum <= 0:
+            return
+        priority = int.from_bytes(sha256(str(ordinal).encode()).digest()[:8], "big")
+        records.append((ordinal, priority, frame))
+        if len(records) <= maximum:
+            return
+        if maximum == 1:
+            records[:] = [records[-1]]
+            return
+        first = min(records, key=lambda item: item[0])
+        latest = max(records, key=lambda item: item[0])
+        if maximum == 2:
+            records[:] = [first, latest]
+            return
+        interior = [item for item in records if item not in (first, latest)]
+        interior.sort(key=lambda item: (item[1], item[0]))
+        records[:] = [first, *interior[: maximum - 2], latest]
+
+    def _observe_unmapped_fields(self, payload: bytes) -> None:
+        """Inventory unknown top-level pdata fields for selected commands."""
+        try:
+            for outer_field, outer_wire, header_bytes in iter_protobuf_fields(payload):
+                if outer_field != 1 or outer_wire != 2 or not isinstance(header_bytes, bytes):
+                    continue
+                header_fields = list(iter_protobuf_fields(header_bytes))
+                varints = {
+                    field: value
+                    for field, wire, value in header_fields
+                    if wire == 0 and isinstance(value, int)
+                }
+                pair = (varints.get(8), varints.get(9))
+                mapped = _MAPPED_COMMAND_FIELDS.get(pair)
+                if mapped is None:
+                    continue
+                for field, wire, pdata in header_fields:
+                    if field != 1 or wire != 2 or not isinstance(pdata, bytes):
+                        continue
+                    if varints.get(6) == 1:
+                        sequence = varints.get(14)
+                        if not isinstance(sequence, int):
+                            continue
+                        key = sequence & 0xFF
+                        pdata = bytes(byte ^ key for byte in pdata)
+                    if pair == (241, 44):
+                        try:
+                            pdata = _single_protobuf_bytes_at(pdata, 1)
+                            pdata = _single_protobuf_bytes_at(pdata, 4)
+                            pdata = _single_protobuf_bytes_at(pdata, 8)
+                        except (LookupError, ValueError):
+                            self._unmapped_malformed_payloads += 1
+                            continue
+                    self._observe_unmapped_command(pair, pdata, mapped)
+        except ValueError:
+            self._unmapped_malformed_payloads += 1
+
+    def _observe_unmapped_command(
+        self,
+        pair: tuple[int | None, int | None],
+        pdata: bytes,
+        mapped: frozenset[int],
+    ) -> None:
+        pair_key = f"{pair[0]}/{pair[1]}"
+        command = self._unmapped_fields.get(pair_key)
+        if command is None:
+            if len(self._unmapped_fields) >= self._unmapped_command_limit:
+                self._unmapped_commands_truncated += 1
+                return
+            command = {
+                "frames_seen": 0,
+                "fields": OrderedDict(),
+                "fields_truncated": 0,
+            }
+            self._unmapped_fields[pair_key] = command
+        command["frames_seen"] += 1
+        try:
+            fields = iter_protobuf_fields(pdata)
+            for field, wire, value in fields:
+                if field in mapped:
+                    continue
+                field_key = f"{field}/{wire}"
+                existing = command["fields"].get(field_key)
+                if existing is None:
+                    if len(command["fields"]) >= self._unmapped_field_limit:
+                        command["fields_truncated"] += 1
+                        continue
+                    existing = {
+                        "field": field,
+                        "wire_type": wire,
+                        "count": 0,
+                    }
+                    command["fields"][field_key] = existing
+                existing["count"] += 1
+                if isinstance(value, bytes):
+                    existing["last_length"] = len(value)
+        except ValueError:
+            self._unmapped_malformed_payloads += 1
+
     @staticmethod
     def _append_bounded(items: list[Any], item: Any, maximum: int) -> None:
+        if maximum <= 0:
+            items.clear()
+            return
         items.append(item)
         del items[:-maximum]
 
@@ -744,6 +1027,18 @@ def _command_pairs(frame: dict[str, Any]) -> list[str]:
         if isinstance(cmd_func, int) and isinstance(cmd_id, int):
             pairs.append(f"{cmd_func}/{cmd_id}")
     return pairs
+
+
+def _single_protobuf_bytes_at(payload: bytes, field_number: int) -> bytes:
+    """Return one unambiguous bounded nested message for diagnostics."""
+    matches = [
+        value
+        for field, wire, value in iter_protobuf_fields(payload)
+        if field == field_number and wire == 2 and isinstance(value, bytes)
+    ]
+    if len(matches) != 1 or len(matches[0]) > 4096:
+        raise LookupError(field_number)
+    return matches[0]
 
 
 def _bucket_key(frame: dict[str, Any]) -> str:
