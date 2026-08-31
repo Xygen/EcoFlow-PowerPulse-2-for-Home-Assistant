@@ -1655,3 +1655,39 @@ credentials were redacted and sampled PowerOcean parent frames continued to use
 empty `redacted_hex` plus `payload_omitted=true`. The integration loaded without
 a matching system-log warning or error, completing DIAG-01 without any device
 control or charging test.
+
+## LIVE-01 partial provider-readback validation (2026-08-31)
+
+With the vehicle unplugged and the official app closed, Home Assistant started
+from Solar mode, battery-discharge disable off and Continuous charging on. Each
+temporary setting was restored to that initial state after its check.
+
+After the direct-settings freshness window had elapsed, enabling battery
+discharge disable was confirmed by the first post-command provider snapshot:
+`battery_discharge_disabled` was present and matched the requested value. The
+diagnostics recorded `last_control_readback_source=provider` and provider count
+one before a later direct `241/44` report arrived. Turning Continuous charging
+off produced the same result: the first provider attempt contained
+`continuous_charging` and `matched=true`, raising the provider count to two.
+Both Home Assistant service calls succeeded with verified entity state; their
+restores also succeeded.
+
+Three Solar-to-Fast mode changes were instead confirmed by fresh direct `241/44`
+reports before the provider fallback was needed. The third was intentionally
+started after the prior Direct freshness window had expired, but again received
+a new Direct report immediately after the SET. The accompanying earlier
+provider attempt observed `work_mode`, but it did not match the requested
+target and was not used as confirmation. An initial Fast-to-Solar restore timed
+out without a state change and was classified as `noop`; the immediate retry
+succeeded and was directly confirmed. The final state was Solar,
+battery-discharge disable off and Continuous charging on, with no matching
+integration log entries.
+
+This validates the extended provider-readback path for two independent
+settings and shows that direct confirmation remains authoritative when it
+arrives first. A fourth mode-specific fallback attempt would require either an
+unbounded wait for a natural post-command Direct gap or artificial stream
+interference. Neither is proportionate to the remaining evidence: all three
+mode writes were safely Direct-confirmed, while two independent settings proved
+the post-command raw-provider path and its attempt trace. `LIVE-01` is
+therefore complete with that explicitly documented boundary.
