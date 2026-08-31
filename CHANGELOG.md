@@ -6,6 +6,8 @@ Current outstanding work is maintained only in
 
 ## Unreleased
 
+## 0.1.1-beta.7 - 2026-08-31
+
 - Match the official app's Smart-distance payload by sending calculated-energy
   field 3 as zero and letting the charger report the resulting energy. Distance
   writes no longer depend on an intermittently absent vehicle-consumption
