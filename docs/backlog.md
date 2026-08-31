@@ -45,5 +45,3 @@ Current implementation baseline: `0.1.1-beta.8`.
 
 | ID | Priority | Open work | Completion evidence |
 | --- | --- | --- | --- |
-| `REL-01` | Upstream HACS frontend | Track HACS support for Home Assistant's authenticated local-brand proxy. The approved icon is confirmed visible under HA 2026.8.3 **Devices & services**, but HACS 2.0.5 still shows its placeholder because its downloads view uses the legacy public Brands CDN (upstream `hacs/integration#5223` and `#5402`). Do not duplicate or relocate the valid integration-local assets as a workaround. | A released HACS frontend uses the authenticated local-brand endpoint and visibly shows the bundled PowerPulse 2 icon without repository changes. |
-| `PROTO-01` | Later | Investigate OCPP control only after the core PowerPulse controls and safety interlocks are stable. | Scope and protocol evidence are explicitly approved before implementation. |
