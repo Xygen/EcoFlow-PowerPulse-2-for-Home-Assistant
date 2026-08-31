@@ -739,6 +739,15 @@ Protobuf-Längenfelder zu verändern.
 
 Die bestehenden Legacy-Schlüssel bleiben für kompatible Auswertungen erhalten.
 Es wurden weder Subscription-, Publish-, Polling-, Entity- noch Persistenzpfade
-ergänzt. 144 lokale Tests, Ruff und Python-Kompilierung sind erfolgreich; offen
-ist nur die Prüfung eines realen, von Home Assistant erzeugten Schema-12-Exports
-nach Installation des nächsten Builds.
+ergänzt. 144 lokale Tests, Ruff und Python-Kompilierung sind erfolgreich.
+
+Die anschließende Installation von `v0.1.1-beta.8` hat Schema 12 in Home
+Assistant live bestätigt. Beide Quellen waren verbunden, alle relevanten
+Subscription-Ergebnisse waren null und `app_writes_watched` deshalb für beide
+Quellen wahr. Direct- und Heartbeat-Stream waren separat frisch. Der geprüfte
+Snapshot reconciliierte `557 seen = 203 kept + 354 dropped`, ohne Type-Budget-
+Drop. Die Grenzen wurden mit 48 Typen, acht reservierten Write-Typen und 16
+Samples pro Typ exportiert. Config-Daten waren redigiert, Observer-Samples
+enthielten leeres `redacted_hex` und `payload_omitted=true`; die Unmapped-
+Inventur enthielt ausschließlich Struktur und Längen. Damit ist DIAG-01
+abgeschlossen und wurde aus dem aktiven Backlog entfernt.

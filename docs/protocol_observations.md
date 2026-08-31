@@ -1640,3 +1640,18 @@ content, infer a field meaning, create an entity, or authorize a control.
 Malformed bodies cannot abort diagnostics. Observer and GET parent payloads
 remain omitted, and a final recursive export guard provides defense in depth
 for identifiers without modifying pre-sanitized hex or runtime fingerprints.
+
+Installed `v0.1.1-beta.8` validation confirmed this structure in Home Assistant.
+The export used schema 12 and reconciled `frames_seen=557`, `frames_kept=203`
+and `frames_dropped=354`; no frame was rejected by the type budget. Limits were
+48 message types, eight reserved write types and 16 samples per type. Both MQTT
+sources reported successful app SET and SET-reply observation, while Direct
+settings and heartbeat freshness remained separate and true.
+
+The observed unmapped inventory already retained bounded structural evidence
+for `241/44`, `96/97` and `2/33`. Unknown byte fields exposed only their last
+length, never content, and unknown numeric fields exposed no value. Config
+credentials were redacted and sampled PowerOcean parent frames continued to use
+empty `redacted_hex` plus `payload_omitted=true`. The integration loaded without
+a matching system-log warning or error, completing DIAG-01 without any device
+control or charging test.

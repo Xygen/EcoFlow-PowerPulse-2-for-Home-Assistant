@@ -19,6 +19,11 @@ Current outstanding work is maintained only in
   and a final recursive export privacy guard while preserving Observer/GET raw
   omission, runtime fingerprints, legacy diagnostic keys and all existing
   network, polling, entity and control behavior.
+- Install and validate beta 8 in Home Assistant: schema 12 loaded with both MQTT
+  sources connected, subscription-backed write-watch status, independently
+  fresh Direct/heartbeat streams, reconciled capture counts, bounded structural
+  unmapped-field output, redacted credentials and unchanged Observer payload
+  omission. Close `DIAG-01`.
 
 ## 0.1.1-beta.7 - 2026-08-31
 

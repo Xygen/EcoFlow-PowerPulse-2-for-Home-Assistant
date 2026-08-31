@@ -1078,4 +1078,15 @@ Observer and GET raw payloads remain omitted. Direct identifiers receive
 length-preserving masking before hex encoding and the complete export passes a
 final recursive privacy guard. Legacy diagnostic keys and all network, polling,
 entity and control behavior remain unchanged. The 144-test local suite, Ruff
-and compilation pass; an installed schema-12 export check remains pending.
+and compilation pass; the installed check below completes the validation.
+
+HACS then installed `v0.1.1-beta.8`; Home Assistant passed its configuration
+check, restarted and loaded the config entry. The live schema-12 export reported
+the fixed 48-type budget, eight reserved write types and 16 samples per type.
+Its snapshot reconciled 557 seen frames as 203 kept plus 354 dropped with no
+type-budget loss. Both the PowerPulse and PowerOcean observer were connected,
+their app SET and SET-reply subscriptions had result zero, and
+`app_writes_watched` was true. Direct and heartbeat freshness were independently
+true. Configuration credentials were redacted, Observer samples retained no
+raw hex, and the unmapped inventory exposed structure and byte lengths only.
+No matching integration system-log entry was present. DIAG-01 is complete.
