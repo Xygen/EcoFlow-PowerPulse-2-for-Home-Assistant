@@ -55,7 +55,7 @@ mapping yet.
 | Smart target type | — | — | `1.4.8.31.2`: `1` energy, `2` distance | Inferred through the selected target |
 | Smart energy target | — | — | Energy mode: `1.4.8.31.3`, Wh | `paramSet.smartMode.chargeTarget`; `30000` = 30 kWh |
 | Smart distance target | — | — | Distance mode: `1.4.8.31.4`, km | Provider energy target becomes `0` in distance mode |
-| Smart calculated energy | — | — | Distance mode: `1.4.8.31.3`; 300 km produced 45000 Wh | — |
+| Smart calculated energy | — | — | Distance mode: `1.4.8.31.3`; 300 km produced 45000 Wh and an app request with 100 km / field 3 = 0 was followed by 15000 Wh | — |
 | Vehicle consumption, raw | — | — | Unknown | `vehicleInfo.currentVehicleComsumption` |
 | Unassigned content | — | Additional fields may exist | Byte fields `5` and `9`; both remained byte-identical across 64 decoded frames during an Auto/one-phase/three-phase/Auto comparison and are not the direct phase-selection field. Fields `21` and `31` are decoded for display and Smart settings | Other unassigned provider fields exist |
 
@@ -76,7 +76,7 @@ a value:
 | Target type | Qualified device/provider report only | Persisted per serial | Required |
 | Energy target | Qualified device/provider report only | Persisted per serial | Required only for `energy` |
 | Distance target | Qualified device/provider report only | Persisted per serial | Required only for `distance` |
-| Vehicle consumption | Runtime device context only | Never persisted | Required to derive a distance payload when no same-runtime basis exists |
+| Vehicle consumption | Optional runtime observation only | Never persisted | Not required for a distance write: the official app sends calculated-energy field 3 as zero and the charger calculates the readback |
 
 Edits in Solar, Fast or Custom stop at the staged Control column and publish no
 MQTT command. Selecting Smart validates the complete selected bundle, then

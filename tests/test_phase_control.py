@@ -152,3 +152,18 @@ def test_smart_distance_settings_include_calculated_energy() -> None:
         (3, 0, 30_000),
         (4, 0, 200),
     ]
+
+
+def test_smart_distance_settings_match_app_device_calculation_request() -> None:
+    smart = build_powerpulse_smart_settings(
+        ready_by_timestamp=1_787_625_600,
+        target_type="distance",
+        target_value=100,
+    )
+
+    assert list(iter_protobuf_fields(smart)) == [
+        (1, 0, 1_787_625_600),
+        (2, 0, 2),
+        (3, 0, 0),
+        (4, 0, 100),
+    ]

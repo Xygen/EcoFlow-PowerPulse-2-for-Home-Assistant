@@ -1047,3 +1047,19 @@ Provider value still said Solar although Direct said Smart, so no SET was
 sent. After Provider caught up, sequence 189 carried the real Solar SET,
 matching reply, and confirmed readback. This is evidence for the existing
 Provider-readback backlog, not a SMART-01 staging failure.
+
+## Smart-distance device calculation evidence (2026-08-31)
+
+With Smart active and the app's default vehicle profile set to 24 kWh/100 km,
+the official app changed the target to exactly 100 km. Observed `241/102`
+sequence 246 carried selector 2, calculated-energy field 3 = 0 and distance
+field 4 = 100, followed by a matching reply. Fresh direct `241/44` reports then
+exposed distance 100 and calculated energy 15000 Wh. The provider's
+`vehicleInfo.currentVehicleComsumption` remained absent. The second configured
+vehicle was 20 kWh/100 km, so the resulting 15 kWh/100 km matched neither app
+profile.
+
+The local follow-up removes the unnecessary vehicle-consumption prerequisite
+and deliberately mirrors the official zero-field request. The device's fresh
+calculated-energy report remains an observation and is not guessed or persisted
+as user input. Vehicle-profile influence remains separate `DATA-04` research.

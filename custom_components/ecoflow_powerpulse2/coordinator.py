@@ -1209,8 +1209,6 @@ class PowerPulse2Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
     def _smart_settings_payload(
         self, serial: str, values: dict[str, Any] | None = None
     ) -> bytes:
-        device_context = dict(self._last_smart_settings.get(serial, {}))
-        previous_distance = device_context.get("smart_target_distance_km")
         smart = self._smart_settings_candidate(serial, values)
         try:
             validate_smart_bundle(smart)
@@ -1223,23 +1221,10 @@ class PowerPulse2Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
             if target_type == "energy"
             else smart.get("smart_target_distance_km")
         )
-        calculated = smart.get("smart_calculated_energy_wh")
-        if target_type == "distance":
-            consumption = smart.get("vehicle_consumption_raw")
-            if isinstance(consumption, int) and consumption > 0:
-                calculated = target * consumption
-            else:
-                if (
-                    isinstance(calculated, int)
-                    and calculated > 0
-                    and isinstance(previous_distance, int)
-                    and previous_distance > 0
-                ):
-                    calculated = round(target * calculated / previous_distance)
-                else:
-                    raise HomeAssistantError(
-                        "Smart distance target requires vehicle consumption"
-                    )
+        # The official app sends field 3 as zero for a distance target and the
+        # device subsequently reports its own calculated energy. Do not guess
+        # from a stale vehicle profile or a previous target ratio.
+        calculated = 0 if target_type == "distance" else None
         return build_powerpulse_smart_settings(
             ready_by_timestamp=ready_by,
             target_type=target_type,

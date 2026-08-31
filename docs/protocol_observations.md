@@ -1606,3 +1606,18 @@ Provider cache advanced to Smart, the same Solar selection published and was
 confirmed. This does not alter the Smart staging protocol, but it strengthens
 the case that generic No-op decisions must not outrank conflicting newer
 Direct evidence.
+
+## 2026-08-31: official Smart-distance request delegates energy calculation
+
+While Smart was active, the official app changed the target from energy to
+100 km. The observed `241/102` request used sequence 246 and nested Smart fields
+`2=2`, `3=0`, `4=100`; the same sequence received a matching SET_REPLY. Fresh
+direct `241/44` reports then decoded to target type distance, target distance
+100 km and calculated energy 15000 Wh.
+
+At that time the app contained a default vehicle profile at 24 kWh/100 km and
+a second profile at 20 kWh/100 km. The resulting 15 kWh/100 km matched neither,
+and `vehicleInfo.currentVehicleComsumption` was still absent from the provider
+snapshot. Therefore field 3 = 0 is a valid official request meaning that the
+EcoFlow device/backend supplies the calculation; a Home Assistant distance
+write must not be blocked by or guessed from the optional vehicle field.

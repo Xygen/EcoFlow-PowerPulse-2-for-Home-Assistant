@@ -178,10 +178,11 @@ Abweichend vom ursprünglichen Issue-Vorschlag wird
 `vehicle_consumption_raw` **nicht** persistiert. Dieser Wert ist keine
 Benutzereingabe, kann vom angeschlossenen Fahrzeug abhängen und wäre nach einem
 Fahrzeugwechsel potentiell gefährlich veraltet. Persistiert werden nur
-Ready-by, Zieltyp, Zielenergie und Zielstrecke. Für ein Distanzziel muss beim
-Geräteschreibvorgang weiterhin ein belastbarer aktueller Verbrauchskontext oder
-eine aus derselben Laufzeit ableitbare Energiegrundlage vorliegen; andernfalls
-bleibt die Aktivierung mit einer konkreten Fehlermeldung fail-closed.
+Ready-by, Zieltyp, Zielenergie und Zielstrecke. Ein späterer App-Mitschnitt hat
+die ursprüngliche Annahme zur Distanzenergie korrigiert: Die offizielle App
+sendet für 100 km Feld 3 mit `0` und Feld 4 mit `100`; die Wallbox meldet danach
+selbst 15000 Wh. Der Schreibpfad darf deshalb keinen Fahrzeugverbrauch
+voraussetzen oder aus einem möglicherweise veralteten Profil erraten.
 
 Die Control-Namen tragen nun den gemeinsamen Präfix
 `Smart-Konfiguration`, während die bestehenden Read-only-Sensoren unverändert

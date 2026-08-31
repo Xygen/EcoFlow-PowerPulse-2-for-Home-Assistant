@@ -130,5 +130,7 @@ def test_observation_code_does_not_read_staged_smart_values() -> None:
 
     assert "staged_smart_setting" not in sensor_source
     assert "setting_observation_value" in sensor_source
+    assert "Smart distance target requires vehicle consumption" not in coordinator_source
+    assert 'calculated = 0 if target_type == "distance" else None' in coordinator_source
     assert "if (self.data or {}).get(serial, {}).get(\"work_mode\") != \"smart\"" in coordinator_source
     assert "await self._async_update_smart_staging(serial, overrides)" in coordinator_source

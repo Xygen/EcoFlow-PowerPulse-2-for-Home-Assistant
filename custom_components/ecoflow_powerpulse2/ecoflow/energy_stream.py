@@ -126,8 +126,8 @@ def build_powerpulse_smart_settings(
         raise ValueError("unsupported Smart target")
     selector = 1 if target_type == "energy" else 2
     field_three = target_value if selector == 1 else calculated_energy_wh
-    if selector == 2 and field_three <= 0:
-        raise ValueError("distance targets require calculated energy")
+    if selector == 2 and field_three < 0:
+        raise ValueError("calculated distance energy cannot be negative")
     field_four = 0 if selector == 1 else target_value
     return b"".join(
         (
