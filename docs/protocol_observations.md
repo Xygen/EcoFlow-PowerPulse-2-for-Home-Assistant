@@ -1749,3 +1749,45 @@ interference. Neither is proportionate to the remaining evidence: all three
 mode writes were safely Direct-confirmed, while two independent settings proved
 the post-command raw-provider path and its attempt trace. `LIVE-01` is
 therefore complete with that explicitly documented boundary.
+
+## STREAM-02 idle-first strategy preanalysis (2026-08-31)
+
+This is a read-only design preanalysis; no vehicle was connected and no device
+command was sent.
+
+### Current baseline
+
+The integration already treats the C376 MQTT/WSS path as hard
+`listen_only`. Direct `241/44` freshness is tracked independently from
+heartbeat `2/33` freshness. Subscription renewal sends only local MQTT
+`SUBSCRIBE` packets. The separate reconnect action rebuilds the listen-only
+C376 WSS session without publishing device settings or GET commands.
+Automatic recovery requires both previously observed streams to be stale for
+five minutes and applies a 30-minute retry cooldown.
+
+### Evidence relevant to an idle-first design
+
+Controlled observations showed that re-subscribing did not restore a stale
+direct stream, while rebuilding the listen-only WSS session restored `241/44`
+in about 1.8 seconds and heartbeat shortly afterward. Opening the official app
+also revived the streams, but the actual app-side trigger remains unresolved.
+The evidence supports a session-level wake mechanism, not a proven device
+command or guaranteed topic-renewal mechanism.
+
+### Design assessment
+
+An idle-first mode would need to expose an explicit paused state and mark
+stale telemetry unavailable, wake before controls or settings refreshes, and
+wait for bounded direct/heartbeat evidence before permitting a write. The
+existing SET-reply plus fresh-readback gate must remain unchanged. Wake
+attempts should be serialized, cooldown-limited, and expose a failure reason
+to prevent reconnect storms.
+
+### Recommendation and boundary
+
+`STREAM-02` is suitable for design documentation without a vehicle. Current
+evidence is insufficient to implement idle-first as the default: there is no
+measured idle resource benefit, no proven app/session trigger, and no
+real-session result showing that wake completes before a required control.
+Keep the conservative recovery behavior and defer implementation until the
+backlog's bounded live-session acceptance criteria can be exercised.
