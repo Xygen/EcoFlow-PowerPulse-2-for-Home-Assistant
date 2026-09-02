@@ -6,6 +6,12 @@ Current outstanding work is maintained only in
 
 ## Unreleased
 
+- Complete `DATA-03` with active Solar-session validation: CP307 heartbeat
+  field `17` is the dynamic charging-current target in deciamperes, not a
+  persisted current setting. It tracked `133 -> 130 -> 108 -> 86 -> 60` while
+  phase current and charging power declined, with the Solar minimum and
+  maximum-current settings unchanged.
+
 ## 0.1.1-beta.8 - 2026-08-31
 
 - Implement the code side of `DIAG-01` in diagnostic schema 12: representative

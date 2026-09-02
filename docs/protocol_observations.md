@@ -1750,6 +1750,40 @@ mode writes were safely Direct-confirmed, while two independent settings proved
 the post-command raw-provider path and its attempt trace. `LIVE-01` is
 therefore complete with that explicitly documented boundary.
 
+## DATA-09 partial live validation (2026-09-02)
+
+The installed `0.1.1-beta.8` integration was loaded during a real charging
+session. All four PowerOcean entities from this integration were enabled and
+reported `charging`: status, charging power, session energy, and session
+duration. Their registry entries belong to the same PowerPulse config entry as
+the existing Direct entities, but use distinct, source-prefixed unique IDs.
+
+Two read-only samples showed independent, plausible session progress. The
+PowerOcean session energy rose from `0.051` to `0.106 kWh` and duration from
+two to three minutes. Over the same interval, the Direct session energy rose
+from `0.039` to `0.084 kWh` and duration from roughly 1.7 to 2.7 minutes.
+The two power values were close (`2729 W` PowerOcean and `2614.0` then
+`2732.9 W` Direct) but updated on different observed cadences. This supports
+the intended separate source semantics; it does not establish that one source
+is more accurate.
+
+This validates entity availability, integration ownership, distinct identity,
+and in-session progression. It does not yet validate reset behavior at session
+end or operation with the separate EcoFlow integration disabled; `DATA-09`
+therefore remains open.
+
+### Observed power-source deviation
+
+At 17:52 local during the same active charging session, the Direct sensor
+reported `1285.0 W`, whereas the PowerOcean sensor reported `1362 W` — a
+`77 W` deviation. The user independently verified that the PowerOcean value
+matched the official app display exactly at that time. This is evidence that
+the two sensors are distinct source reports with different value/cadence
+semantics; it is not sufficient to make a general accuracy claim for either
+source. The existing source prefixes and separate entity identities must be
+retained, and dashboards that are intended to mirror the app should use the
+PowerOcean charging-power sensor.
+
 ## STREAM-02 idle-first strategy preanalysis (2026-08-31)
 
 This is a read-only design preanalysis; no vehicle was connected and no device
@@ -1791,3 +1825,102 @@ measured idle resource benefit, no proven app/session trigger, and no
 real-session result showing that wake completes before a required control.
 Keep the conservative recovery behavior and defer implementation until the
 backlog's bounded live-session acceptance criteria can be exercised.
+
+## DATA-03 active-session validation (2026-09-02)
+
+During a real Solar charging session, CP307 heartbeat field `17` was decoded
+as `charge_current_set_raw` and exactly matched the existing Direct
+`Ladestrom Sollwert Rohwert` sensor. It is therefore the dynamic
+charging-current target in deciamperes, not a stored maximum, Solar-minimum or
+Custom setting.
+
+| Local time | Field 17 / current target | Phase current | Charging power |
+| --- | ---: | ---: | ---: |
+| 17:27:00 | 133 | 13.11 A | 2966.9 W |
+| 17:27:18 | 130 | 12.69 A | 2864.1 W |
+| 17:28 | 108 | 10.59 A | 2385.4 W |
+| 17:29 | 86 | 8.21 A | 1841.0 W |
+| 17:30 | 60 | 5.69 A | 1264.9 W |
+
+The Solar mode remained active. The stored Solar minimum remained `60` and
+maximum current `160` throughout, while field `17` adapted every heartbeat.
+This resolves its role and scale. The previously confirmed `switchBits`
+assignments remain unchanged: `0x01` battery-discharge disable, `0x02`
+Plug-and-Play, and `0x10` Continuous charging; no further non-zero bit was
+observed.
+
+## CTRL-04 fail-closed Start readback (2026-09-02)
+
+After a successful HA Stop, the Direct status was `paused` and the PowerOcean
+status `suspended_charger`. A subsequent HA Start at 18:02:56 local produced a
+privacy-safe observed `241/100` SET and matching reply about 169 ms later. It
+therefore did not fail at command publication or transport acknowledgement.
+
+No newer Direct heartbeat arrived after the Start request. The last available
+heartbeat still described the pre-command paused state, so the 30-second
+post-command confirmation gate expired and HA reported that fresh device
+readback had not confirmed the charging state. The statuses remained
+`paused`/`suspended_charger`.
+
+This is the intended fail-closed outcome: a SET reply alone is not treated as
+physical confirmation. It neither validates the extended Start window's
+positive case nor establishes a fault in the command path; `CTRL-04` remains
+open for a Start whose fresh confirmation arrives between 15 and 30 seconds.
+
+## Automatic-option matrix (2026-09-02)
+
+The following bounded live test used Solar mode with a connected vehicle. Each
+setting write returned its confirmed Home Assistant state. Direct and heartbeat
+streams were fresh at the end of the test. No explicit Start command was sent
+within the three observation windows.
+
+| Option settings | Observation window (local) | Status / power at end | Automatic resume |
+| --- | --- | --- | --- |
+| Plug-and-Play off; Continuous charging off (baseline) | 18:14:24–18:15:18 (about 45 s) | Direct `charge_complete`, PowerOcean `finishing`; `0.0 W` Direct / `0 W` PowerOcean | None observed |
+| Plug-and-Play on; Continuous charging off | 18:15:28–18:16:32 (at least 45 s) | Direct `charge_complete`, PowerOcean `finishing`; `0.0 W` Direct / `0 W` PowerOcean | None observed |
+| Plug-and-Play off; Continuous charging on | 18:16:40–18:17:55 (at least 45 s) | Direct `charge_complete`, PowerOcean `finishing`; `0.0 W` Direct / `0 W` PowerOcean | None observed |
+
+Before the matrix, an already active run was found at 18:13 while Plug-and-Play
+was off and Continuous charging was not available because the charger was
+already charging. Its observed power was `1295.3 W` Direct and `1325 W`
+PowerOcean. It was stopped immediately at 18:13:46 as required; fresh readback
+reached `charge_complete` / `finishing` about two seconds later. That run is
+not attributed to either option, because it predates the isolated windows.
+
+The final settings restore the initial test combination: Solar mode,
+Plug-and-Play off, and Continuous charging on. These short observations do not
+establish long-delay resume behavior; they only rule out an immediate automatic
+resume in the observed windows.
+
+## SAFE-02 app-closed paused-Solar repeat (2026-09-02)
+
+With the EcoFlow app closed, HA stopped an active Solar session and confirmed
+Solar mode with Plug-and-Play on. Continuous charging was set off, then HA
+Start produced the intended low-solar state: Direct `paused`, PowerOcean
+`suspended_charger`, and `1.1 W` Direct / `0 W` PowerOcean.
+
+HA then confirmed Continuous charging on. For more than one minute afterward,
+the charger remained `paused` / `suspended_charger` at `0 W`; no automatic
+resume occurred. Disabling the option again was also confirmed and left the
+same paused, zero-power state.
+
+The original options were restored (Solar, Plug-and-Play on, Continuous
+charging on). The final HA Start did not yield charging power: a newer
+heartbeat after the request still reported `paused`. This repeat therefore
+confirms that the control is writable while paused, but does not reproduce the
+earlier automatic resume. The available solar/external condition remains an
+uncontrolled explanatory variable, so no safety-policy change is justified.
+
+Immediately afterward, the user issued Stop and Start through the official app
+while the restored configuration remained Solar mode, 6 A Solar minimum,
+Continuous charging on, and battery discharge allowed. The app Start advanced
+through Direct `plugged_in` / PowerOcean `preparing` to Direct `charging` at
+18:50:31 and PowerOcean `charging` at 18:50:33. PowerOcean charging power was
+`1350 W` at 18:50:40.
+
+This shows that the configuration can reach the expected active charging state
+from the official app. It does not yet prove that the app command differs from
+the HA command: about six minutes elapsed after the failed HA start, during
+which available PV, battery, and PowerOcean scheduling conditions could have
+changed. The battery telemetry sampled before the app start still showed a
+charging state, so it cannot attribute the car's later 1350 W to battery or PV.

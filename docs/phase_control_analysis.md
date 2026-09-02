@@ -505,3 +505,26 @@ widersprüchliche Direct-Evidenz, fehlende Felder, Device-Detail-Ausschluss,
 exakte Rawvalidierung, getrenntes `2/34`, Provider-Transition, Already-at-target
 und abweichende beziehungsweise passende Post-write-Directwerte ab. Die oben
 beschriebene Live-Evidenz bleibt vor Abschluss von `PHASE-01` erforderlich.
+
+## Live-Teilvalidierung (2026-09-02)
+
+Der Test wurde mit verbundenem Fahrzeug und ohne laufenden Ladevorgang
+durchgeführt. Der Ladevorgang wurde zuvor kontrolliert beendet; der Wallbox-
+Status war anschließend `charge_complete`. Ausgangszustand war `auto`, der
+Direct-Datenstrom war frisch und die Phase-Control verfügbar.
+
+Der Wechsel `auto -> one_phase` über den HA-Phase-Select wurde erfolgreich
+bestätigt. Der unabhängige HA-Sensor `Ausgewählte Phase Rohwert` wechselte auf
+`1`, ebenso der lesende Phasen-Sensor auf `one_phase`. Die Integration meldete
+die Operation erst nach ihrem normalen Write-/Readback-Pfad als erfolgreich.
+
+Anschließend wurde `one_phase -> auto` ausgeführt und ebenfalls bestätigt. Der
+Rohwert kehrte auf `0` zurück; der abschließende Wallbox-Status blieb
+`charge_complete`. Die Integrationslogs enthielten im geprüften Zeitraum
+keine Fehler.
+
+Diese Teilvalidierung bestätigt den normalen frischen-Direct-Pfad und den
+Restore. Sie schließt `PHASE-01` noch nicht ab: Während des Tests blieb
+`241/44` aktiv und wurde nach dem Stopp weiterhin ungefähr sekündlich
+aktualisiert. Deshalb konnte weder der Provider-Fallback bei stale `241/44`
+noch der Already-at-target-Fall ohne neue Direct-Evidenz isoliert werden.

@@ -366,3 +366,31 @@ Empfohlenes weiteres Vorgehen:
 Unverändert gilt: DATA-06 rechtfertigt weder das Entfernen der bestehenden
 Aggregatwerte noch die Berechnung einer neuen Gesamtleistung aus Spannungs- und
 Strommaxima.
+
+## Live-Evidenz: Solar-Ladevorgang (2026-09-02)
+
+Ein privacy-safe Direct-Heartbeat `2/33` während aktiver Solar-Ladung enthielt
+je drei geordnete Werte:
+
+```text
+field 29 voltage: [228.11, 229.12, 228.66] V
+field 30 current: [  5.67,   0.01,   0.01] A
+```
+
+Im selben Zeitfenster meldeten die bestehenden Aggregate `229.1 V` und
+`5.67 A`, also jeweils den Maximalwert der Liste, bei `1258.2 W` Ladeleistung.
+Die Momentaufnahme ist mit einer einphasig wirksamen Last vereinbar, beweist
+aber weder eine feste physische Position noch eine allgemeine Zuordnung zu
+`L1/L2/L3`. Insbesondere bleiben Snapshot-vs-Delta, Positionsstabilität,
+abweichende Kardinalitäten und Mehrphasen-/Grenzfallaufnahmen offen.
+
+Zwei nachfolgende Heartbeats bestätigten die Kardinalität und das Muster erneut:
+
+```text
+field 29 voltage: [230.90, 231.63, 230.51] V -> [231.12, 231.46, 230.51] V
+field 30 current: [  5.71,   0.01,   0.01] A -> [  5.71,   0.01,   0.01] A
+```
+
+Damit ist die geordnete Dreierstruktur für diesen Solar-Betriebszustand über
+mehrere Frames wiederholt beobachtet. Sie ist weiterhin kein Beleg für eine
+positionsstabile oder physisch benannte Phasen-Zuordnung.
