@@ -1924,3 +1924,53 @@ the HA command: about six minutes elapsed after the failed HA start, during
 which available PV, battery, and PowerOcean scheduling conditions could have
 changed. The battery telemetry sampled before the app start still showed a
 charging state, so it cannot attribute the car's later 1350 W to battery or PV.
+
+### App-closed HA Start comparison and CTRL-04 closure
+
+With the app closed again, HA Stop produced Direct `charge_complete` at
+18:54:42 and PowerOcean `finishing` at 18:54:44. HA Start was issued at
+18:55:23.732. Fresh Direct readback reached `charging` at 18:55:46.542, about
+22.8 seconds later; PowerOcean followed at 18:55:48.248 and reported `1356 W`
+at 18:55:54.712. The HA service returned successfully.
+
+This both rules out a general requirement for an open app and supplies the
+previously missing positive `CTRL-04` case: Start confirmation arrived after
+15 seconds but before the 30-second deadline, with no false HA error. The
+separate 15-second Stop timeout and the fail-closed confirmation states remain
+unchanged. `CTRL-04` is complete and is removed from the canonical backlog.
+
+## CTRL-03 Stop-persistence validation (2026-09-02)
+
+With Solar mode, Plug-and-Play on, and Continuous charging on (flags raw
+`18`), HA Stop was issued at 18:57:43 local during active charging. Direct
+changed to `charge_complete` at 18:57:48 and PowerOcean to `finishing` at
+18:57:50; both reported 0 W by the one-minute measurement.
+
+The states and 0 W persisted for five minutes. The PowerPulse 2 config entry
+was then reloaded. After reload, a fresh Direct report at 19:03:49 still
+reported `charge_complete` and 0 W. At 19:13, more than 15 minutes after the
+Stop, Direct remained `charge_complete`, PowerOcean `finishing`, both power
+sensors were 0 W, and Plug-and-Play plus Continuous charging were still on.
+
+No automatic resume occurred. HA Start at 19:13:28 restored Direct `charging`
+at 19:13:37 and PowerOcean `charging` at 19:13:38; PowerOcean reported 1316 W
+at 19:13:55. This completes `CTRL-03`: the observed Stop remained persistent
+through the bounded elapsed time and config-entry reload with both relevant
+automatic options enabled.
+
+## DATA-05 paused-state repeat (2026-09-02)
+
+At 19:20 local, a fresh live observation reported Direct `paused` and
+PowerOcean `suspended_charger`, with both power entities at 0 W and the
+charging binary sensor off. Direct and heartbeat transport indicators were
+fresh and on. The raw Direct pause-reason entity was `unknown`, so this capture
+confirms the two source-qualified paused-state labels but assigns no numeric
+meaning to `suspend_reason`.
+
+An official-app Start then produced `charging` in both sources at 19:24:15
+local, with 1352 W in the PowerOcean path. After an official-app Stop, fresh
+reports at 19:25:18 changed Direct to `charge_complete` and PowerOcean to
+`finishing`; both power entities reported 0 W and the charging binary sensor
+was off. The raw Direct pause-reason entity was still `unknown`, and its most
+recent source report was 19:20:04, before both transitions. It is therefore
+not a current suspend-reason signal for these app-triggered states.

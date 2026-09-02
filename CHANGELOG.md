@@ -6,6 +6,13 @@ Current outstanding work is maintained only in
 
 ## Unreleased
 
+- Close `CTRL-04` with an app-closed live Start that reached fresh Direct
+  `charging` about 22.8 seconds after the HA request, inside the separate
+  30-second Start confirmation window and without an HA action error.
+- Close `CTRL-03` with a 15-minute Stop-persistence validation while
+  Plug-and-Play and Continuous charging were enabled. The configuration entry
+  was reloaded at five minutes; no automatic restart occurred, and a subsequent
+  HA Start restored `charging`.
 - Complete `DATA-03` with active Solar-session validation: CP307 heartbeat
   field `17` is the dynamic charging-current target in deciamperes, not a
   persisted current setting. It tracked `133 -> 130 -> 108 -> 86 -> 60` while
