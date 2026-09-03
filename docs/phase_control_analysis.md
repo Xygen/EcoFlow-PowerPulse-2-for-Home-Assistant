@@ -1,5 +1,9 @@
 # PHASE-01: Analyse des Phasen-Readbacks
 
+> **Status: aktuell, teilweise live-validiert.** Die Implementierung ist in
+> `0.1.1-beta.5` enthalten; die verbleibenden Provider-Fallback-Fälle stehen
+> als aktives `PHASE-01` im [Backlog](backlog.md).
+
 Stand: 2026-08-30  
 Bezug: [Backlog `PHASE-01`](backlog.md)
 

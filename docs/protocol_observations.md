@@ -1,5 +1,11 @@
 # PowerPulse 2 protocol observations
 
+> **Evidence archive.** This file preserves chronological captures, decisions,
+> and historical version references. It is not the current product-status
+> reference; use [the documentation index](index.md),
+> [data-path overview](data_paths_overview.md), and [backlog](backlog.md) for
+> current scope.
+
 These observations come from privacy-redacted cloud MQTT diagnostics captured
 from a live C376 charger. They document evidence only; they are not permission
 to transmit inferred commands.

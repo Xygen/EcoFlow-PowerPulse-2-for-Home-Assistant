@@ -1,5 +1,10 @@
 # DATA-06: Analyse der Einzelwerte für Phasenspannung und Phasenstrom
 
+> **Status: deferred nach v1.0.0.** Die Analyse begründet, warum weiterhin nur
+> die bestätigten Aggregatwerte veröffentlicht werden. Positionsstabile
+> Phasenentitäten benötigen zusätzliche Mehrzustands-Evidenz; Details stehen im
+> [Backlog](backlog.md).
+
 Stand: 2026-08-30  
 Bezug: [Backlog `DATA-06`](backlog.md)
 

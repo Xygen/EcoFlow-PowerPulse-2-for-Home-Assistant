@@ -1,5 +1,10 @@
 # WIP findings for C376 / PowerPulse 2
 
+> **Historical research archive.** This report retains the Issue #247
+> investigation timeline and its contemporaneous conclusions. It does not
+> define current scope or release status; use [the documentation index](index.md)
+> and [backlog](backlog.md) instead.
+
 > **WORK IN PROGRESS — protocol research and unresolved mappings remain
 > ongoing even though the live-validated integration is now regularly released.**
 >

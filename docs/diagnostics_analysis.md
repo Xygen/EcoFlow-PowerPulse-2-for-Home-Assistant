@@ -1,5 +1,9 @@
 # DIAG-01: Voranalyse der Diagnostik- und Capture-Architektur
 
+> **Status: abgeschlossen.** Die beschriebene Diagnostikarchitektur wurde in
+> Schema 12 umgesetzt und live validiert. Dieses Dokument ist die
+> Architekturbegründung, nicht der aktuelle Backlog.
+
 Stand: 2026-08-31  
 Bezug: [Backlog `DIAG-01`](backlog.md)
 

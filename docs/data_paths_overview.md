@@ -7,7 +7,7 @@ chronological evidence in [protocol_observations.md](protocol_observations.md).
 The tables distinguish device readback from app-write observations. A fast
 acknowledgement of an app request is not automatically a trustworthy state
 value. Read entities therefore use confirmed device or provider reports. The
-Version 0.1.0 settings controls are evidence-gated and require acknowledgement
+settings controls are evidence-gated and require acknowledgement
 plus either fresh direct device readback or a post-command raw provider
 confirmation.
 Phase selection is narrower: provider `phaseSpecified` is now mapped as
@@ -58,6 +58,12 @@ mapping yet.
 | Smart calculated energy | — | — | Distance mode: `1.4.8.31.3`; 300 km produced 45000 Wh and an app request with 100 km / field 3 = 0 was followed by 15000 Wh | — |
 | Vehicle consumption, raw | — | — | Unknown | `vehicleInfo.currentVehicleComsumption` |
 | Unassigned content | — | Additional fields may exist | Byte fields `5` and `9`; both remained byte-identical across 64 decoded frames during an Auto/one-phase/three-phase/Auto comparison and are not the direct phase-selection field. Fields `21` and `31` are decoded for display and Smart settings | Other unassigned provider fields exist |
+
+## Historical validation notes
+
+The following dated implementation labels preserve the evidence timeline. They
+do not define the current release status; use [validation status](validation.md)
+and [backlog](backlog.md) for that purpose.
 
 The installed dev16 build confirmed the practical difference between the two
 main settings read paths. Restoring the Solar minimum from 7 A to 6 A updated
@@ -144,11 +150,11 @@ Provider No-op, ignores Device-Detail and merged state, and accepts Parent-
 Accessory confirmation only after a different pre-write value transitions to
 the requested target.
 
-Version 0.1.0 retains the dev29 disabled-by-default Start and Stop buttons. Their
-`241/100` reply waiter is keyed by command tuple and sequence. Availability
-requires a recent heartbeat; the backend repeats the state check immediately
-before publishing and then waits up to 15 seconds for a newer heartbeat that
-confirms the action. A SET reply alone is never treated as success.
+The disabled-by-default Start and Stop buttons use a `241/100` reply waiter
+keyed by command tuple and sequence. Availability requires a recent heartbeat;
+the backend repeats the state check immediately before publishing. Stop waits
+up to 15 seconds for newer heartbeat confirmation; Start has its separately
+validated 30-second window. A SET reply alone is never treated as success.
 
 Both buttons completed a reversible live HA test with a connected vehicle.
 Stop changed the heartbeat from `charging` to `charge_complete` in about 1.53
@@ -248,8 +254,7 @@ used by at least one Home Assistant entity:
 | `7` phase selection | Raw sensor, fast normal enum, and disabled-by-default phase control readback | Mapping confirmed for auto, one phase, and three phase |
 | `8` Custom/user current | Raw sensor plus normal Ampere sensor | 6 A and 11 A confirmed the 0.1 A scaling |
 
-The unnamed byte fields `5`, `9`, and `21` remain unassigned. Field `31` is
-already decoded as the Smart block. The six-byte field `21` is the strongest
-screen/LED candidate because the matching app-write display block is known,
-but no direct mapping is confirmed. Planned comparisons are tracked only in the
-[project backlog](backlog.md).
+The unnamed byte fields `5` and `9` remain unassigned. Field `21` is the
+confirmed six-byte display block used for screen/LED state and brightness, and
+field `31` is decoded as the Smart block. Planned comparisons for unresolved
+fields are tracked only in the [project backlog](backlog.md).

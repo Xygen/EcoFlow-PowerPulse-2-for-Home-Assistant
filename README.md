@@ -19,18 +19,23 @@ diagnostics.
 
 ## Documentation
 
-- [Project backlog](docs/backlog.md): the single authoritative list of open
-  work and release documentation rules
-- [Data-path overview](docs/data_paths_overview.md): reader-friendly tables
-  showing which values have been found on each wallbox and PowerOcean path
-- [Protocol observations](docs/protocol_observations.md): chronological live
-  evidence and field mappings
-- [Issue #247 WIP report](docs/issue_247_wip_report.md): chronological research
-  state, evidence, and limitations
+- [Documentation index](docs/index.md): choose the right document for use,
+  implementation, validation, or protocol research
+- [User guide](docs/user-guide.md): installation, entities, controls, and
+  known limits
+- [Validation status](docs/validation.md): evidence-backed validation matrix
+  and remaining v1.0.0 release checks
+- [Project backlog](docs/backlog.md): the single authoritative list of active
+  and deferred work
+- [Data-path overview](docs/data_paths_overview.md): current technical
+  reference for confirmed read and write paths
+- [Protocol observations](docs/protocol_observations.md) and the
+  [Issue #247 WIP report](docs/issue_247_wip_report.md): chronological
+  evidence archives, not current product-status references
 
 ## Current scope
 
-Version `0.1.1-beta.6` keeps automatic MQTT activity listen-only and provides
+Development baseline `0.1.1-beta.8` keeps automatic MQTT activity listen-only and provides
 disabled-by-default, user-triggered controls:
 
 - EcoFlow app-account login and PowerPulse discovery
@@ -125,9 +130,10 @@ one connected PowerOcean source, and reports success only after both a matching
 accept whole values from 6 through 16 A; Solar, Custom, and Smart controls
 additionally enforce their applicable operating-mode conditions. Smart-mode
 selection requires previously read device settings, avoiding guessed timestamps
-or targets. Phase selection is additionally available only while a fresh direct
-`241/44` phase value exists, because the provider phase mapping is not yet
-confirmed.
+or targets. Phase selection prefers a fresh direct `241/44` value. When it is
+stale, the control can use only the dedicated, source-qualified
+Parent-Accessory provider fallback; stale merged or device-detail values cannot
+qualify. The remaining live validation is tracked as `PHASE-01` in the backlog.
 
 During a live charging session the EcoFlow app allowed Plug-and-Play,
 battery-discharge blocking, screen, LED, and their brightness controls. dev28
@@ -156,8 +162,9 @@ This project uses Semantic Versioning. Regular releases use `MAJOR.MINOR.PATCH`
 and matching Git tags such as `v0.1.0`. Patch releases contain compatible fixes;
 minor releases add functionality. Intentional preview builds use explicit
 prerelease identifiers such as `-beta.1`; the earlier sequential `-devNN`
-scheme ended with dev30. Because the reverse-engineered protocol and supported
-hardware matrix can still evolve, the project remains below `1.0.0` for now.
+scheme ended with dev30. The current development baseline remains below
+`1.0.0`; the planned stable release is governed by the
+[v1.0.0 release gate](docs/backlog.md#v100-release-gate).
 
 ## Build the release ZIP
 
@@ -185,34 +192,18 @@ frontend limitation tracked in
 [`hacs/integration#5223`](https://github.com/hacs/integration/issues/5223), not
 a missing file in this repository.
 
-The telemetry parser and current controls have been validated against live C376
-MQTT frames on the supported PowerPulse 2 plus PowerOcean topology. The
-protocol remains reverse-engineered, and all device controls are disabled by
-default so users must opt in explicitly. All settings controls exposed through
-dev21 have completed reversible live tests from HA with SET acknowledgement
-and matching readback while no vehicle was connected. dev23 extends strict raw-provider confirmation
-to cover the 12–15 second propagation observed after an idle period and records
-privacy-safe details for each attempt. Its live-validation status is tracked in
-the [project backlog](docs/backlog.md).
+The telemetry parser and controls have been validated against live C376 MQTT
+frames on the supported PowerPulse 2 plus PowerOcean topology. The protocol
+remains reverse-engineered, so controls are disabled by default and require
+explicit user opt-in. Current control gates, transport behavior, and remaining
+validation are described in the [user guide](docs/user-guide.md),
+[validation status](docs/validation.md), and [backlog](docs/backlog.md).
 
-dev24 added a separate idle-stream experiment. Its diagnostic button renews the
-three existing C376 read subscriptions and waits up to ten seconds for a new
-direct `241/44` report. It does not publish `get-all`, `latestQuotas`,
-`EnergyStreamSwitch`, or a charger setting. The result and timing are retained
-in privacy-safe diagnostics. This mechanism is not considered validated until
-it is exercised after a genuine idle period. dev25 adds the next controlled
-step: a second disabled diagnostic button fully rebuilds only the listen-only
-C376 WSS client with a fresh Client ID and normal subscriptions, while a
-separate connectivity sensor tracks real heartbeat `2/33` frames with a
-90-second freshness window. The reconnect action is deliberately manual until
-an idle test proves whether it restores either stream.
-
-That stale test succeeded: a fresh listen-only C376 WSS session restored
-`241/44` after 1.779 seconds and heartbeat `2/33` shortly afterward. dev26
-therefore applies the same operation automatically only after both streams
-were first observed and then stayed stale for five minutes. Each attempt is
-rate-limited by a 30-minute cooldown and uses the same bounded diagnostics.
-The manual button remains available for controlled investigation.
+The direct transport is listen-only during automatic operation. If both
+previously observed direct report families remain stale for five minutes, the
+integration can rebuild only its listen-only WSS client under a bounded
+cooldown; it does not publish a charger command. Chronological transport-test
+evidence is retained in the [protocol observations](docs/protocol_observations.md).
 
 ## Diagnostic capture workflow
 

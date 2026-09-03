@@ -1,5 +1,9 @@
 # Issue #9: Smart-Modus nach Reload wieder bootstrapfähig machen
 
+> **Status: abgeschlossen.** Die versionierte lokale Smart-Staging-Lösung ist
+> implementiert und live validiert. Diese Analyse bleibt als Begründung der
+> Architekturentscheidung erhalten.
+
 Stand: 2026-08-31
 Bezug: [GitHub Issue #9](https://github.com/Xygen/EcoFlow-PowerPulse-2-for-Home-Assistant/issues/9)
 

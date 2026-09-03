@@ -1,5 +1,10 @@
 # ENTITY-03: Analyse des Entity-Modells
 
+> **Status: abgeschlossen.** Die hier beschriebene Rollen- und
+> Verfügbarkeitsentscheidung wurde für Issue #6 / `ENTITY-03` implementiert.
+> Der Text bleibt als Architekturentscheidung erhalten, nicht als offenes
+> Arbeitsitem.
+
 Stand: 2026-08-30  
 Bezug: [Backlog `ENTITY-03`](backlog.md)
 
