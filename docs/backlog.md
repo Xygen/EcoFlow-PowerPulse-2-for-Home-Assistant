@@ -15,7 +15,7 @@ Any upstream proposal must follow the upstream maintainer's chosen architecture.
 This integration's direct C376 MQTT path with bounded PowerOcean HTTP fallback
 is project evidence, not a prescription for another repository.
 
-Current implementation baseline: `0.1.1-beta.8`.
+Current implementation baseline: `1.0.0`.
 
 ## Live validation and control safety
 
@@ -47,9 +47,9 @@ Start reset both Direct and PowerOcean session energy/duration to `0`, and the
 PowerOcean entities continued reporting while the separate `EcoFlow Energy`
 integration was disabled. The existing Direct entity IDs remained unchanged.
 
-## v1.0.0 release gate
+## v1.0.0 release record
 
-The release is ready when every v1.0.0 item in this backlog is either closed
+The `1.0.0` release meets this gate: every v1.0.0 item in this backlog is either closed
 with evidence or explicitly recorded as a known limitation, the existing test
 suite passes, the manifest and documentation consistently identify `1.0.0`,
 and the release contains no unverified new controls or guessed field mappings.

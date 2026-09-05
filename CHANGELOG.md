@@ -6,6 +6,8 @@ Current outstanding work is maintained only in
 
 ## Unreleased
 
+## 1.0.0 - 2026-09-05
+
 - Reorganize the documentation around a current index, user guide, and
   validation status. Mark chronological protocol and Issue #247 records as
   evidence archives, and resolve current-documentation contradictions for the

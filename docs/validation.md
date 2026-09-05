@@ -6,8 +6,8 @@ and raw chronology remain in the evidence archives linked from the
 
 ## Current baseline
 
-The development baseline is `0.1.1-beta.8`. The planned stable `1.0.0` release
-must satisfy the [release gate](backlog.md#v100-release-gate).
+The current stable baseline is `1.0.0`. Its scope and accepted limitations are
+recorded in the [release record](backlog.md#v100-release-record).
 
 ## Confirmed behavior
 
@@ -20,7 +20,7 @@ must satisfy the [release gate](backlog.md#v100-release-gate).
 | Phase control | Direct evidence, source separation, normal `auto → one_phase → auto` writes/readback, and safe restore were live-validated. | Confirmed with stale-Direct fallback accepted as a known limitation |
 | Diagnostics | Privacy-safe capture schema and bounded diagnostics export were installed and validated. | Confirmed |
 
-## Remaining v1.0.0 checks
+## Known v1.0.0 limitation
 
 | Item | Needed evidence | Outcome if unavailable before release |
 | --- | --- | --- |

@@ -33,7 +33,7 @@ must not be read as the current product contract.
 
 | Finding | Resolution |
 | --- | --- |
-| README named `0.1.1-beta.6`; the manifest and active backlog name `0.1.1-beta.8`. | README now names `0.1.1-beta.8` as the development baseline. |
+| README named `0.1.1-beta.6`; the manifest and active backlog named `0.1.1-beta.8`. | Resolved before `1.0.0`; current release documents consistently name `1.0.0`. |
 | README said phase control required fresh Direct `241/44` only. | It now describes the implemented, source-qualified Parent-Accessory fallback and links its remaining validation to `PHASE-01`. |
 | The data-path overview both decoded field `21` as the display block and called it unassigned. | Field `21` is now consistently documented as the confirmed six-byte display block; only fields `5` and `9` remain unresolved. |
 | Chronological records looked like current product documentation. | Protocol and Issue #247 files are explicitly labelled as evidence archives; this index points to the current references. |
