@@ -35,7 +35,7 @@ diagnostics.
 
 ## Current scope
 
-Version `1.0.0` keeps automatic MQTT activity listen-only and provides
+Version `1.0.1` keeps automatic MQTT activity listen-only and provides
 disabled-by-default, user-triggered controls:
 
 - EcoFlow app-account login and PowerPulse discovery
@@ -162,8 +162,8 @@ This project uses Semantic Versioning. Regular releases use `MAJOR.MINOR.PATCH`
 and matching Git tags such as `v0.1.0`. Patch releases contain compatible fixes;
 minor releases add functionality. Intentional preview builds use explicit
 prerelease identifiers such as `-beta.1`; the earlier sequential `-devNN`
-scheme ended with dev30. Version `1.0.0` is the first stable release; its
-scope and accepted limitations are recorded in the
+scheme ended with dev30. Version `1.0.1` is the current stable release. The
+first stable release's scope and accepted limitations are recorded in the
 [v1.0.0 release record](docs/backlog.md#v100-release-record).
 
 ## Build the release ZIP

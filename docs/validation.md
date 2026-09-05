@@ -6,7 +6,7 @@ and raw chronology remain in the evidence archives linked from the
 
 ## Current baseline
 
-The current stable baseline is `1.0.0`. Its scope and accepted limitations are
+The current stable baseline is `1.0.1`. Its scope and accepted limitations are
 recorded in the [release record](backlog.md#v100-release-record).
 
 ## Confirmed behavior

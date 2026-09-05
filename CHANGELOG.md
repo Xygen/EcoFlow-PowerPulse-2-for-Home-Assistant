@@ -6,6 +6,13 @@ Current outstanding work is maintained only in
 
 ## Unreleased
 
+## 1.0.1 - 2026-09-05
+
+- Add the repository HACS validation and Home Assistant Hassfest workflows.
+  Both checks pass against the stable source tree; this patch release makes
+  that validated commit available as the required full GitHub release for the
+  HACS default-repository submission.
+
 ## 1.0.0 - 2026-09-05
 
 - Reorganize the documentation around a current index, user guide, and
