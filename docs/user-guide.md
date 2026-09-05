@@ -48,7 +48,8 @@ you need and treat every control as device operation.
   them too. Plug-and-Play, battery-discharge blocking, screen, LED, and their
   brightness controls have different observed charging-time rules.
 - Phase control prefers Direct settings evidence and has a narrow, guarded
-  provider fallback. Its remaining live validation is tracked in `PHASE-01`.
+  provider fallback. Its unvalidated stale-stream edge cases are documented as
+  a fail-closed `v1.0.0` limitation in `PHASE-01`.
 
 See the [data-path overview](data_paths_overview.md) for the complete source
 and confirmation model.

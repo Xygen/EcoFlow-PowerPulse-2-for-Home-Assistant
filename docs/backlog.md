@@ -49,8 +49,7 @@ integration was disabled. The existing Direct entity IDs remained unchanged.
 
 ## v1.0.0 release gate
 
-The release is ready when the active items `PHASE-01` and `DATA-09` are either
-closed with evidence or explicitly recorded as known limitations, the existing
-test suite passes, the manifest and documentation consistently identify
-`1.0.0`, and the release contains no unverified new controls or guessed field
-mappings.
+The release is ready when every v1.0.0 item in this backlog is either closed
+with evidence or explicitly recorded as a known limitation, the existing test
+suite passes, the manifest and documentation consistently identify `1.0.0`,
+and the release contains no unverified new controls or guessed field mappings.
