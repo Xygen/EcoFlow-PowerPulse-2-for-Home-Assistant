@@ -1980,3 +1980,27 @@ reports at 19:25:18 changed Direct to `charge_complete` and PowerOcean to
 was off. The raw Direct pause-reason entity was still `unknown`, and its most
 recent source report was 19:20:04, before both transitions. It is therefore
 not a current suspend-reason signal for these app-triggered states.
+
+## v1.0.0 remaining live validation (2026-09-05)
+
+During an active session, Direct reported `3.48 kWh`, `1.8886 h`, and
+`charging`; PowerOcean reported `5.751 kWh`, `1.9 h`, and `charging`. HA Stop
+then produced Direct `charge_complete` and PowerOcean `finishing` with 0 W.
+
+HA Start began a new session. PowerOcean reset its session energy and duration
+to `0.0` immediately in `preparing`; after the Direct transition through
+`plugged_in`, both sources reported `charging`, and Direct then reset to
+`0.0 kWh` and `0.0 h` while PowerOcean remained at `0.0 kWh` and `0.0 h`.
+PowerOcean subsequently reported 1310 W. With the separate `EcoFlow Energy`
+integration temporarily disabled, both PowerPulse-2 data streams remained
+fresh and the PowerOcean entities continued updating. The separate integration
+was re-enabled afterward.
+
+The normal phase path was also checked with the vehicle connected but not
+charging: selecting `one_phase` produced fresh Direct readback `raw 1` and
+sensor state `one_phase`; restoring `auto` completed successfully. A stale
+Direct `241/44` condition could not be reproduced because the Direct stream
+continued reporting while the wallbox was stopped. The provider-transition and
+provider-already-at-target cases therefore remain explicitly unvalidated, and
+the existing fail-closed behavior is accepted as the `v1.0.0` limitation for
+`PHASE-01`.

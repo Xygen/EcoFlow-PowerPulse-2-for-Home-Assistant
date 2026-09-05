@@ -10,6 +10,10 @@ Current outstanding work is maintained only in
   validation status. Mark chronological protocol and Issue #247 records as
   evidence archives, and resolve current-documentation contradictions for the
   development baseline, phase fallback, and display settings block.
+- Complete `DATA-09` with a new-session reset and independent operation while
+  the separate `EcoFlow Energy` integration was disabled. Accept the
+  non-reproducible stale-Direct `PHASE-01` edge cases as a documented,
+  fail-closed v1.0.0 limitation after validating the normal phase path.
 - Close `CTRL-04` with an app-closed live Start that reached fresh Direct
   `charging` about 22.8 seconds after the HA request, inside the separate
   30-second Start confirmation window and without an HA action error.
