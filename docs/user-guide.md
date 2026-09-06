@@ -8,6 +8,25 @@ of scope.
 
 ## Installation
 
+### Recommended: Install through HACS
+
+1. Open **HACS > Integrations** in Home Assistant.
+2. Open the menu in the upper-right corner and select **Custom repositories**.
+3. Enter the repository URL:
+
+   `https://github.com/Xygen/EcoFlow-PowerPulse-2-for-Home-Assistant`
+
+4. Select **Integration** as the repository category and add the repository.
+5. Search for **EcoFlow PowerPulse 2** and install it.
+6. Restart Home Assistant.
+7. Add **EcoFlow PowerPulse 2** under **Settings > Devices & services**.
+
+Until the repository is accepted into the HACS default list, the custom-
+repository step is required. After acceptance, it can be installed directly
+from the normal HACS integration list.
+
+### Manual installation
+
 Build the release ZIP from the repository root:
 
 ```powershell
