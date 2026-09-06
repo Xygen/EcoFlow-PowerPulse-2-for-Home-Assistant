@@ -1,8 +1,8 @@
 # Issue #12 charge-action readback analysis
 
 Status: pre-analysis complete; implementation step 1 (source correctness and
-diagnostics) is implemented locally and statically tested. Live validation is
-still pending.
+diagnostics) is released and statically tested. One reversible Start/Stop pair
+is live-validated; diagnostic-export and repeated-timing evidence remain open.
 
 Issue: [#12 Avoid false-negative Start/Stop failures when direct readback arrives late](https://github.com/Xygen/EcoFlow-PowerPulse-2-for-Home-Assistant/issues/12)
 
@@ -73,19 +73,25 @@ implementation slice explicitly adds and validates that policy.
 
 Still pending:
 
-- deployment and reversible live Start/Stop validation of step 1.
+- diagnostic-export format validation for an actual action record;
+- repeated Start/Stop timing samples before any deadline-policy change.
 
-### Live validation correction: provider merge
+### Live validation correction: button-state semantics
 
 The first live Stop test on 2026-09-06 confirmed Direct `charge_complete`
-promptly, but the Start button subsequently became `unknown` while the Direct
-heartbeat was still fresh. The `v1.0.2` source-selection change exposed that a
-provider poll could remove `direct_charging_status` from the merged snapshot.
+promptly, and the Start button subsequently became `unknown` while the Direct
+heartbeat was still fresh. This was initially interpreted as a lost
+`direct_charging_status` alias after a provider poll.
 
-The follow-up correction preserves that alias whenever its Direct heartbeat is
-fresh. It does not preserve or promote the provider's canonical state, and it
-does not relax any action-confirmation requirement. The Start half of the live
-test remains pending until this correction is installed.
+Home Assistant uses `unknown` as the normal state for an enabled Button that
+has not yet been pressed; `unavailable` is the disabled state. The Start button
+was therefore correctly available, and the subsequent Start succeeded. The
+live observation does not prove that `v1.0.2` lost the Direct alias.
+
+The follow-up merge guard still preserves that alias whenever its Direct
+heartbeat is fresh. It is a tested defensive invariant, does not preserve or
+promote the provider's canonical state, and does not relax any
+action-confirmation requirement.
 
 ## Pre-implementation control path
 

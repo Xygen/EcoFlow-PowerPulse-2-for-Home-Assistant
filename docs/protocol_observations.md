@@ -2033,3 +2033,32 @@ value. PowerOcean MQTT status is correctly kept under
 timestamp. The implementation must first couple state and timestamp by source.
 The detailed design and test proposal is retained in
 [`issue_12_charge_readback_analysis.md`](issue_12_charge_readback_analysis.md).
+
+## Issue #12 source-atomic Start/Stop validation (2026-09-06)
+
+HACS installed `v1.0.3` after the source-atomic Direct-state implementation and
+its bounded action-diagnostics tracker. With both Direct streams fresh, an HA
+Stop was pressed at `13:06:54.153` local. Direct reached `charge_complete` at
+`13:06:56.005` (about 1.85 seconds later); PowerOcean followed with `finishing`
+and `0 W` at `13:06:57.953` (about 3.80 seconds later). The HA service returned
+successfully.
+
+The Start Button then showed `unknown`. For a Home Assistant Button this means
+enabled with no recorded press; it is not `unavailable`. This corrected an
+initial, overly strong inference that a provider poll had already removed the
+Direct status alias. The added fresh-Direct merge guard remains a regression
+tested defensive invariant, but the live observation does not prove it was
+needed for that run.
+
+HA Start was pressed at `13:13:23.768` local. Direct reached `charging` at
+`13:13:39.048` (about 15.28 seconds later), PowerOcean reached `charging` at
+`13:13:40.239` (about 16.47 seconds later), and PowerOcean power reached
+`2183 W` at `13:13:53.191`. The HA service returned successfully. The buttons
+then correctly showed Start unavailable and Stop enabled (`unknown`).
+
+This validates the current Direct-only success path and confirms that
+PowerOcean followed rather than led Direct in this pair. The diagnostic export
+itself was not downloaded through the connected interface, so the new attempt
+records still require a separate export-format validation. The observed pair
+does not justify changing the 30-second Start or 15-second Stop deadline; the
+original delayed-Start evidence remains the reason `ISSUE-12` stays open.

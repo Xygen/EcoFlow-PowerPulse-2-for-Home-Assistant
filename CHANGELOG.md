@@ -9,8 +9,9 @@ Current outstanding work is maintained only in
 ## 1.0.3 - 2026-09-06
 
 - Preserve the fresh source-qualified Direct charging-status alias across a
-  provider poll. This keeps Start/Stop availability aligned with the Direct
-  heartbeat after a completed action instead of falling back to `unknown`.
+  provider poll as a defensive merge invariant. The live test's `unknown`
+  Start-button state was the normal Home Assistant state for an enabled,
+  unpressed Button, not evidence of a lost Direct value.
 
 ## 1.0.2 - 2026-09-06
 
