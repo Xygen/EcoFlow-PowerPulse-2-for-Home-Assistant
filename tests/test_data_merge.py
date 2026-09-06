@@ -49,3 +49,25 @@ async def test_merge_can_prefer_selected_recent_mqtt_values() -> None:
         "charging_power_w": 222.0,
         "solar_current_min_raw": 70,
     }
+
+
+@pytest.mark.asyncio
+async def test_merge_retains_fresh_direct_charge_state_not_in_provider_snapshot() -> None:
+    latest = {
+        "charging_status": "charge_complete",
+        "direct_charging_status": "charge_complete",
+    }
+
+    async def read_snapshot() -> dict[str, str]:
+        return {"charging_status": "charging"}
+
+    result = await merge_snapshot_after_read(
+        read_snapshot,
+        lambda: latest,
+        lambda: {"direct_charging_status"},
+    )
+
+    assert result == {
+        "charging_status": "charging",
+        "direct_charging_status": "charge_complete",
+    }

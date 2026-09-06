@@ -738,13 +738,22 @@ class PowerPulse2Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
                 self._settings_refresh.request()
 
     def _preferred_live_settings(self, serial: str) -> frozenset[str]:
-        """Prefer a recent direct device report over a cached provider poll."""
+        """Prefer fresh source-qualified values over a cached provider poll."""
+        preferred: set[str] = set()
         reported_at = self._last_direct_settings_at.get(serial)
-        if reported_at is None:
-            return frozenset()
-        if time.monotonic() - reported_at > _DIRECT_SETTINGS_FRESH_SECONDS:
-            return frozenset()
-        return _DIRECT_SETTINGS_KEYS
+        if (
+            reported_at is not None
+            and time.monotonic() - reported_at <= _DIRECT_SETTINGS_FRESH_SECONDS
+        ):
+            preferred.update(_DIRECT_SETTINGS_KEYS)
+
+        heartbeat_at = self._last_heartbeat_at.get(serial)
+        if (
+            heartbeat_at is not None
+            and time.monotonic() - heartbeat_at <= _HEARTBEAT_STREAM_FRESH_SECONDS
+        ):
+            preferred.add("direct_charging_status")
+        return frozenset(preferred)
 
     def _record_setting_observations(
         self, serial: str, source: SettingSource, values: dict[str, Any]

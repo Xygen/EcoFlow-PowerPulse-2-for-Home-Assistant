@@ -75,6 +75,18 @@ Still pending:
 
 - deployment and reversible live Start/Stop validation of step 1.
 
+### Live validation correction: provider merge
+
+The first live Stop test on 2026-09-06 confirmed Direct `charge_complete`
+promptly, but the Start button subsequently became `unknown` while the Direct
+heartbeat was still fresh. The `v1.0.2` source-selection change exposed that a
+provider poll could remove `direct_charging_status` from the merged snapshot.
+
+The follow-up correction preserves that alias whenever its Direct heartbeat is
+fresh. It does not preserve or promote the provider's canonical state, and it
+does not relax any action-confirmation requirement. The Start half of the live
+test remains pending until this correction is installed.
+
 ## Pre-implementation control path
 
 At the time of the pre-analysis, `coordinator.py` performed these gates:

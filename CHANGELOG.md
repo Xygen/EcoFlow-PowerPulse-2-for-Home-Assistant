@@ -6,6 +6,12 @@ Current outstanding work is maintained only in
 
 ## Unreleased
 
+## 1.0.3 - 2026-09-06
+
+- Preserve the fresh source-qualified Direct charging-status alias across a
+  provider poll. This keeps Start/Stop availability aligned with the Direct
+  heartbeat after a completed action instead of falling back to `unknown`.
+
 ## 1.0.2 - 2026-09-06
 
 - Harden Issue #12 Start/Stop readback by pairing action availability and
