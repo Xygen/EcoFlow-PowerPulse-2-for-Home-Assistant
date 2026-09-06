@@ -2004,3 +2004,32 @@ continued reporting while the wallbox was stopped. The provider-transition and
 provider-already-at-target cases therefore remain explicitly unvalidated, and
 the existing fail-closed behavior is accepted as the `v1.0.0` limitation for
 `PHASE-01`.
+
+## Issue #12 Start/Stop readback pre-analysis (2026-09-06)
+
+Home Assistant history confirmed one genuine delayed Start. The button was
+pressed at 11:08:47.813 local, the current 30-second readback gate raised its
+error at 11:09:18.491, and Direct reached `charging` at 11:09:21.415. The
+qualifying Direct state therefore arrived about 2.925 seconds after the error.
+PowerOcean reported `charging` at 11:09:21.972, about 0.557 seconds after
+Direct, so it would not have prevented this timeout as an equal-deadline
+fallback. Both sources had already reported transitional progress shortly
+after the request (`plugged_in` Direct and `preparing` PowerOcean).
+
+The earlier Stop error needs a different interpretation. After a successful
+Stop at 11:06:16.403, Direct remained `charge_complete`, PowerOcean remained
+`finishing`, and PowerOcean power remained 0 W. The generic charging binary
+sensor nevertheless changed to `on` at 11:06:24.860 and made Stop available;
+a second Stop was pressed at 11:06:50.987. No source-qualified charging state
+or non-zero PowerOcean power supports a new physical charging run before that
+press. A fresh Direct heartbeat at 11:07:18.226 still described
+`charge_complete`, after the 15-second service error.
+
+Static inspection explains this divergence: charge confirmation pairs the
+Direct `_last_heartbeat_at` timestamp with mergeable canonical
+`charging_status`, while HTTP provider snapshots may overwrite that canonical
+value. PowerOcean MQTT status is correctly kept under
+`powerocean_charging_status` but has no dedicated per-charger observation
+timestamp. The implementation must first couple state and timestamp by source.
+The detailed design and test proposal is retained in
+[`issue_12_charge_readback_analysis.md`](issue_12_charge_readback_analysis.md).

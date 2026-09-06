@@ -28,6 +28,7 @@ must not be read as the current product contract.
 | Diagnostic capture design | [DIAG-01 analysis](diagnostics_analysis.md) |
 | Phase measurement research | [DATA-06 analysis](phase_measurement_entities_analysis.md) |
 | Smart-mode bootstrap research | [SMART-01 analysis](smart_mode_bootstrap_analysis.md) |
+| Start/Stop readback and timeout analysis | [Issue #12 analysis](issue_12_charge_readback_analysis.md) |
 
 ## Documentation status and resolved contradictions
 
