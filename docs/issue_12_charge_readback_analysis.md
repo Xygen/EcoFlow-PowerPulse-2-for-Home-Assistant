@@ -1,8 +1,10 @@
 # Issue #12 charge-action readback analysis
 
-Status: pre-analysis complete; implementation step 1 (source correctness and
-diagnostics) is released and statically tested. One reversible Start/Stop pair
-is live-validated; diagnostic-export and repeated-timing evidence remain open.
+Status: implementation step 1 (source correctness and diagnostics) is
+released, statically tested, and live-validated with two reversible Start/Stop
+pairs. The diagnostic export contains completed records for both actions. The
+only remaining evidence gap is another delayed Start near the 30-second gate
+before any deadline-policy change is considered.
 
 Issue: [#12 Avoid false-negative Start/Stop failures when direct readback arrives late](https://github.com/Xygen/EcoFlow-PowerPulse-2-for-Home-Assistant/issues/12)
 
@@ -71,10 +73,19 @@ Implemented locally:
 `progress_extension_granted` is present but remains `false` until a later
 implementation slice explicitly adds and validates that policy.
 
-Still pending:
+Validated on 2026-09-06 after a clean integration lifetime:
 
-- diagnostic-export format validation for an actual action record;
-- repeated Start/Stop timing samples before any deadline-policy change.
+- the Home Assistant diagnostics path is
+  `data.charge_action_readback` (the outer `data` object is intentional);
+- both a Stop and a Start record were exported with only the documented,
+  bounded fields; and
+- the records retained the matching SET reply, first Direct and PowerOcean
+  observations, outcome, and elapsed time without treating PowerOcean as
+  confirmation.
+
+The normal-latency samples do not justify a deadline-policy change. A new
+delayed Start near the existing 30-second gate is still required to assess a
+bounded progress extension.
 
 ### Live validation correction: button-state semantics
 
@@ -92,6 +103,25 @@ The follow-up merge guard still preserves that alias whenever its Direct
 heartbeat is fresh. It is a tested defensive invariant, does not preserve or
 promote the provider's canonical state, and does not relax any
 action-confirmation requirement.
+
+### Second live cycle and diagnostics-export validation
+
+After the integration had restarted, the first export was intentionally empty:
+attempt records are in-memory bounded diagnostics rather than persisted history.
+With a fresh Direct and Heartbeat stream, a second reversible cycle then
+produced two completed export records:
+
+| Action | SET reply | First Direct observation | First PowerOcean observation | Outcome |
+| --- | ---: | --- | --- | --- |
+| Stop | 0.141 s | `charge_complete` after 1.758 s | `charging` after 1.225 s | Direct-confirmed after 1.896 s |
+| Start | 0.221 s | `plugged_in` after 0.995 s | `preparing` after 1.277 s | Direct-confirmed after 13.803 s |
+
+The Start's first Direct post-command state was transitional (`plugged_in`),
+not its later confirming `charging` state. This shows why the export records
+both early observations and final outcome, and why only qualified Direct
+readback can complete the action. After the Start confirmation, Direct reported
+`charging`, PowerOcean reported `charging`, and PowerOcean power reached
+`1860 W`; the original charging state was restored.
 
 ## Pre-implementation control path
 

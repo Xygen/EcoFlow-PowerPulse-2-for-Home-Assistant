@@ -2062,3 +2062,26 @@ itself was not downloaded through the connected interface, so the new attempt
 records still require a separate export-format validation. The observed pair
 does not justify changing the 30-second Start or 15-second Stop deadline; the
 original delayed-Start evidence remains the reason `ISSUE-12` stays open.
+
+## Issue #12 diagnostics-export validation (2026-09-06)
+
+Following an integration restart, `data.charge_action_readback` correctly
+exported an empty bounded list before any new action; these records are
+in-memory diagnostics, not persistent history. A fresh reversible Stop/Start
+cycle then populated two completed records without retaining identifiers or raw
+payloads.
+
+The Stop, issued at `15:38:55.394` local, received its SET reply after
+`0.141 s`, first Direct `charge_complete` after `1.758 s`, and Direct
+confirmation after `1.896 s`. Its earlier PowerOcean `charging` observation
+(`1.225 s`) was retained only as diagnostic evidence. The subsequent Start,
+issued at `15:39:17.245` local, received its SET reply after `0.221 s`, first
+Direct `plugged_in` after `0.995 s`, and a final Direct-confirmed outcome after
+`13.803 s`; its first PowerOcean `preparing` observation was at `1.277 s`.
+The later live state was Direct `charging`, PowerOcean `charging`, and
+PowerOcean power `1860 W`, so the original charging state was restored.
+
+This closes the export-format and normal-latency repeat evidence for the first
+implementation slice. It does not justify a change to the current 30-second
+Start deadline: the remaining Issue #12 question is the previously observed
+delayed Start near that deadline, not an unproven provider fallback.

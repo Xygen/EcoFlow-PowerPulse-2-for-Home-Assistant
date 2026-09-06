@@ -21,7 +21,7 @@ Current implementation baseline: `1.0.1`.
 
 | ID | Priority | Open work | Completion evidence |
 | --- | --- | --- | --- |
-| [`ISSUE-12`](https://github.com/Xygen/EcoFlow-PowerPulse-2-for-Home-Assistant/issues/12) | High | Make Start/Stop availability and confirmation source-atomic, add per-action timing diagnostics, and validate a bounded Start progress extension before considering PowerOcean as an independent success source. | Direct timestamp/state cannot be mixed with provider state; pure race/timing tests pass; repeated live Start/Stop traces justify the final deadline policy; stale, ambiguous, or conflicting readback remains fail-closed. |
+| [`ISSUE-12`](https://github.com/Xygen/EcoFlow-PowerPulse-2-for-Home-Assistant/issues/12) | High | Source-atomic availability/confirmation and bounded timing diagnostics are released and live-validated. Keep the current deadlines until another delayed Start near the 30-second gate provides evidence for, or against, a bounded progress extension. PowerOcean remains diagnostic-only. | Two live Start/Stop pairs and exported bounded records confirm Direct-only outcomes; stale, ambiguous, or conflicting readback remains fail-closed. A delayed Start must be observed before changing deadline policy. |
 
 ## Telemetry and protocol research
 
