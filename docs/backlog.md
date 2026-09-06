@@ -27,6 +27,7 @@ Current implementation baseline: `1.0.1`.
 
 | ID | Priority | Open work | Completion evidence |
 | --- | --- | --- | --- |
+| [`ISSUE-13`](https://github.com/Xygen/EcoFlow-PowerPulse-2-for-Home-Assistant/issues/13) | High | Qualify fast PowerOcean charging power/status against fresh Direct idle evidence without removing raw source-qualified diagnostics. Determine why the PowerOcean relay reports non-zero `1352`/`4380 W` and `charging` while Direct and `allocatedPower` stay at zero. | A cable-connected Direct-idle window cannot expose non-zero automation-safe charging power; real charging retains the PowerOcean update cadence; raw PowerOcean observations remain inspectable; no control behavior changes. |
 
 ## Deferred and release work
 
