@@ -1,6 +1,8 @@
 # Issue #12 charge-action readback analysis
 
-Status: pre-analysis complete; no runtime behavior changed.
+Status: pre-analysis complete; implementation step 1 (source correctness and
+diagnostics) is implemented locally and statically tested. Live validation is
+still pending.
 
 Issue: [#12 Avoid false-negative Start/Stop failures when direct readback arrives late](https://github.com/Xygen/EcoFlow-PowerPulse-2-for-Home-Assistant/issues/12)
 
@@ -32,9 +34,50 @@ Recommended order:
 A blanket timeout increase or immediate PowerOcean-success fallback is not the
 preferred first change.
 
-## Current control path
+## Implementation status
 
-The implementation in `coordinator.py` currently performs these gates:
+### Step 1a: Direct source correctness
+
+Implemented locally:
+
+- action availability and both pre-command validity checks use
+  `direct_charging_status` instead of the provider-mergeable canonical status;
+- confirmation requires the source-qualified Direct state and a Direct
+  heartbeat received after command publication;
+- the Direct heartbeat monotonic and UTC timestamps now come from the same
+  received frame sample;
+- pure unit tests cover canonical/provider divergence and reject a matching
+  Direct state when its heartbeat is not newer than the command.
+
+This intentionally does not change the 30-second Start deadline, the 15-second
+Stop deadline, or accepted success states. It also does not add a PowerOcean
+success fallback.
+
+### Step 1b: Bounded action diagnostics
+
+Implemented locally:
+
+- retain at most 16 completed attempts plus any currently active attempt;
+- export only the device product prefix, action, UTC issue time, known
+  source-qualified states, result classifications, and relative timings;
+- distinguish publish rejection/error, SET-reply timeout, Direct readback
+  timeout, cancellation, and successful Direct confirmation;
+- capture the first post-command Direct and exact-serial PowerOcean states
+  independently; PowerOcean remains diagnostic evidence and cannot confirm an
+  action;
+- expose the records in the Home Assistant diagnostic download under
+  `charge_action_readback`.
+
+`progress_extension_granted` is present but remains `false` until a later
+implementation slice explicitly adds and validates that policy.
+
+Still pending:
+
+- deployment and reversible live Start/Stop validation of step 1.
+
+## Pre-implementation control path
+
+At the time of the pre-analysis, `coordinator.py` performed these gates:
 
 1. require a recent Direct heartbeat and a startable/stoppable canonical state;
 2. serialize the write with `_control_lock` and repeat the state check;
@@ -57,10 +100,10 @@ that the wallbox or vehicle reached the requested state.
 
 ## Available state sources
 
-| Source | Stored value | Freshness currently tracked | Suitability for charge confirmation |
+| Source | Stored value | Freshness tracked at pre-analysis | Suitability for charge confirmation |
 | --- | --- | --- | --- |
-| Direct CP307 heartbeat `2/33` | canonical `charging_status` and source alias `direct_charging_status` | `_last_heartbeat_at` / UTC timestamp | Authoritative current source, but the confirmation loop reads the mergeable canonical key instead of the source alias. |
-| PowerOcean MQTT `241/3` or compatible `209/8` | `powerocean_charging_status` | No per-charger status timestamp/generation | Exact charger serial is matched before merge, but a post-command status cannot currently be qualified independently. |
+| Direct CP307 heartbeat `2/33` | canonical `charging_status` and source alias `direct_charging_status` | `_last_heartbeat_at` / UTC timestamp | Authoritative current source. The pre-analysis implementation read the mergeable canonical key; step 1a changes availability and confirmation to the source alias. |
+| PowerOcean MQTT `241/3` or compatible `209/8` | `powerocean_charging_status` | Step 1b retains the receive time only for the first report during an active action | Exact charger serial is matched before merge. The new timestamp is diagnostic only and does not qualify PowerOcean as a success source. |
 | HTTP device/parent snapshot | canonical `charging_status` | combined poll-completion timestamp only | Key provenance and device-generation time are not retained; unsuitable as a new charge-success source in the current representation. |
 | `241/100` SET reply | no physical status | command tuple and sequence | Transport acknowledgement only; never sufficient for success. |
 
@@ -201,8 +244,8 @@ the first production change.
 
 ### 5. Per-action diagnostics
 
-Add a bounded, identifier-free attempt record similar to settings readback
-diagnostics. It should retain:
+Step 1b adds a bounded, identifier-free attempt record similar to settings
+readback diagnostics. It retains:
 
 - action and UTC issue time;
 - SET-reply latency/result;
@@ -247,9 +290,10 @@ Required bounded live validation:
 
 ## Proposed implementation slices
 
-1. **Source correctness and diagnostics** — source-atomic evidence, Direct-based
-   availability, pure helper tests, and bounded attempt records. No timeout or
-   success-policy change.
+1. **Source correctness and diagnostics** — implemented locally: Direct-based
+   availability, source-coupled confirmation, pure helper tests, and bounded
+   attempt records. No timeout or success-policy change. Live validation is
+   pending.
 2. **Start progress extension** — implement only after the new diagnostics
    confirm the transition timing; retain the absolute ceiling and fail-closed
    result.

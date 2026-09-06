@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
+from typing import Any
+
 START_ACTION = "start"
 STOP_ACTION = "stop"
 START_ACTION_CONFIRM_SECONDS = 30
@@ -11,6 +14,11 @@ _STARTABLE_STATUSES = frozenset({"plugged_in", "paused", "charge_complete", "sta
 _STOPPABLE_STATUSES = frozenset({"charging", "paused"})
 _START_CONFIRMED_STATUSES = frozenset({"charging", "paused"})
 _STOP_CONFIRMED_STATUSES = frozenset({"plugged_in", "charge_complete", "standby"})
+
+
+def direct_charging_status(values: Mapping[str, Any]) -> object:
+    """Return only the state paired with the Direct CP307 heartbeat source."""
+    return values.get("direct_charging_status")
 
 
 def charge_action_allowed(action: str, charging_status: object) -> bool:
@@ -29,6 +37,19 @@ def charge_action_confirmed(action: str, charging_status: object) -> bool:
     if action == STOP_ACTION:
         return charging_status in _STOP_CONFIRMED_STATUSES
     return False
+
+
+def fresh_direct_charge_action_confirmed(
+    action: str,
+    values: Mapping[str, Any],
+    *,
+    heartbeat_reported_at: float,
+    issued_at: float,
+) -> bool:
+    """Return whether one newer Direct heartbeat confirms the requested action."""
+    return heartbeat_reported_at > issued_at and charge_action_confirmed(
+        action, direct_charging_status(values)
+    )
 
 
 def charge_action_confirm_seconds(action: str) -> int:

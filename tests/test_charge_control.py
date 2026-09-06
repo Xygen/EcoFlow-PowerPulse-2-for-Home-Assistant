@@ -2,6 +2,8 @@ from custom_components.ecoflow_powerpulse2.charge_control import (
     charge_action_allowed,
     charge_action_confirm_seconds,
     charge_action_confirmed,
+    direct_charging_status,
+    fresh_direct_charge_action_confirmed,
 )
 
 
@@ -32,3 +34,32 @@ def test_action_confirmation_uses_independent_heartbeat_states() -> None:
 def test_start_and_stop_use_independent_confirmation_windows() -> None:
     assert charge_action_confirm_seconds("start") == 30
     assert charge_action_confirm_seconds("stop") == 15
+
+
+def test_direct_status_never_falls_back_to_mergeable_canonical_state() -> None:
+    assert direct_charging_status({"charging_status": "charging"}) is None
+    assert (
+        direct_charging_status(
+            {
+                "charging_status": "charging",
+                "direct_charging_status": "charge_complete",
+            }
+        )
+        == "charge_complete"
+    )
+
+
+def test_confirmation_couples_direct_state_to_newer_heartbeat() -> None:
+    values = {
+        "charging_status": "charging",
+        "direct_charging_status": "charge_complete",
+    }
+    assert fresh_direct_charge_action_confirmed(
+        "stop", values, heartbeat_reported_at=11, issued_at=10
+    )
+    assert not fresh_direct_charge_action_confirmed(
+        "start", values, heartbeat_reported_at=11, issued_at=10
+    )
+    assert not fresh_direct_charge_action_confirmed(
+        "stop", values, heartbeat_reported_at=10, issued_at=10
+    )

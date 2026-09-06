@@ -6,6 +6,14 @@ Current outstanding work is maintained only in
 
 ## Unreleased
 
+## 1.0.2 - 2026-09-06
+
+- Harden Issue #12 Start/Stop readback by pairing action availability and
+  confirmation exclusively with the source-qualified Direct heartbeat state.
+  Add bounded, identifier-free timing diagnostics for publish, SET reply,
+  Direct confirmation, and exact-serial PowerOcean observations without using
+  PowerOcean as a success fallback or changing existing timeouts.
+
 ## 1.0.1 - 2026-09-05
 
 - Add the repository HACS validation and Home Assistant Hassfest workflows.

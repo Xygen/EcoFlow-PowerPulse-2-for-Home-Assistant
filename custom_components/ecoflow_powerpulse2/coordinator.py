@@ -20,8 +20,10 @@ from .api import PowerPulse2ApiClient
 from .charge_control import (
     charge_action_allowed,
     charge_action_confirm_seconds,
-    charge_action_confirmed,
+    direct_charging_status,
+    fresh_direct_charge_action_confirmed,
 )
+from .charge_diagnostics import ChargeActionDiagnostics
 from .const import (
     CONF_EMAIL,
     CONF_PASSWORD,
@@ -77,6 +79,8 @@ _CONTROL_PROVIDER_RETRY_DELAYS = (0, 3, 5, 5, 5)
 _CONTROL_NOOP_FRESH_SECONDS = UPDATE_INTERVAL_SECONDS * 2
 _PHASE_PROVIDER_FRESH_SECONDS = UPDATE_INTERVAL_SECONDS * 2
 _CONTROL_DIAGNOSTIC_ATTEMPTS = 32
+_CHARGE_ACTION_DIAGNOSTIC_ATTEMPTS = 16
+_CHARGE_ACTION_SET_REPLY_SECONDS = 5
 _DIRECT_STREAM_CONFIRM_SECONDS = 10
 _DIRECT_STREAM_DIAGNOSTIC_ATTEMPTS = 16
 _HEARTBEAT_STREAM_FRESH_SECONDS = 90
@@ -177,6 +181,9 @@ class PowerPulse2Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
         self._last_control_readback_at: str | None = None
         self._control_provider_attempts: deque[dict[str, Any]] = deque(
             maxlen=_CONTROL_DIAGNOSTIC_ATTEMPTS
+        )
+        self._charge_action_diagnostics = ChargeActionDiagnostics(
+            _CHARGE_ACTION_DIAGNOSTIC_ATTEMPTS
         )
         self._phase_readbacks = PhaseReadbackTracker()
         self._setting_observations = SettingObservationTracker(
@@ -364,6 +371,18 @@ class PowerPulse2Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
     def phase_readback_sources(self) -> list[dict[str, Any]]:
         """Return direct and provider phase evidence without full identifiers."""
         return self._phase_readbacks.snapshot()
+
+    @property
+    def charge_action_readback(self) -> dict[str, Any]:
+        """Return bounded, identifier-free Start and Stop timing diagnostics."""
+        return {
+            "set_reply_timeout_seconds": _CHARGE_ACTION_SET_REPLY_SECONDS,
+            "start_confirmation_timeout_seconds": charge_action_confirm_seconds(
+                "start"
+            ),
+            "stop_confirmation_timeout_seconds": charge_action_confirm_seconds("stop"),
+            **self._charge_action_diagnostics.snapshot(),
+        }
 
     async def _async_update_data(self) -> dict[str, dict[str, Any]]:
         try:
@@ -586,12 +605,18 @@ class PowerPulse2Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
                 timestamp=received_at,
                 observed_monotonic=received_monotonic,
             )
-        if parsed and any(
+        is_heartbeat = parsed and any(
             header.get("cmd_func") == 2 and header.get("cmd_id") == 33
             for header in protocol_headers
-        ):
-            self._last_heartbeat_at[serial] = time.monotonic()
-            self._last_heartbeat_utc[serial] = datetime.now(UTC).isoformat()
+        )
+        if is_heartbeat:
+            self._last_heartbeat_at[serial] = received_monotonic
+            self._last_heartbeat_utc[serial] = received_at
+            self._charge_action_diagnostics.record_direct(
+                serial,
+                direct_charging_status(parsed),
+                observed_monotonic=received_monotonic,
+            )
         if parsed:
             self._remember_smart_settings(serial, parsed)
             updated = dict(self.data or {})
@@ -637,6 +662,11 @@ class PowerPulse2Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
             )
             if matched_serial is None:
                 continue
+            self._charge_action_diagnostics.record_powerocean(
+                matched_serial,
+                report.get("powerocean_charging_status"),
+                observed_monotonic=received_monotonic,
+            )
             updated = dict(self.data or {})
             values = dict(updated.get(matched_serial, {}))
             values.update(
@@ -772,7 +802,7 @@ class PowerPulse2Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
             self.settings_control_available(serial)
             and self.heartbeat_stream_active(serial)
             and charge_action_allowed(
-                action, (self.data or {}).get(serial, {}).get("charging_status")
+                action, direct_charging_status((self.data or {}).get(serial, {}))
             )
         )
 
@@ -788,7 +818,7 @@ class PowerPulse2Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
         """Publish a captured charge action and require fresh heartbeat readback."""
         if serial not in self.devices:
             raise HomeAssistantError("Unknown PowerPulse device")
-        status = (self.data or {}).get(serial, {}).get("charging_status")
+        status = direct_charging_status((self.data or {}).get(serial, {}))
         if action == "start" and status == "unplugged":
             raise HomeAssistantError("The EV charger is not connected to a vehicle")
         if not self.heartbeat_stream_active(serial):
@@ -801,7 +831,7 @@ class PowerPulse2Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
             )
 
         async with self._control_lock:
-            status = (self.data or {}).get(serial, {}).get("charging_status")
+            status = direct_charging_status((self.data or {}).get(serial, {}))
             if not charge_action_allowed(action, status):
                 raise HomeAssistantError(
                     f"Charging action {action} is not valid for state "
@@ -821,29 +851,99 @@ class PowerPulse2Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
             waiter_key = (observer_serial, 241, 100, sequence)
             self._reply_waiters[waiter_key] = waiter
             issued_at = time.monotonic()
-            published = await self.hass.async_add_executor_job(
-                client.send_explicit_control, payload
-            )
-            if not published:
-                self._reply_waiters.pop(waiter_key, None)
-                raise HomeAssistantError("EcoFlow rejected the MQTT publish request")
             try:
-                await asyncio.wait_for(waiter, timeout=5)
-            except TimeoutError as exc:
-                self._reply_waiters.pop(waiter_key, None)
-                raise HomeAssistantError("No EcoFlow SET reply was received") from exc
+                self._charge_action_diagnostics.begin(
+                    serial,
+                    action=action,
+                    issued_at=datetime.now(UTC).isoformat(),
+                    issued_monotonic=issued_at,
+                    pre_direct_state=status,
+                    pre_direct_reported_at=self._last_heartbeat_at.get(serial, 0),
+                )
+                try:
+                    published = await self.hass.async_add_executor_job(
+                        client.send_explicit_control, payload
+                    )
+                except Exception:
+                    self._charge_action_diagnostics.record_publish(serial, "error")
+                    raise
+                if not published:
+                    self._charge_action_diagnostics.record_publish(serial, "rejected")
+                    self._reply_waiters.pop(waiter_key, None)
+                    self._charge_action_diagnostics.finish(
+                        serial,
+                        outcome="publish_rejected",
+                        completed_monotonic=time.monotonic(),
+                    )
+                    raise HomeAssistantError("EcoFlow rejected the MQTT publish request")
+                self._charge_action_diagnostics.record_publish(serial, "accepted")
+                try:
+                    await asyncio.wait_for(
+                        waiter, timeout=_CHARGE_ACTION_SET_REPLY_SECONDS
+                    )
+                except TimeoutError as exc:
+                    self._reply_waiters.pop(waiter_key, None)
+                    self._charge_action_diagnostics.record_set_reply(
+                        serial,
+                        result="timeout",
+                        observed_monotonic=time.monotonic(),
+                    )
+                    self._charge_action_diagnostics.finish(
+                        serial,
+                        outcome="set_reply_timeout",
+                        completed_monotonic=time.monotonic(),
+                    )
+                    raise HomeAssistantError(
+                        "No EcoFlow SET reply was received"
+                    ) from exc
+                self._charge_action_diagnostics.record_set_reply(
+                    serial,
+                    result="received",
+                    observed_monotonic=time.monotonic(),
+                )
 
-            deadline = time.monotonic() + charge_action_confirm_seconds(action)
-            while time.monotonic() < deadline:
-                reported_at = self._last_heartbeat_at.get(serial, 0)
-                status = (self.data or {}).get(serial, {}).get("charging_status")
-                if reported_at > issued_at and charge_action_confirmed(action, status):
-                    return
-                await asyncio.sleep(0.25)
-            raise HomeAssistantError(
-                "EcoFlow acknowledged the command, but fresh device readback did not "
-                "confirm the charging state"
-            )
+                deadline = time.monotonic() + charge_action_confirm_seconds(action)
+                while time.monotonic() < deadline:
+                    reported_at = self._last_heartbeat_at.get(serial, 0)
+                    if fresh_direct_charge_action_confirmed(
+                        action,
+                        (self.data or {}).get(serial, {}),
+                        heartbeat_reported_at=reported_at,
+                        issued_at=issued_at,
+                    ):
+                        self._charge_action_diagnostics.finish(
+                            serial,
+                            outcome="confirmed",
+                            confirmation_source="direct",
+                            completed_monotonic=time.monotonic(),
+                        )
+                        return
+                    await asyncio.sleep(0.25)
+                self._charge_action_diagnostics.finish(
+                    serial,
+                    outcome="readback_timeout",
+                    completed_monotonic=time.monotonic(),
+                )
+                raise HomeAssistantError(
+                    "EcoFlow acknowledged the command, but fresh device readback did "
+                    "not confirm the charging state"
+                )
+            except asyncio.CancelledError:
+                self._reply_waiters.pop(waiter_key, None)
+                self._charge_action_diagnostics.finish(
+                    serial,
+                    outcome="cancelled",
+                    completed_monotonic=time.monotonic(),
+                )
+                raise
+            except Exception:
+                self._reply_waiters.pop(waiter_key, None)
+                self._charge_action_diagnostics.finish(
+                    serial,
+                    outcome="runtime_error",
+                    completed_monotonic=time.monotonic(),
+                )
+                raise
 
     def direct_stream_active(self, serial: str) -> bool:
         """Return whether the direct settings stream reported recently."""

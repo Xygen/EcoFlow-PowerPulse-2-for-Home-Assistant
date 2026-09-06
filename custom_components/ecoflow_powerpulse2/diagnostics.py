@@ -128,6 +128,7 @@ async def async_get_config_entry_diagnostics(
             "unmapped_fields": coordinator.mqtt_unmapped_fields,
         },
         "passive_settings_refresh": passive_refresh,
+        "charge_action_readback": coordinator.charge_action_readback,
         "phase_readback_sources": coordinator.phase_readback_sources,
         "mqtt_frames": list(coordinator.mqtt_frames),
         "mqtt_command_frames": list(coordinator.mqtt_command_frames),
