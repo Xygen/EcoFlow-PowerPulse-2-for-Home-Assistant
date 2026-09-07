@@ -6,6 +6,14 @@ Current outstanding work is maintained only in
 
 ## Unreleased
 
+## 1.0.4 - 2026-09-07
+
+- Add `Qualified PowerOcean – Charging power`, which preserves the fast
+  PowerOcean value only while fresh Direct telemetry reports `charging`.
+  Fresh Direct idle states yield `0 W`; unavailable Direct qualification yields
+  `unknown`. Existing PowerOcean power/status entities remain unchanged raw
+  observations for diagnostics and comparison.
+
 ## 1.0.3 - 2026-09-06
 
 - Preserve the fresh source-qualified Direct charging-status alias across a

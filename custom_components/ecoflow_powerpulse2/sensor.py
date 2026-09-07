@@ -56,7 +56,11 @@ class PowerPulse2Sensor(PowerPulse2Entity, SensorEntity):
     @property
     def native_value(self):
         source_key = self.entity_description.source_key or self.entity_description.key
-        if self.entity_description.setting_observation_key is not None:
+        if self.entity_description.qualify_with_direct_charge_state:
+            value = self.coordinator.qualified_powerocean_charging_power_value(
+                self.serial
+            )
+        elif self.entity_description.setting_observation_key is not None:
             value = self.coordinator.setting_observation_value(
                 self.serial, self.entity_description.setting_observation_key
             )

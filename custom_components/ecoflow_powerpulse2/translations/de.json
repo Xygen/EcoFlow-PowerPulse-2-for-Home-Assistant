@@ -68,6 +68,7 @@
       "direct_total_energy": {"name": "Wallbox direkt – Gesamte Ladeenergie"},
       "direct_session_energy_raw": {"name": "Wallbox direkt – Sitzungsenergie Rohwert"},
       "powerocean_charging_power": {"name": "PowerOcean – Ladeleistung"},
+      "qualified_powerocean_charging_power": {"name": "Qualifizierte PowerOcean – Ladeleistung"},
       "powerocean_charging_status": {
         "name": "PowerOcean – Ladestatus",
         "state": {

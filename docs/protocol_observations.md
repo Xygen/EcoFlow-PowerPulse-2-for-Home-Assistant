@@ -2085,3 +2085,28 @@ This closes the export-format and normal-latency repeat evidence for the first
 implementation slice. It does not justify a change to the current 30-second
 Start deadline: the remaining Issue #12 question is the previously observed
 delayed Start near that deadline, not an unproven provider fallback.
+
+## Issue #13 PowerOcean idle-report qualification (2026-09-07)
+
+Recorder history for a plugged-in overnight window (20:00–08:00 local) showed
+Direct `charge_complete`, Direct power `0 W`, and `allocatedPower` `0 W`
+throughout. In the same interval the PowerOcean relay path changed its power
+164 times among `0`, `1352`, and `4380 W`; its status changed in lockstep
+between `finishing` and `charging`. The `4380 W` transitions reached this
+integration and the separate EcoFlow Energy wallbox-power entity within a few
+milliseconds, which confirms a shared upstream relay report rather than a
+Home Assistant history/display fault.
+
+Cable presence is not sufficient to explain the behavior: earlier stopped,
+cable-connected observations reported `0 W` through the same relay path. The
+raw PowerOcean entities are therefore retained for diagnostics and comparisons,
+but no longer represent automation-safe physical charging power while Direct
+telemetry is fresh and idle.
+
+The first implementation slice adds `Qualified PowerOcean – Charging power`.
+It preserves the fast PowerOcean reading only when the fresh Direct heartbeat
+reports `charging`; it emits `0 W` for known Direct idle states and `unknown`
+when Direct freshness is unavailable. Pure tests cover active charging, false
+non-zero idle reports, paused state, and stale Direct state. A real active
+transition still needs to verify that this qualification does not introduce a
+meaningful display delay.

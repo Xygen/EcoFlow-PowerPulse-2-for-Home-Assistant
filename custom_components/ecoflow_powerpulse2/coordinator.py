@@ -70,6 +70,7 @@ from .smart_staging import (
     validate_smart_bundle,
 )
 from .stream_recovery import automatic_recovery_due
+from .telemetry_qualification import qualified_powerocean_charging_power
 
 _LOGGER = logging.getLogger(__name__)
 _MAX_FRAME_BYTES = 2048
@@ -982,6 +983,13 @@ class PowerPulse2Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
                 for observer_serial in self.observer_devices
             )
         return False
+
+    def qualified_powerocean_charging_power_value(self, serial: str) -> object:
+        """Return PowerOcean power only when fresh Direct telemetry qualifies it."""
+        return qualified_powerocean_charging_power(
+            (self.data or {}).get(serial, {}),
+            direct_heartbeat_fresh=self.heartbeat_stream_active(serial),
+        )
 
     def direct_reconnect_available(self, serial: str) -> bool:
         """Return whether the direct WSS client can be rebuilt safely."""

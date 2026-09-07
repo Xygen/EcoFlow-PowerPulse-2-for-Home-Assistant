@@ -39,6 +39,7 @@ class PowerPulse2SensorDescription(SensorEntityDescription):
     setting_observation_key: str | None = None
     required_source: Literal["coordinator", "direct", "powerocean"] = "coordinator"
     value_fn: Callable[[Any], Any] | None = None
+    qualify_with_direct_charge_state: bool = False
 
 
 SENSORS = (
@@ -190,6 +191,16 @@ SENSORS = (
         device_class=SensorDeviceClass.POWER,
         state_class=SensorStateClass.MEASUREMENT,
         suggested_display_precision=0,
+    ),
+    PowerPulse2SensorDescription(
+        key="qualified_powerocean_charging_power_w",
+        required_source="powerocean",
+        translation_key="qualified_powerocean_charging_power",
+        native_unit_of_measurement=UnitOfPower.WATT,
+        device_class=SensorDeviceClass.POWER,
+        state_class=SensorStateClass.MEASUREMENT,
+        suggested_display_precision=0,
+        qualify_with_direct_charge_state=True,
     ),
     PowerPulse2SensorDescription(
         key="powerocean_charging_status",

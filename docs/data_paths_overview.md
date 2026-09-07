@@ -105,8 +105,8 @@ lifetime meter. The parser also understands the equivalent `209/8`
 
 | PowerOcean entity | PowerPulse 2 `241/3` field | Compatible `209/8` field | Unit / mapping |
 | --- | --- | --- | --- |
-| Charging power | `4.6` (`charging_pwr`) | `8` (`ev_pwr`) | W; native reported real power |
-| Charging status | `4.4` (`charging_status`) | `6` (`charging_status`) | Native EVSE states: none, available, preparing, charging, suspended by charger/vehicle, finishing, faulted |
+| Charging power (raw) | `4.6` (`charging_pwr`) | `8` (`ev_pwr`) | W; fast relay report. Active-session comparisons were plausible, but the report can be non-zero while fresh Direct telemetry proves idle; see the qualification note below. |
+| Charging status (raw) | `4.4` (`charging_status`) | `6` (`charging_status`) | Native EVSE-like labels, but the relay can report `charging` while fresh Direct telemetry proves idle. |
 | Session energy | `4.8.5` (`order_charging_energy`) | `9` (`ev_charging_energy`) | Wh on the wire, presented as kWh; resets with a new session |
 | Session duration | `4.8.6` (`order_time`) | `11` (`order_time`) | seconds; resets with a new session |
 
@@ -116,6 +116,22 @@ are deliberately not added as entities: serials are used only internally for
 routing, vehicle IDs are privacy-sensitive, and the remaining fields are
 redundant or need more local validation. Other `209` or `241` command IDs are
 not accepted as this coherent session report.
+
+### PowerOcean idle qualification
+
+The raw PowerOcean relay path remains useful because it updates quickly during
+genuine charging. On 2026-09-05/06, however, a plugged-in, Direct-idle window
+held Direct status at `charge_complete`, Direct power at `0 W`, and
+`allocatedPower` at `0 W`, while the raw relay reports alternated between
+`0`, `1352`, and `4380 W` alongside `finishing`/`charging` labels. The exact
+relay-field semantics remain under investigation in
+[`ISSUE-13`](https://github.com/Xygen/EcoFlow-PowerPulse-2-for-Home-Assistant/issues/13).
+
+`Qualified PowerOcean – Charging power` preserves the fast raw value only when
+a fresh Direct heartbeat reports `charging`; it yields `0 W` for a fresh Direct
+idle state and `unknown` when Direct qualification is unavailable. The existing
+PowerOcean power/status entities remain raw source-qualified observations for
+diagnostics and comparison.
 
 ## Observed write and research paths
 
