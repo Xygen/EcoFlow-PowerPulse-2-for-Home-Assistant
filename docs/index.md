@@ -12,6 +12,7 @@ from the evidence archives created during protocol research.
 | Review test coverage, live validation, and release readiness | [Validation status](validation.md) |
 | See active, deferred, and release work | [Project backlog](backlog.md) |
 | Review delivered changes | [Changelog](../CHANGELOG.md) |
+| Review the 2026-09-09 integration audit | [Dated review](review_2026-09-09.md); planned work remains in the [backlog roadmap](backlog.md#roadmap-bis-version-20) |
 
 ## Evidence and research archives
 
