@@ -6,6 +6,10 @@ Current outstanding work is maintained only in
 
 ## Unreleased
 
+## 1.0.5-beta.1 - 2026-09-09
+
+Test build for PR #22; vehicle-backed acceptance remains open.
+
 - Recheck charging state, freshness, mode and transport after acquiring the
   command lock. Build flag, display, mode and active Smart bundles inside the
   lock from fresh companion observations. Preserve local Smart draft intent
