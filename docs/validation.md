@@ -6,7 +6,9 @@ and raw chronology remain in the evidence archives linked from the
 
 ## Current baseline
 
-The current installed baseline is `1.0.4`. Its scope and accepted limitations
+The current stable baseline is `1.0.4`. The installed test build is
+`1.0.5-beta.1` (PR #22), as confirmed by HACS and the runtime diagnostics manifest
+after restart on 2026-09-09. The stable baseline's scope and accepted limitations
 are recorded in the [release record](backlog.md#v100-release-record). The
 PowerOcean idle qualification added in `1.0.4` is installed and statically
 tested; its vehicle-backed transition validation remains pending.
@@ -26,9 +28,19 @@ Review reproduced six cases where newer contradictory mode, enablement or flag
 evidence from a lower-priority source was ignored. Control preparation now rejects
 these conflicts; ordinary observation display retains its existing source priority.
 
-Live acceptance remains open in the [central backlog](backlog.md#roadmap-bis-version-20):
-install the reviewed build, verify permitted idle writes and their readbacks,
-then verify that a queued sensitive write is rejected after charging begins.
+Partial live acceptance: test build `1.0.5-beta.1`, commit `d2fc314`, installed
+through HACS and loaded after restart. The restart call returned HTTP 504, but
+subsequent integration and runtime manifest queries confirmed recovery. Screen
+brightness changed 100 → 75 → 100 %, preserving LED brightness at 25 % and both
+display switches on. Diagnostics recorded two confirmed SET replies, two Direct
+readbacks, zero provider confirmations and zero no-ops. The final state was restored.
+The ZIP's 45 files matched the source tree; SHA256:
+`E8E393E188500B9132226D903D0F0931C120811026E6A1F09FB00A878728A04F`.
+
+Vehicle-backed acceptance remains open in the [central backlog](backlog.md#roadmap-bis-version-20):
+the charger reported `unplugged`, so rejection of a queued sensitive write after
+actual charging starts has not been live-tested. Local concurrency tests do not
+replace that evidence. PR #22 and Issue #14 remain open.
 General readback source atomicity and provider no-op qualification remain the
 separate scope of [Issue #15](https://github.com/Xygen/EcoFlow-PowerPulse-2-for-Home-Assistant/issues/15).
 

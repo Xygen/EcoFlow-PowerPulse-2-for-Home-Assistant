@@ -67,7 +67,10 @@ Implementierungsstand: 2026-09-09.
 ist lokal implementiert; 193 Tests bestehen, davon 31 neue Coordinator-Transaktionstests.
 Die Review ergänzte eine Sendesperre bei neueren widersprüchlichen Begleitwerten
 oder Modus-/Freigabewerten aus einer niedriger priorisierten Quelle.
-Die Installation und fahrzeuggestützte Abnahme stehen aus; das Item bleibt offen.
+`1.0.5-beta.1` ist per HACS installiert und nach HA-Neustart geladen.
+Der Display-Test 100 → 75 → 100 % wurde zweimal per Direct-Readback bestätigt;
+Begleitwerte blieben erhalten. Die fahrzeuggestützte Abnahme steht aus
+(Live-Status `unplugged`); das Item und PR #22 bleiben offen.
 Details zur Aussagegrenze: [Validierung](validation.md#unreleased-control-transaction-hardening).
 
 Vollständige Befunde und Validierungsgrenzen:
