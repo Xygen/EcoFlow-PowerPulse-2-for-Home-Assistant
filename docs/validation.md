@@ -6,8 +6,10 @@ and raw chronology remain in the evidence archives linked from the
 
 ## Current baseline
 
-The current stable baseline is `1.0.1`. Its scope and accepted limitations are
-recorded in the [release record](backlog.md#v100-release-record).
+The current installed baseline is `1.0.4`. Its scope and accepted limitations
+are recorded in the [release record](backlog.md#v100-release-record). The
+PowerOcean idle qualification added in `1.0.4` is installed and statically
+tested; its vehicle-backed transition validation remains pending.
 
 ## Confirmed behavior
 
@@ -15,6 +17,7 @@ recorded in the [release record](backlog.md#v100-release-record).
 | --- | --- | --- |
 | Direct telemetry | Charging state, power, voltage/current summaries, cumulative energy, session energy, and duration are decoded from direct heartbeat reports. | Confirmed |
 | PowerOcean telemetry | Status, power, session energy, and session duration are decoded from the serial-matched `241/3` / compatible `209/8` report. A new session reset both source-specific energy/duration pairs to `0`, and the entities continued reporting with `EcoFlow Energy` disabled. | Confirmed |
+| Qualified PowerOcean charging power | Fresh Direct `charging` preserves the fast PowerOcean power; fresh Direct idle states produce `0 W`; stale or unmapped Direct state produces `unknown`. All branches are unit-tested and the entity loaded in HA. | Vehicle-backed transition pending |
 | Settings controls | Confirmed app routes, acknowledgement correlation, and qualified readback are required before HA reports success. | Confirmed |
 | Start/Stop | Stop persistence with Plug-and-Play and Continuous charging, plus an app-closed Start confirmed after 22.8 seconds, were live-validated. | Confirmed |
 | Phase control | Direct evidence, source separation, normal `auto → one_phase → auto` writes/readback, and safe restore were live-validated. | Confirmed with stale-Direct fallback accepted as a known limitation |
@@ -25,6 +28,12 @@ recorded in the [release record](backlog.md#v100-release-record).
 | Item | Needed evidence | Outcome if unavailable before release |
 | --- | --- | --- |
 | `PHASE-01` | Stale-Direct phase write with a qualified Parent-Accessory transition; provider-already-at-target edge case. | Accepted v1.0.0 limitation; retain fail-closed behavior and reopen only with a reproducible stale stream. |
+
+## Pending live validation
+
+| Item | Test when a vehicle is available | Passing result |
+| --- | --- | --- |
+| `ISSUE-13` | Observe the raw and qualified PowerOcean power during active charging, then with the cable connected but Direct reporting an idle state. Preserve the raw entities and do not write a charger setting. | During charging, the qualified entity follows the fast PowerOcean power. During a fresh Direct-idle interval, it is `0 W` even if the raw PowerOcean entity is non-zero. |
 
 ## Test principles
 
