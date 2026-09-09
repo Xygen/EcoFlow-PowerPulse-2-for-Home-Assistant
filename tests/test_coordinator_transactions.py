@@ -380,3 +380,19 @@ async def test_unlocked_flag_can_still_change_during_charging(harness):
     harness.heartbeat("charging")
     await harness.queued(harness.coordinator.async_set_plug_and_play(SERIAL, True), lambda: None)
     assert harness.sent == [{1: 18}]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("source", ["direct_settings_2_34", "provider_parent_accessory"])
+@pytest.mark.parametrize("key,value", [("work_mode", "fast"), ("continuous_charging", False),
+                                       ("switch_bits_raw", 17)])
+async def test_newer_conflicting_source_blocks_queued_solar_write(harness, source, key, value):
+    c = harness.coordinator
+    # Distinct timestamps avoid depending on the Windows clock resolution.
+    c._setting_observations.record_snapshot(
+        serial=SERIAL, source=source, values={key: value}, keys={key},
+        observed_at="2026-09-09T20:00:00+00:00", observed_monotonic=harness.now() + 0.01,
+    )
+    with pytest.raises(HAError):
+        await harness.queued(c.async_set_solar_minimum_current(SERIAL, 7), lambda: None)
+    assert harness.sent == []

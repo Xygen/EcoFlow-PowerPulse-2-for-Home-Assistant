@@ -781,6 +781,12 @@ class PowerPulse2Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
             now=time.monotonic(),
         )
 
+    def _control_setting_value(self, serial: str, key: str) -> Any:
+        """Reject newer contradictory evidence before preserving a setting."""
+        return self._setting_observations.current_value(
+            serial=serial, key=key, now=time.monotonic(), reject_newer_conflicts=True,
+        )
+
     async def _async_refresh_after_settings_reply(self) -> None:
         """Refresh provider state after a confirmed official-app settings reply."""
         try:
@@ -1300,7 +1306,7 @@ class PowerPulse2Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
                 await self._async_update_smart_staging(serial, overrides)
                 return
             candidate = {
-                key: self.setting_observation_value(serial, key)
+                key: self._control_setting_value(serial, key)
                 for key in STAGED_SMART_KEYS
             }
             candidate.update(overrides)
@@ -1486,7 +1492,7 @@ class PowerPulse2Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
             "indicator_enabled", "screen_enabled",
             "indicator_brightness_pct", "screen_brightness_pct",
         )
-        values = {key: self.setting_observation_value(serial, key) for key in required}
+        values = {key: self._control_setting_value(serial, key) for key in required}
         values.update(overrides)
         if (
             any(type(values[key]) is not bool for key in ("indicator_enabled", "screen_enabled"))
@@ -1512,7 +1518,7 @@ class PowerPulse2Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
         return int(percent)
 
     def _required_int_setting(self, serial: str, key: str) -> int:
-        value = self.setting_observation_value(serial, key)
+        value = self._control_setting_value(serial, key)
         if type(value) is not int:
             raise HomeAssistantError(f"Required device readback is unavailable: {key}")
         return value
@@ -1531,14 +1537,14 @@ class PowerPulse2Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
             "solar_current_min_raw": "solar",
             **dict.fromkeys(STAGED_SMART_KEYS, "smart"),
         }.get(key)
-        if required_mode is not None and self.setting_observation_value(serial, "work_mode") != required_mode:
+        if required_mode is not None and self._control_setting_value(serial, "work_mode") != required_mode:
             raise HomeAssistantError(f"This setting requires fresh {required_mode} mode readback")
         enabled_key = {
             "solar_current_min_raw": "continuous_charging",
             "screen_brightness_pct": "screen_enabled",
             "indicator_brightness_pct": "indicator_enabled",
         }.get(key)
-        if enabled_key and self.setting_observation_value(serial, enabled_key) is not True:
+        if enabled_key and self._control_setting_value(serial, enabled_key) is not True:
             raise HomeAssistantError(f"This setting requires fresh enabled readback: {enabled_key}")
 
     @staticmethod

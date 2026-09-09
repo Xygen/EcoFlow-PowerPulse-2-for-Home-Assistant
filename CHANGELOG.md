@@ -10,6 +10,8 @@ Current outstanding work is maintained only in
   command lock. Build flag, display, mode and active Smart bundles inside the
   lock from fresh companion observations. Preserve local Smart draft intent
   across queued mode changes. See [Issue #14](https://github.com/Xygen/EcoFlow-PowerPulse-2-for-Home-Assistant/issues/14).
+- Reject control preparation when a newer source contradicts a preserved setting
+  or a mode/enablement prerequisite, even if that source has lower display priority.
 
 ## 1.0.4 - 2026-09-07
 

@@ -16,12 +16,15 @@ tested; its vehicle-backed transition validation remains pending.
 ### Unreleased control transaction hardening
 
 [V2-SAFE-01 / Issue #14](https://github.com/Xygen/EcoFlow-PowerPulse-2-for-Home-Assistant/issues/14)
-is locally implemented and tested on 2026-09-09: 187 tests pass, including
-25 new transaction tests importing the complete coordinator with real locks,
+is locally implemented and tested on 2026-09-09: 193 tests pass, including
+31 new transaction tests importing the complete coordinator with real locks,
 observation trackers and payload builders. HA services and network replies are
 test doubles; these tests do not establish installed HA or vehicle behavior.
 Coverage includes queued charging/freshness/transport changes, mode and enablement
 changes, concurrent flags/display edits, active Smart companions and local drafts.
+Review reproduced six cases where newer contradictory mode, enablement or flag
+evidence from a lower-priority source was ignored. Control preparation now rejects
+these conflicts; ordinary observation display retains its existing source priority.
 
 Live acceptance remains open in the [central backlog](backlog.md#roadmap-bis-version-20):
 install the reviewed build, verify permitted idle writes and their readbacks,

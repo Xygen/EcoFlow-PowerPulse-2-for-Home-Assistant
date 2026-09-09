@@ -64,7 +64,9 @@ and the release contains no unverified new controls or guessed field mappings.
 
 Implementierungsstand: 2026-09-09.
 `V2-SAFE-01` / [Issue #14](https://github.com/Xygen/EcoFlow-PowerPulse-2-for-Home-Assistant/issues/14)
-ist lokal implementiert; 187 Tests bestehen, davon 25 neue Coordinator-Transaktionstests.
+ist lokal implementiert; 193 Tests bestehen, davon 31 neue Coordinator-Transaktionstests.
+Die Review ergänzte eine Sendesperre bei neueren widersprüchlichen Begleitwerten
+oder Modus-/Freigabewerten aus einer niedriger priorisierten Quelle.
 Die Installation und fahrzeuggestützte Abnahme stehen aus; das Item bleibt offen.
 Details zur Aussagegrenze: [Validierung](validation.md#unreleased-control-transaction-hardening).
 
