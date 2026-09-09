@@ -13,6 +13,24 @@ tested; its vehicle-backed transition validation remains pending.
 
 ## Confirmed behavior
 
+### Unreleased control transaction hardening
+
+[V2-SAFE-01 / Issue #14](https://github.com/Xygen/EcoFlow-PowerPulse-2-for-Home-Assistant/issues/14)
+is locally implemented and tested on 2026-09-09: 187 tests pass, including
+25 new transaction tests importing the complete coordinator with real locks,
+observation trackers and payload builders. HA services and network replies are
+test doubles; these tests do not establish installed HA or vehicle behavior.
+Coverage includes queued charging/freshness/transport changes, mode and enablement
+changes, concurrent flags/display edits, active Smart companions and local drafts.
+
+Live acceptance remains open in the [central backlog](backlog.md#roadmap-bis-version-20):
+install the reviewed build, verify permitted idle writes and their readbacks,
+then verify that a queued sensitive write is rejected after charging begins.
+General readback source atomicity and provider no-op qualification remain the
+separate scope of [Issue #15](https://github.com/Xygen/EcoFlow-PowerPulse-2-for-Home-Assistant/issues/15).
+
+### Released baseline
+
 | Area | Confirmed evidence | Status |
 | --- | --- | --- |
 | Direct telemetry | Charging state, power, voltage/current summaries, cumulative energy, session energy, and duration are decoded from direct heartbeat reports. | Confirmed |

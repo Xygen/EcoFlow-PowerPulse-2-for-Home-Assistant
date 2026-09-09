@@ -6,6 +6,11 @@ Current outstanding work is maintained only in
 
 ## Unreleased
 
+- Recheck charging state, freshness, mode and transport after acquiring the
+  command lock. Build flag, display, mode and active Smart bundles inside the
+  lock from fresh companion observations. Preserve local Smart draft intent
+  across queued mode changes. See [Issue #14](https://github.com/Xygen/EcoFlow-PowerPulse-2-for-Home-Assistant/issues/14).
+
 ## 1.0.4 - 2026-09-07
 
 - Add `Qualified PowerOcean – Charging power`, which preserves the fast

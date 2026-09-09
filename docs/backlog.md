@@ -62,7 +62,13 @@ and the release contains no unverified new controls or guessed field mappings.
 
 ## Roadmap bis Version 2.0
 
-Planungsstand: 2026-09-09. Vollständige Befunde und Validierungsgrenzen:
+Implementierungsstand: 2026-09-09.
+`V2-SAFE-01` / [Issue #14](https://github.com/Xygen/EcoFlow-PowerPulse-2-for-Home-Assistant/issues/14)
+ist lokal implementiert; 187 Tests bestehen, davon 25 neue Coordinator-Transaktionstests.
+Die Installation und fahrzeuggestützte Abnahme stehen aus; das Item bleibt offen.
+Details zur Aussagegrenze: [Validierung](validation.md#unreleased-control-transaction-hardening).
+
+Vollständige Befunde und Validierungsgrenzen:
 [Prüfbericht](review_2026-09-09.md). Diese Roadmap ist ein Vorschlag zur
 Umsetzungsreihenfolge, keine Aussage über bereits gelieferte Funktionen.
 Bestehende IDs oben bleiben maßgeblich und werden unten nur zugeordnet.
