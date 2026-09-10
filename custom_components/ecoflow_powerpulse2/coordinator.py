@@ -11,9 +11,10 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.exceptions import ConfigEntryAuthFailed, HomeAssistantError
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
+from homeassistant.helpers.event import async_track_time_interval
 from homeassistant.helpers.storage import Store
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
@@ -206,6 +207,7 @@ class PowerPulse2Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
         )
         self._last_automatic_reconnect_at: dict[str, float] = {}
         self._stream_timeline = StreamTimeline()
+        self._stream_diagnostics_unsub = None
         self._accessory_descriptors: dict[str, bytes] = {}
         self._reply_waiters: dict[tuple[str, int, int, int], asyncio.Future[None]] = {}
         self._control_lock = asyncio.Lock()
@@ -731,6 +733,31 @@ class PowerPulse2Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
             )
         else:
             self._record_stream_event(serial, "recovery_result", "returned")
+
+    @callback
+    def async_start_stream_diagnostics(self) -> None:
+        """Observe freshness independently of the push-reset polling timer."""
+        if self._stream_diagnostics_unsub is not None or self._shutting_down:
+            return
+        self._stream_diagnostics_unsub = async_track_time_interval(
+            self.hass, self._sample_stream_diagnostics, timedelta(seconds=30)
+        )
+        self._sample_stream_diagnostics(None)
+
+    @callback
+    def async_stop_stream_diagnostics(self) -> None:
+        """Cancel observations when the config entry unloads."""
+        if self._stream_diagnostics_unsub is not None:
+            self._stream_diagnostics_unsub()
+            self._stream_diagnostics_unsub = None
+
+    @callback
+    def _sample_stream_diagnostics(self, _now: datetime | None) -> None:
+        """Record observations only: no provider read, reconnect or publish."""
+        if self._shutting_down:
+            return
+        for serial in self.devices:
+            self._record_stream_event(serial, "watchdog_sample", "observation_only")
 
     def _schedule_mqtt_status(self, serial: str, status: str, code: int) -> None:
         """Marshal transport callbacks onto the HA loop; discard free text."""
@@ -2071,6 +2098,7 @@ class PowerPulse2Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
 
     async def async_shutdown(self) -> None:
         self._shutting_down = True
+        self.async_stop_stream_diagnostics()
         await self._settings_refresh.async_close()
         if self._smart_staging_tasks:
             await asyncio.gather(*self._smart_staging_tasks, return_exceptions=True)

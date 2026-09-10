@@ -50,6 +50,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     entry.runtime_data = coordinator
     _enable_new_canonical_sensor_defaults(hass, list(coordinator.devices), DOMAIN)
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
+    coordinator.async_start_stream_diagnostics()
     return True
 
 

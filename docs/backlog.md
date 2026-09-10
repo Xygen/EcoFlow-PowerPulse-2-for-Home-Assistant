@@ -62,6 +62,14 @@ and the release contains no unverified new controls or guessed field mappings.
 
 ## Roadmap bis Version 2.0
 
+Issue #19 follow-up: beta.4 live verification confirms connection events but
+exposes polling-dependent diagnostic starvation under frequent MQTT pushes.
+Beta.5 prepares a separate, read-only sampler while preserving beta.4 safety
+and authentication changes. See [the evidence and contract](validation.md#independent-observations-in-beta5).
+Next gate: verify independent samples in HA; then observe a new idle gap.
+Recovery scheduling starvation is a separate remaining investigation item;
+this change does not enable extra recovery attempts or close Issue #19.
+
 Completed on 2026-09-10: V2-DOC-01 / Issue #20 was accepted through
 [PR #26](https://github.com/Xygen/EcoFlow-PowerPulse-2-for-Home-Assistant/pull/26),
 merge `678303a`. Smart drafts, source selection, field 17 and stable/beta scope

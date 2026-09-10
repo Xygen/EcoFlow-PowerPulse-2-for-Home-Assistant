@@ -12,7 +12,7 @@ class StreamTimeline:
         self.started_at = datetime.now(UTC).isoformat()
         self._events: deque[dict] = deque(maxlen=limit)
         self._sources: dict[str, str] = {}
-        self._samples: dict[str, tuple[tuple, float]] = {}
+        self._samples: dict[tuple[str, str], tuple[tuple, float]] = {}
         self._dropped = 0
 
     def record(
@@ -24,11 +24,12 @@ class StreamTimeline:
     ) -> None:
         """Called only on the HA loop with fixed event/reason vocabularies."""
         signature = (reason, connected, settings_fresh, heartbeat_fresh)
-        if event == "recovery_check":
-            previous = self._samples.get(serial)
+        if event in {"recovery_check", "watchdog_sample"}:
+            sample_key = (serial, event)
+            previous = self._samples.get(sample_key)
             if previous and previous[0] == signature and now - previous[1] < 300:
                 return
-            self._samples[serial] = (signature, now)
+            self._samples[sample_key] = (signature, now)
         source = self._sources.setdefault(serial, f"source_{len(self._sources) + 1}")
         if len(self._events) == self._events.maxlen:
             self._dropped += 1
@@ -49,5 +50,6 @@ class StreamTimeline:
             "timestamp_basis": "HA event-loop observation (UTC)",
             "limit": self._events.maxlen, "dropped_events": self._dropped,
             "sample_interval_s": 300,
+            "watchdog_tick_s": 30,
             "events": deepcopy(list(self._events)),
         }

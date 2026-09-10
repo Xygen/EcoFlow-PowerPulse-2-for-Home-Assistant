@@ -218,6 +218,26 @@ not part of this branch. No device or Home Assistant deployment is involved.
 
 ## Stream timeline diagnostics
 
+### Independent observations in beta.5
+
+Live verification of beta.4 found only two connection events after more than
+20 minutes, despite fresh telemetry. The recovery checks run from polling,
+whereas MQTT delivery uses `async_set_updated_data`, which
+[resets the next polling deadline](https://developers.home-assistant.io/docs/integration_fetching_data/#pushing-api-endpoints).
+Frequent pushes can therefore prevent those checks from running. This explains
+missing periodic evidence; it does not establish the cause of prior stream gaps.
+
+Beta.5 adds a separate 30-second HA interval listener, started only after platform
+setup and cancelled on unload. `watchdog_sample` / `observation_only` entries
+contain fresh report-age samples without performing any I/O or recovery action.
+They coalesce independently from actual `recovery_check` events, keeping state
+changes and otherwise one record per five minutes. Thus observations do not
+claim that the recovery routine ran. The original recovery scheduling is unchanged.
+Tests cover independent invocation, coalescing, no reconnect and cancellation.
+Live acceptance of this corrected sampling remains pending until verified below.
+
+### Original timeline contract
+
 The unreleased Issue #19 implementation exposes
 `data.passive_settings_refresh.stream_timeline` in integration diagnostics.
 It records MQTT connected/disconnected callbacks, recovery eligibility reasons,
@@ -247,7 +267,8 @@ coordinator methods with isolated HA boundaries, including disconnected and
 never-started streams, error cooldown and callback queuing. These are not full
 HA lifecycle fixtures or live outage acceptance. The policy still requires both
 previously observed streams stale for 300 seconds and a 1,800-second cooldown.
-This code has not been deployed; installed-beta and vehicle acceptance are
+The original timeline is present in the installed beta.4; periodic sampling
+acceptance requires the beta.5 correction above. Installed-beta and vehicle acceptance are
 tracked in the [central backlog](backlog.md).
 
 ## Test principles

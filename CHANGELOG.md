@@ -6,6 +6,15 @@ Current outstanding work is maintained only in
 
 ## Unreleased
 
+## 1.0.5-beta.5 - 2026-09-10
+
+- Preserve all beta.4 safety/authentication changes and add an independent,
+  read-only stream sampler. Frequent MQTT pushes reset the coordinator polling
+  timer, so recovery-check diagnostics alone did not produce periodic evidence.
+  The sampler observes every 30 seconds, retaining changed states or a sample
+  every five minutes. It is cancelled on unload and triggers no network requests,
+  reconnects or device commands. Recovery scheduling itself is unchanged.
+
 ## 1.0.5-beta.4 - 2026-09-10
 
 Test build adding the PR #30 certificate refresh on top of 1.0.5-beta.3, and

@@ -73,7 +73,8 @@ def harness(monkeypatch):
 
     module("homeassistant")
     module("homeassistant.config_entries", ConfigEntry=object)
-    module("homeassistant.core", HomeAssistant=object)
+    module("homeassistant.core", HomeAssistant=object, callback=lambda function: function)
+    module("homeassistant.helpers.event", async_track_time_interval=lambda *args: lambda: None)
     module(
         "homeassistant.exceptions",
         ConfigEntryAuthFailed=AuthFailed,
