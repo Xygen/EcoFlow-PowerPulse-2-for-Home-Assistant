@@ -62,22 +62,22 @@ and the release contains no unverified new controls or guessed field mappings.
 
 ## Roadmap bis Version 2.0
 
-Stand 2026-09-10: [V2-DOC-01 / Issue #20](https://github.com/Xygen/EcoFlow-PowerPulse-2-for-Home-Assistant/issues/20)
-ist zur Review dokumentiert: lokale Smart-Entwürfe, Aktivierung und Gerätemeldungen
-sind getrennt erklärt; die Quellenwahl für Automationen enthält die Frischegrenzen
-von 1.0.4; Feld 17 verweist auf die abgeschlossene DATA-03-Validierung.
-README/Index/Anleitung nennen die stabile Basis, der Validierungsbericht trennt
-den datierten Beta-Test davon. Versions-/Übersetzungskorrekturen sind mit PR #24
-bereits gemergt. Das Issue bleibt bis zur Prüfung und Übernahme der restlichen Doku offen.
+Completed on 2026-09-10: V2-DOC-01 / Issue #20 was accepted through
+[PR #26](https://github.com/Xygen/EcoFlow-PowerPulse-2-for-Home-Assistant/pull/26),
+merge `678303a`. Smart drafts, source selection, field 17 and stable/beta scope
+are documented. V2-QA-01 / Issue #17 was completed through
+[PR #24](https://github.com/Xygen/EcoFlow-PowerPulse-2-for-Home-Assistant/pull/24),
+merge `7f09767`, including the version declarations and translation-key fix.
+Quality, HACS and Hassfest passed on both merge commits. See
+[automated checks](validation.md#automated-repository-checks).
 
-Stand 2026-09-10: [V2-QA-01 / Issue #17](https://github.com/Xygen/EcoFlow-PowerPulse-2-for-Home-Assistant/issues/17)
-ist auf einem unabhängigen Branch von `main` umgesetzt: pytest, Ruff und
-Dokumentationskonsistenz laufen zusätzlich zu HACS/Hassfest. Lokal bestehen
-170 Tests einschließlich absichtlich fehlerhafter Prüffälle. Workflow-Abnahme
-erfolgt am zugehörigen PR; Repository-Schutzregeln werden nicht geändert.
-Details: [automatische Prüfungen](validation.md#automated-repository-checks).
-Die damit zwingend verbundenen Versionskorrekturen in README/Index und der fehlende
-Schlüssel in `strings.json` erledigen einen Teil von #20; die übrige Anleitung bleibt dort offen.
+Investigation on 2026-09-10: V2-STREAM-01 / Issue #19 remains open.
+[A new 24-hour idle observation](stream_investigation_2026-09-10.md) correlates
+six qualified-power gaps with heartbeat freshness: three short gaps near
+integration loads and three longer paired-stream gaps. Next, capture a bounded
+connection/recovery timeline with report ages and integration start time before
+changing recovery policy. Current snapshots cannot establish connectivity or
+recovery decisions during earlier gaps; no vehicle is required for this step.
 
 Stand 2026-09-10: [V2-AUTH-01 / Issue #16](https://github.com/Xygen/EcoFlow-PowerPulse-2-for-Home-Assistant/issues/16)
 ist in Stufe 1 auf einem unabhängigen Branch von `main` umgesetzt: abgelehnte
