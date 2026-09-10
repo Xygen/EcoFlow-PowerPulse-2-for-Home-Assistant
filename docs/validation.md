@@ -80,13 +80,37 @@ before expiry. The MQTT layer still detects an expired certificate and logs
 that a refresh is scheduled, but nothing consumes that signal, and existing
 MQTT clients keep the certificate they connected with.
 
+### Confirmed on 2026-09-10 on `1.0.5-beta.3`
+
+| Item | Test | Result |
+| --- | --- | --- |
+| `V2-AUTH-01` sign-in | Deliberately wrong password while adding the integration. | Confirmed. The form reported rejected credentials, not a connection problem. |
+
+This confirms the credential-endpoint classification and that the translated
+`invalid_auth` string is wired through. It does not confirm the opposite
+direction: that an unreachable endpoint is *not* reported as a credential
+problem is a separate observation, and both are needed before the no-false-prompt
+claim is established.
+
+### Open, and how to reach each one
+
+The reconfigure dialog is reachable at any time from the integration menu and
+runs the same sequence as the repair dialog: `async_set_unique_id`,
+`_abort_if_unique_id_mismatch`, the credential check, then
+`async_update_reload_and_abort` with the same data. Only the entry lookup, the
+step id and the abort reason differ. Two of the open items can therefore be
+observed without invalidating any credential.
+
 | Item | Test without a vehicle | Passing result |
 | --- | --- | --- |
-| `V2-AUTH-01` sign-in | Enter a deliberately wrong password when adding the integration. | The form reports rejected credentials, not a connection problem. |
-| `V2-AUTH-01` outage | Add the integration while EcoFlow is unreachable. | The form reports a connection problem and never asks whether the password is correct. |
-| `V2-AUTH-01` renewal | Let the integration run until a provider read is refused, without changing the account password. | The log records a renewed session and data returns on a later cycle. No dialog appears, because the stored credentials still work. |
-| `V2-AUTH-01` repair | Change the EcoFlow account password so the stored one is refused, then complete the re-authentication dialog. | Home Assistant offers the dialog instead of retrying; after the repair the entry reloads and every entity ID, recorded history, user activation and local Smart draft is unchanged. |
-| `V2-AUTH-01` account guard | Enter a different EcoFlow account in the repair dialog. | The flow aborts with the wrong-account reason and leaves the entry untouched. |
+| `V2-AUTH-01` account guard | Reconfigure, entering a different EcoFlow account. | Aborts with the wrong-account reason and leaves the entry untouched. Same code path as the repair dialog, so this settles the guard for both. |
+| `V2-AUTH-01` entry update | Reconfigure, re-entering the current credentials. | Reports credentials updated, the entry reloads, and every entity ID, recorded history, user activation and local Smart draft is unchanged. Covers everything the repair dialog does except the trigger. |
+| `V2-AUTH-01` outage | Add the integration while the host cannot reach EcoFlow, for example with the internet uplink briefly disconnected. | The form reports a connection problem and never asks whether the password is correct. |
+| `V2-AUTH-01` renewal | Let the integration run until EcoFlow refuses the token, without changing the account password. | The log records a renewed session and data returns on a later cycle. No dialog appears, because the stored credentials still work. Cannot be forced; it waits for a real expiry. |
+| `V2-AUTH-01` repair trigger | Change the EcoFlow account password so the stored one is refused. | Home Assistant offers the repair dialog instead of retrying. This is the one step that needs an invalidated credential, and after the two reconfigure observations above it is the only untested part of the repair path. |
+
+Changing the account password invalidates the EcoFlow app and any other
+integration using it until each is signed in again.
 
 ## Automated repository checks
 

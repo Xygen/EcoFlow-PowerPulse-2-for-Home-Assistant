@@ -94,8 +94,15 @@ Klassifikationsregel, der Vergleich mit `ecoflow-energy-ha` und die
 Aussagegrenzen stehen in [der Analyse](issue_16_auth_analysis.md); die
 fahrzeugunabhängigen Abnahmeschritte in der
 [Validierung](validation.md#unreleased-authentication-failure-handling).
-Die Live-Abnahme mit absichtlich ungültigen Zugangsdaten steht aus;
-das Issue bleibt offen.
+Abnahmestand 2026-09-10 auf `1.0.5-beta.3`: Ein falsches Passwort bei der
+Einrichtung meldet abgelehnte Zugangsdaten statt eines Verbindungsproblems.
+Damit sind die Klassifikation am Credential-Endpunkt und die Übersetzung
+belegt, nicht jedoch die Gegenrichtung. Offen bleiben Ausfallmeldung,
+Erneuerung und der Auslöser des Reparaturdialogs; Kontoschutz und
+Eintragsaktualisierung sind über den Rekonfigurationsdialog ohne ungültige
+Zugangsdaten prüfbar, weil beide Flows dieselbe Sequenz durchlaufen.
+Einzelheiten: [Validierung](validation.md#open-and-how-to-reach-each-one).
+Das Issue bleibt offen.
 
 Planungsstand: 2026-09-09. Vollständige Befunde und Validierungsgrenzen:
 [Prüfbericht](review_2026-09-09.md). Diese Roadmap ist ein Vorschlag zur
