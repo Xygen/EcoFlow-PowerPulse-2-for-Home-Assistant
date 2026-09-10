@@ -111,14 +111,26 @@ validated before automatic renewal is added.
    dialog for a password that still works, which is the failure this item
    exists to prevent. Only a refused sign-in reaches `ConfigEntryAuthFailed`.
 
-### Stage 2 — credential refresh (not implemented)
+### Stage 2 — credential refresh (implemented)
 
-6. Wire `auth_error_handler` in `_async_setup_mqtt` to a bounded credential
-   refresh so the existing detection is consumed. Existing MQTT clients keep
-   the certificate they connected with, so a renewed HTTP session does not
-   repair the stream on its own.
-7. Refresh proactively by credential age instead of waiting for the first
-   failure, and adopt the broker address named by the credential response.
+8. Wire `auth_error_handler` in `_async_setup_mqtt` so the transport's own
+   detection is consumed. It fires on the paho network thread, so the work is
+   handed to the event loop rather than done there. The refresh fetches a
+   certificate, renewing the session once if the endpoint refuses it, and
+   hands the result to every live client. It is rate limited so a broker that
+   keeps refusing cannot turn each reconnect into a certificate request, and
+   it never raises, because one caller is a task with nothing above it to
+   catch anything. A refused sign-in opens the repair dialog directly, since
+   there is no update cycle here to carry a `ConfigEntryAuthFailed`.
+9. Replace a still-working certificate once it reaches a set age, checked on
+   the existing coordinator cycle rather than a separate timer. Waiting for
+   the first refusal means every expiry costs a stream outage.
+10. Take the broker address from the credential response. A renewed
+    certificate can be issued for a different server, and keeping the previous
+    address while adopting the credentials fails without a CONNACK and without
+    anything naming a cause. A session is rebuilt only when the certificate or
+    the address actually changed, because tearing down a healthy connection
+    costs a data gap for nothing.
 
 ## Cross-project review
 
