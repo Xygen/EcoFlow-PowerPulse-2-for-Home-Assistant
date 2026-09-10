@@ -6,6 +6,17 @@ Current outstanding work is maintained only in
 
 ## Unreleased
 
+- Tell a refused EcoFlow credential apart from an unreachable endpoint, and offer
+  Home Assistant re-authentication and reconfiguration instead of an endless
+  retry. Sign-in, certification, device discovery and provider detail reads now
+  classify their answers, so an expired session starts the credential repair
+  dialog while a temporary outage keeps retrying. Repairing credentials updates
+  the existing config entry, preserving entity IDs, history, user activations and
+  local Smart drafts. An expired token no longer disables the bounded PowerOcean
+  fallback silently: the stored credentials are tried again first, at most once
+  every five minutes, so only credentials EcoFlow actually refuses reach the user
+  as a dialog.
+
 - Explain local Smart drafts, activation and observed device settings in the user
   guide; document raw/qualified charging-power sources, automation limits and
   unknown/unavailable handling. Correct the field-17 reference from existing

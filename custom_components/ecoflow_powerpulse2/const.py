@@ -28,6 +28,10 @@ CONF_EMAIL = "email"
 CONF_PASSWORD = "password"
 UPDATE_INTERVAL_SECONDS = 30
 SETTINGS_REFRESH_DELAY_SECONDS = 20
+# Shortest gap between two sign-in attempts made to renew an expired
+# session. Long enough that a repeatedly refused token cannot turn every
+# coordinator cycle into a login, short enough to recover unattended.
+SESSION_RENEWAL_INTERVAL_SECONDS = 300
 
 
 @dataclass(frozen=True, kw_only=True)
