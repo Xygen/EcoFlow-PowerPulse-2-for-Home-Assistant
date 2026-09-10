@@ -69,6 +69,12 @@ once at setup and never renewed on its own, which makes an expired session the
 likely cause rather than a wrong password. Only a refused sign-in opens the
 repair dialog.
 
+Failure reasons carry the response status and result code only. The server's
+free-text message stays at debug level, because a reason reaches the Home
+Assistant interface and the warning log, and this integration cannot vouch for
+what EcoFlow writes there. A test enforces that rule against both transport
+modules.
+
 Not implemented in this change: MQTT credential refresh and proactive renewal
 before expiry. The MQTT layer still detects an expired certificate and logs
 that a refresh is scheduled, but nothing consumes that signal, and existing

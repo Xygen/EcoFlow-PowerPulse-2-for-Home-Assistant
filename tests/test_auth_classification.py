@@ -109,9 +109,15 @@ def test_any_success_wins_and_no_attempt_is_not_a_rejection() -> None:
     assert aggregate_outcomes([]) is AuthOutcome.CONNECTION_FAILURE
 
 
-def test_description_reports_only_non_credential_fields() -> None:
-    described = describe_response(200, {"code": "6042", "message": "bad", "data": "x"})
-    assert described == "status=200 code=6042 msg=bad"
+def test_description_withholds_server_text_by_default() -> None:
+    """Reasons reach the Home Assistant interface and the warning log.
+
+    A status and a result code cannot identify an account. Free text written
+    by the server can, and a log is what people attach to a public issue.
+    """
+    body = {"code": "6042", "message": "bad", "data": "x"}
+    assert describe_response(200, body) == "status=200 code=6042"
+    assert describe_response(200, body, detailed=True) == "status=200 code=6042 msg=bad"
     assert describe_response(503, "<html>") == "status=503"
 
 

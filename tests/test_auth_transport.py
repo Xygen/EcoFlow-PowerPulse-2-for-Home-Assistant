@@ -7,7 +7,9 @@ ones: only the network boundary is doubled.
 
 from __future__ import annotations
 
+import ast
 import sys
+from pathlib import Path
 from types import ModuleType
 from typing import Any
 
@@ -213,3 +215,36 @@ async def test_business_error_on_the_provider_path_yields_no_data() -> None:
 async def test_transient_read_failure_still_yields_no_data() -> None:
     client = _client(_Session(TimeoutError(), _Response(503, None)))
     assert await client.async_read({"serial": "C376-test"}) == {}
+
+
+COMPONENT = Path(__file__).parents[1] / "custom_components/ecoflow_powerpulse2"
+
+
+@pytest.mark.parametrize("module", ["api.py", "ecoflow/enhanced_auth.py"])
+def test_server_text_is_only_ever_logged_at_debug(module: str) -> None:
+    """The detailed reason must not travel into an exception or a warning.
+
+    A reason reaches the Home Assistant interface and the warning log, and a
+    log is what people attach to a public issue. Only debug output may carry
+    free text the server wrote.
+    """
+    tree = ast.parse((COMPONENT / module).read_text(encoding="utf-8"))
+    detailed: list[ast.Call] = [
+        node
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Name)
+        and node.func.id == "describe_response"
+        and any(k.arg == "detailed" for k in node.keywords)
+    ]
+    assert detailed, f"{module} never asks for the detailed reason"
+    for call in detailed:
+        enclosing = [
+            node
+            for node in ast.walk(tree)
+            if isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Attribute)
+            and any(call is arg for arg in node.args)
+        ]
+        assert enclosing, "detailed reason used outside a call"
+        assert all(node.func.attr == "debug" for node in enclosing)

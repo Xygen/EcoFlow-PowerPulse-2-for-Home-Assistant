@@ -96,7 +96,11 @@ async def enhanced_login(
         outcomes.append(outcome)
         if outcome is not AuthOutcome.SUCCESS:
             last_error = describe_response(status, body)
-            _LOGGER.debug("Login attempt %s: %s", base_url, last_error)
+            _LOGGER.debug(
+                "Login attempt %s: %s",
+                base_url,
+                describe_response(status, body, detailed=True),
+            )
             continue
 
         data = body["data"]
@@ -140,12 +144,15 @@ async def get_enhanced_credentials(
         raise PowerPulse2ConnectionError(str(exc)) from exc
 
     outcome = classify_credential_response(status, body)
-    if outcome is AuthOutcome.AUTH_FAILURE:
-        reason = describe_response(status, body)
-        _LOGGER.warning("Enhanced certification rejected the token: %s", reason)
-        raise PowerPulse2AuthError(reason)
     if outcome is not AuthOutcome.SUCCESS:
         reason = describe_response(status, body)
+        _LOGGER.debug(
+            "Enhanced certification refused: %s",
+            describe_response(status, body, detailed=True),
+        )
+        if outcome is AuthOutcome.AUTH_FAILURE:
+            _LOGGER.warning("Enhanced certification rejected the token: %s", reason)
+            raise PowerPulse2AuthError(reason)
         _LOGGER.warning("Enhanced certification failed: %s", reason)
         raise PowerPulse2ConnectionError(reason)
 

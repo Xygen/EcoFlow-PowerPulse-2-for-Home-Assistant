@@ -98,7 +98,13 @@ validated before automatic renewal is added.
    existing unique ID so the entry is updated instead of replaced.
 5. Update `strings.json` and both translations together; the repository
    consistency check enforces key parity.
-6. Sign in again once before reporting a refusal to the user, rate limited to
+6. Build failure reasons from the response's own status and result code and
+   leave the server's free-text message at debug level. A reason travels into
+   exception text, which reaches the Home Assistant interface and the warning
+   log, and a log is what people attach to a public issue. A status and a code
+   cannot identify an account; text written by EcoFlow is not something this
+   integration can vouch for.
+7. Sign in again once before reporting a refusal to the user, rate limited to
    one attempt every five minutes. This belongs in stage 1 rather than stage
    2: the token is obtained once at setup and never renewed on its own, so
    without this step an ordinary expired session would open a password

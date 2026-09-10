@@ -141,7 +141,7 @@ class PowerPulse2ApiClient:
             _LOGGER.debug(
                 "PowerPulse detail request rejected via %s: %s",
                 base_url,
-                describe_response(status, body),
+                describe_response(status, body, detailed=True),
             )
 
         if aggregate_outcomes(outcomes) is AuthOutcome.AUTH_FAILURE:
