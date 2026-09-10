@@ -12,12 +12,16 @@ from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
-from homeassistant.exceptions import HomeAssistantError
+from homeassistant.exceptions import ConfigEntryAuthFailed, HomeAssistantError
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.storage import Store
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
 from .api import PowerPulse2ApiClient
+from .auth_classification import (
+    PowerPulse2AuthError,
+    PowerPulse2ConnectionError,
+)
 from .charge_control import (
     charge_action_allowed,
     charge_action_confirm_seconds,
@@ -29,6 +33,7 @@ from .const import (
     CONF_EMAIL,
     CONF_PASSWORD,
     DOMAIN,
+    SESSION_RENEWAL_INTERVAL_SECONDS,
     SETTINGS_REFRESH_DELAY_SECONDS,
     UPDATE_INTERVAL_SECONDS,
 )
@@ -213,6 +218,7 @@ class PowerPulse2Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
         self._smart_staging_tasks: set[asyncio.Task[None]] = set()
         self._shutting_down = False
         self._initialized = False
+        self._last_session_renewal = 0.0
 
     async def async_load_smart_staging(self) -> None:
         """Load privacy-safe staged Smart input before device discovery."""
@@ -400,6 +406,11 @@ class PowerPulse2Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
                     raise UpdateFailed("No EcoFlow PowerPulse device found")
                 try:
                     await self._async_setup_mqtt()
+                except PowerPulse2AuthError:
+                    # A refused credential is not a degraded transport: it
+                    # cannot be retried into working, so it must reach the
+                    # re-authentication mapping below.
+                    raise
                 except Exception as exc:
                     # HTTP snapshots can still provide useful read-only data;
                     # the coordinator watchdog retries MQTT independently.
@@ -420,10 +431,46 @@ class PowerPulse2Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
                 )
                 self._remember_smart_settings(serial, result[serial])
             return result
+        except PowerPulse2AuthError as exc:
+            await self._async_renew_session(exc)
+        except PowerPulse2ConnectionError as exc:
+            raise UpdateFailed(f"EcoFlow PowerPulse 2 unreachable: {exc}") from exc
         except UpdateFailed:
             raise
         except Exception as exc:
             raise UpdateFailed(f"EcoFlow PowerPulse 2 update failed: {exc}") from exc
+
+    async def _async_renew_session(self, refusal: PowerPulse2AuthError) -> None:
+        """Sign in again before troubling the user, then end this cycle.
+
+        A refused request is usually an expired session rather than a wrong
+        password: the token is obtained once at setup and, on its own, is never
+        renewed. Asking the user to retype a password that still works would be
+        a false alarm, so the stored credentials are tried first. Only their
+        refusal is evidence the user has to act on.
+
+        This never returns normally. Either the credentials are gone and Home
+        Assistant is asked to repair them, or the cycle is reported as failed
+        and the renewed session serves the next one.
+        """
+        now = time.monotonic()
+        if now - self._last_session_renewal < SESSION_RENEWAL_INTERVAL_SECONDS:
+            # Renewed moments ago and refused again. Retrying harder would
+            # only produce a sign-in per cycle, and the repeat is not proof
+            # about the credentials themselves.
+            raise UpdateFailed(f"EcoFlow PowerPulse 2 session refused: {refusal}")
+        self._last_session_renewal = now
+        try:
+            await self.api.async_login()
+        except PowerPulse2AuthError as exc:
+            # The stored credentials themselves are refused. This is the one
+            # case the user can fix, so it ends the retry loop and opens the
+            # re-authentication dialog.
+            raise ConfigEntryAuthFailed(str(exc)) from exc
+        except PowerPulse2ConnectionError as exc:
+            raise UpdateFailed(f"EcoFlow PowerPulse 2 unreachable: {exc}") from exc
+        _LOGGER.info("Renewed the EcoFlow session after a refused request")
+        raise UpdateFailed("EcoFlow PowerPulse 2 session renewed") from refusal
 
     async def _async_read_parent_accessories(self) -> dict[str, dict[str, Any]]:
         """Read embedded wallbox snapshots once per discovered PowerOcean."""
@@ -471,7 +518,7 @@ class PowerPulse2Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
         account = credentials.get("certificateAccount") or credentials.get("userName", "")
         password = credentials.get("certificatePassword") or credentials.get("password", "")
         if not account or not password:
-            raise ConnectionError("Incomplete MQTT credentials")
+            raise PowerPulse2ConnectionError("Incomplete MQTT credentials")
 
         for serial in self._mqtt_sources:
             if serial in self.mqtt_clients:
@@ -503,6 +550,8 @@ class PowerPulse2Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
         if any(serial not in self.mqtt_clients for serial in self._mqtt_sources):
             try:
                 await self._async_setup_mqtt()
+            except PowerPulse2AuthError:
+                raise
             except Exception as exc:
                 _LOGGER.debug("PowerPulse MQTT setup retry failed: %s", exc)
 

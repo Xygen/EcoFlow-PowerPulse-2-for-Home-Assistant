@@ -23,6 +23,15 @@ try:
 except ImportError:  # cryptography < 43.0
     from cryptography.hazmat.primitives.ciphers.modes import CFB
 
+from ..auth_classification import (
+    AuthOutcome,
+    PowerPulse2AuthError,
+    PowerPulse2ConnectionError,
+    aggregate_outcomes,
+    classify_credential_response,
+    classify_login_response,
+    describe_response,
+)
 from .const import IOT_API_BASE
 
 _LOGGER = logging.getLogger(__name__)
@@ -43,14 +52,20 @@ async def enhanced_login(
     session: aiohttp.ClientSession,
     email: str,
     password: str,
-) -> dict[str, Any] | None:
+) -> dict[str, Any]:
     """Login to EcoFlow and return JWT token + userId.
 
-    Tries multiple API base URLs for resilience.
+    Tries multiple API base URLs for resilience and classifies the combined
+    result, so a rejected credential can be told apart from an endpoint that
+    never answered.
 
     Returns:
         dict with ``token``, ``user_id`` and ``base_url`` (the host that
-        accepted the login), or None on failure.
+        accepted the login).
+
+    Raises:
+        PowerPulse2AuthError: every endpoint rejected the credentials.
+        PowerPulse2ConnectionError: no endpoint produced a usable answer.
     """
     payload = {
         "email": email,
@@ -59,69 +74,92 @@ async def enhanced_login(
         "userType": "ECOFLOW",
     }
 
+    outcomes: list[AuthOutcome] = []
     last_error = ""
     for base_url in _AUTH_BASE_URLS:
         url = f"{base_url.rstrip('/')}{_AUTH_LOGIN_PATH}"
         try:
             timeout = aiohttp.ClientTimeout(total=10)
             async with session.post(url, json=payload, timeout=timeout) as resp:
-                body = await resp.json()
-                if str(body.get("code")) != "0":
-                    last_error = f"code={body.get('code')} msg={body.get('message')}"
-                    _LOGGER.debug("Login attempt %s: %s", base_url, last_error)
-                    continue
-                data = body.get("data", {})
-                token = data.get("token", "")
-                user = data.get("user", {})
-                user_id = str(user.get("userId", ""))
-                if not token or not user_id:
-                    last_error = "missing token or userId in response"
-                    _LOGGER.debug("Login attempt %s: %s", base_url, last_error)
-                    continue
-                _LOGGER.debug("Enhanced login OK via %s", base_url)
-                return {"token": token, "user_id": user_id, "base_url": base_url}
+                status = resp.status
+                try:
+                    body = await resp.json(content_type=None)
+                except (aiohttp.ClientError, ValueError):
+                    body = None
         except (aiohttp.ClientError, TimeoutError) as exc:
+            outcomes.append(AuthOutcome.CONNECTION_FAILURE)
             last_error = str(exc)
             _LOGGER.debug("Login attempt %s failed: %s", base_url, exc)
             continue
 
-    _LOGGER.warning("Enhanced login failed on all endpoints: %s", last_error)
-    return None
+        outcome = classify_login_response(status, body)
+        outcomes.append(outcome)
+        if outcome is not AuthOutcome.SUCCESS:
+            last_error = describe_response(status, body)
+            _LOGGER.debug("Login attempt %s: %s", base_url, last_error)
+            continue
+
+        data = body["data"]
+        _LOGGER.debug("Enhanced login OK via %s", base_url)
+        return {
+            "token": data["token"],
+            "user_id": str(data["user"]["userId"]),
+            "base_url": base_url,
+        }
+
+    if aggregate_outcomes(outcomes) is AuthOutcome.AUTH_FAILURE:
+        _LOGGER.warning("EcoFlow rejected the stored credentials: %s", last_error)
+        raise PowerPulse2AuthError(last_error or "credentials rejected")
+    _LOGGER.warning("Enhanced login unavailable on all endpoints: %s", last_error)
+    raise PowerPulse2ConnectionError(last_error or "no endpoint answered")
 
 
 async def get_enhanced_credentials(
     session: aiohttp.ClientSession,
     token: str,
     base_url: str = IOT_API_BASE,
-) -> dict[str, Any] | None:
+) -> dict[str, Any]:
     """Fetch and decrypt Enhanced Mode MQTT credentials (Portal path).
 
-    This is a fallback — the primary path uses IoT Developer API credentials.
-
-    Returns:
-        dict with ``certificateAccount``, ``certificatePassword``, etc.
+    Raises:
+        PowerPulse2AuthError: the token was rejected.
+        PowerPulse2ConnectionError: the endpoint answered unusably.
     """
     url = f"{base_url.rstrip('/')}{_ENHANCED_CERT_PATH}"
     headers = {"Authorization": f"Bearer {token}"}
     try:
         timeout = aiohttp.ClientTimeout(total=10)
         async with session.get(url, headers=headers, timeout=timeout) as resp:
-            body = await resp.json()
-            if str(body.get("code")) != "0":
-                _LOGGER.warning(
-                    "Enhanced certification failed: code=%s msg=%s",
-                    body.get("code"),
-                    body.get("message"),
-                )
-                return None
-            encrypted_data = body.get("data")
-            if not encrypted_data or not isinstance(encrypted_data, str):
-                _LOGGER.warning("Enhanced certification: empty or invalid response")
-                return None
-            return _decrypt_certification(token, encrypted_data)
+            status = resp.status
+            try:
+                body = await resp.json(content_type=None)
+            except (aiohttp.ClientError, ValueError):
+                body = None
     except (aiohttp.ClientError, TimeoutError) as exc:
         _LOGGER.warning("Enhanced certification request failed: %s", exc)
-        return None
+        raise PowerPulse2ConnectionError(str(exc)) from exc
+
+    outcome = classify_credential_response(status, body)
+    if outcome is AuthOutcome.AUTH_FAILURE:
+        reason = describe_response(status, body)
+        _LOGGER.warning("Enhanced certification rejected the token: %s", reason)
+        raise PowerPulse2AuthError(reason)
+    if outcome is not AuthOutcome.SUCCESS:
+        reason = describe_response(status, body)
+        _LOGGER.warning("Enhanced certification failed: %s", reason)
+        raise PowerPulse2ConnectionError(reason)
+
+    encrypted_data = body.get("data")
+    if not encrypted_data or not isinstance(encrypted_data, str):
+        _LOGGER.warning("Enhanced certification: empty or invalid response")
+        raise PowerPulse2ConnectionError("empty or invalid certification response")
+
+    decrypted = _decrypt_certification(token, encrypted_data)
+    if decrypted is None:
+        # A readable rejection would have been classified above, so an
+        # undecryptable payload is unexpected server data, not a bad token.
+        raise PowerPulse2ConnectionError("certification payload could not be read")
+    return decrypted
 
 
 def _decrypt_certification(

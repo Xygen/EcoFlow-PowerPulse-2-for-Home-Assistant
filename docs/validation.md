@@ -77,6 +77,46 @@ separate scope of [Issue #15](https://github.com/Xygen/EcoFlow-PowerPulse-2-for-
 | --- | --- | --- |
 | `ISSUE-13` | Observe the raw and qualified PowerOcean power during active charging, then with the cable connected but Direct reporting an idle state. Preserve the raw entities and do not write a charger setting. | During charging, the qualified entity follows the fast PowerOcean power. During a fresh Direct-idle interval, it is `0 W` even if the raw PowerOcean entity is non-zero. |
 
+## Unreleased authentication failure handling
+
+Credential handling now distinguishes a refused credential from an unreachable
+endpoint, and the config flow offers re-authentication and reconfiguration.
+See [the analysis](issue_16_auth_analysis.md) for the verified previous
+behaviour and the classification rule.
+
+What the automated suite covers: the classification decisions, including the
+rule that a rejection is only reported when every attempted endpoint rejected;
+sign-in, certification, discovery and provider-detail error mapping against a
+doubled network boundary; and the config flow's structural contract, meaning
+its step, error and abort keys all exist in `strings.json`, both repair paths
+update the config entry rather than replacing it, and both refuse credentials
+belonging to a different EcoFlow account.
+
+What it does not cover: the flow's Home Assistant runtime behaviour. Home
+Assistant is not a test dependency in this repository, so the dialog itself,
+the reload after a repair and the survival of entity IDs are established by the
+live test below, not by unit tests. Closing that gap is roadmap item
+`V2-QA-02`.
+
+A refused request is not shown to the user directly. The stored credentials
+are tried once first, at most every five minutes, because the token is obtained
+once at setup and never renewed on its own, which makes an expired session the
+likely cause rather than a wrong password. Only a refused sign-in opens the
+repair dialog.
+
+Not implemented in this change: MQTT credential refresh and proactive renewal
+before expiry. The MQTT layer still detects an expired certificate and logs
+that a refresh is scheduled, but nothing consumes that signal, and existing
+MQTT clients keep the certificate they connected with.
+
+| Item | Test without a vehicle | Passing result |
+| --- | --- | --- |
+| `V2-AUTH-01` sign-in | Enter a deliberately wrong password when adding the integration. | The form reports rejected credentials, not a connection problem. |
+| `V2-AUTH-01` outage | Add the integration while EcoFlow is unreachable. | The form reports a connection problem and never asks whether the password is correct. |
+| `V2-AUTH-01` renewal | Let the integration run until a provider read is refused, without changing the account password. | The log records a renewed session and data returns on a later cycle. No dialog appears, because the stored credentials still work. |
+| `V2-AUTH-01` repair | Change the EcoFlow account password so the stored one is refused, then complete the re-authentication dialog. | Home Assistant offers the dialog instead of retrying; after the repair the entry reloads and every entity ID, recorded history, user activation and local Smart draft is unchanged. |
+| `V2-AUTH-01` account guard | Enter a different EcoFlow account in the repair dialog. | The flow aborts with the wrong-account reason and leaves the entry untouched. |
+
 ## Automated repository checks
 
 The `Validate` workflow runs on pushes, pull requests, the daily schedule and

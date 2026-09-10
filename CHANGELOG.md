@@ -6,6 +6,26 @@ Current outstanding work is maintained only in
 
 ## Unreleased
 
+## 1.0.5-beta.3 - 2026-09-10
+
+Test build adding the PR #29 authentication handling on top of 1.0.5-beta.2.
+It keeps the PR #22 control safety and the PR #28 stream diagnostics, so an
+idle-gap observation started on 1.0.5-beta.2 continues; the stream timeline is
+still cleared by a reload or restart. PR #23 readback changes are not included.
+Vehicle-backed acceptance for PR #22 remains open. This build's own acceptance
+needs deliberately invalidated credentials and no vehicle.
+
+- Tell a refused EcoFlow credential apart from an unreachable endpoint, and offer
+  Home Assistant re-authentication and reconfiguration instead of an endless
+  retry. Sign-in, certification, device discovery and provider detail reads now
+  classify their answers, so an expired session starts the credential repair
+  dialog while a temporary outage keeps retrying. Repairing credentials updates
+  the existing config entry, preserving entity IDs, history, user activations and
+  local Smart drafts. An expired token no longer disables the bounded PowerOcean
+  fallback silently: the stored credentials are tried again first, at most once
+  every five minutes, so only credentials EcoFlow actually refuses reach the user
+  as a dialog.
+
 ## 1.0.5-beta.2 - 2026-09-10
 
 Test build combining PR #22 control safety with PR #28 diagnostics; PR #23

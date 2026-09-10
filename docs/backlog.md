@@ -98,6 +98,24 @@ Begleitwerte blieben erhalten. Die fahrzeuggestützte Abnahme steht aus
 (Live-Status `unplugged`); das Item und PR #22 bleiben offen.
 Details zur Aussagegrenze: [Validierung](validation.md#unreleased-control-transaction-hardening).
 
+Stand 2026-09-10: [V2-AUTH-01 / Issue #16](https://github.com/Xygen/EcoFlow-PowerPulse-2-for-Home-Assistant/issues/16)
+ist in Stufe 1 über [PR #29](https://github.com/Xygen/EcoFlow-PowerPulse-2-for-Home-Assistant/pull/29)
+umgesetzt und in `1.0.5-beta.3` enthalten: abgelehnte Zugangsdaten sind von einem
+nicht erreichbaren Endpunkt unterscheidbar, und Home Assistant bietet
+Neuanmeldung und Rekonfiguration an, ohne den Config-Eintrag zu ersetzen. Ein
+abgelaufener Token schaltet den PowerOcean-Fallback nicht mehr lautlos ab,
+sondern führt zu einem begrenzten erneuten Login: höchstens alle fünf Minuten,
+und nur abgelehnte Zugangsdaten erreichen den Nutzer als Dialog. Nicht enthalten
+ist Stufe 2, die MQTT-Credential-Erneuerung: die MQTT-Schicht erkennt abgelaufene
+Zertifikate weiterhin, ohne dass diese Erkennung verarbeitet wird, und bestehende
+MQTT-Clients behalten ihr Zertifikat. Befunde, Klassifikationsregel, der
+Vergleich mit `ecoflow-energy-ha` und die Aussagegrenzen stehen in
+[der Analyse](issue_16_auth_analysis.md); die fahrzeugunabhängigen
+Abnahmeschritte in der
+[Validierung](validation.md#unreleased-authentication-failure-handling).
+Die Live-Abnahme mit absichtlich ungültigen Zugangsdaten steht aus;
+das Issue bleibt offen.
+
 Vollständige Befunde und Validierungsgrenzen:
 [Prüfbericht](review_2026-09-09.md). Diese Roadmap ist ein Vorschlag zur
 Umsetzungsreihenfolge, keine Aussage über bereits gelieferte Funktionen.
