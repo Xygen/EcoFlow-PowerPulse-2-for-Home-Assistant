@@ -77,7 +77,10 @@ class SettingObservationTracker:
                 observed_monotonic=observed_monotonic,
             )
 
-    def current_value(self, *, serial: str, key: str, now: float) -> Any:
+    def current_value(
+        self, *, serial: str, key: str, now: float,
+        reject_newer_conflicts: bool = False,
+    ) -> Any:
         """Return the highest-priority fresh observation, otherwise unknown."""
         candidates = [
             observation
@@ -93,4 +96,10 @@ class SettingObservationTracker:
             candidates,
             key=lambda item: (_SOURCE_PRIORITY[item.source], item.observed_monotonic),
         )
+        if reject_newer_conflicts and any(
+            item.observed_monotonic >= selected.observed_monotonic
+            and item.value != selected.value
+            for item in candidates
+        ):
+            return None
         return selected.value

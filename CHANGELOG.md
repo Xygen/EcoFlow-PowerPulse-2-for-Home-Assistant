@@ -39,6 +39,17 @@ Current outstanding work is maintained only in
 - Align explicit stable-version declarations with 1.0.4 and add the missing
   qualified PowerOcean power sensor key to `strings.json`.
 
+## 1.0.5-beta.1 - 2026-09-09
+
+Test build for PR #22; vehicle-backed acceptance remains open.
+
+- Recheck charging state, freshness, mode and transport after acquiring the
+  command lock. Build flag, display, mode and active Smart bundles inside the
+  lock from fresh companion observations. Preserve local Smart draft intent
+  across queued mode changes. See [Issue #14](https://github.com/Xygen/EcoFlow-PowerPulse-2-for-Home-Assistant/issues/14).
+- Reject control preparation when a newer source contradicts a preserved setting
+  or a mode/enablement prerequisite, even if that source has lower display priority.
+
 ## 1.0.4 - 2026-09-07
 
 - Add `Qualified PowerOcean – Charging power`, which preserves the fast

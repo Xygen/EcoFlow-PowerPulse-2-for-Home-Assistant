@@ -20,6 +20,37 @@ documentation update for Issue #20 made no new installation or device change.
 
 ## Confirmed behavior
 
+### Unreleased control transaction hardening
+
+[V2-SAFE-01 / Issue #14](https://github.com/Xygen/EcoFlow-PowerPulse-2-for-Home-Assistant/issues/14)
+is locally implemented and tested on 2026-09-09: 193 tests pass, including
+31 new transaction tests importing the complete coordinator with real locks,
+observation trackers and payload builders. HA services and network replies are
+test doubles; these tests do not establish installed HA or vehicle behavior.
+Coverage includes queued charging/freshness/transport changes, mode and enablement
+changes, concurrent flags/display edits, active Smart companions and local drafts.
+Review reproduced six cases where newer contradictory mode, enablement or flag
+evidence from a lower-priority source was ignored. Control preparation now rejects
+these conflicts; ordinary observation display retains its existing source priority.
+
+Partial live acceptance: test build `1.0.5-beta.1`, commit `d2fc314`, installed
+through HACS and loaded after restart. The restart call returned HTTP 504, but
+subsequent integration and runtime manifest queries confirmed recovery. Screen
+brightness changed 100 → 75 → 100 %, preserving LED brightness at 25 % and both
+display switches on. Diagnostics recorded two confirmed SET replies, two Direct
+readbacks, zero provider confirmations and zero no-ops. The final state was restored.
+The ZIP's 45 files matched the source tree; SHA256:
+`E8E393E188500B9132226D903D0F0931C120811026E6A1F09FB00A878728A04F`.
+
+Vehicle-backed acceptance remains open in the [central backlog](backlog.md#roadmap-bis-version-20):
+the charger reported `unplugged`, so rejection of a queued sensitive write after
+actual charging starts has not been live-tested. Local concurrency tests do not
+replace that evidence. PR #22 and Issue #14 remain open.
+General readback source atomicity and provider no-op qualification remain the
+separate scope of [Issue #15](https://github.com/Xygen/EcoFlow-PowerPulse-2-for-Home-Assistant/issues/15).
+
+### Released baseline
+
 | Area | Confirmed evidence | Status |
 | --- | --- | --- |
 | Direct telemetry | Charging state, power, voltage/current summaries, cumulative energy, session energy, and duration are decoded from direct heartbeat reports. | Confirmed |
