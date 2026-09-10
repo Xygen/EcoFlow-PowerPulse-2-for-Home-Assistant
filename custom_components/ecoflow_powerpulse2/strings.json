@@ -73,6 +73,7 @@
       "direct_total_energy": {"name": "Direct wallbox – Total charging energy"},
       "direct_session_energy_raw": {"name": "Direct wallbox – Session energy raw"},
       "powerocean_charging_power": {"name": "PowerOcean – Charging power"},
+      "qualified_powerocean_charging_power": {"name": "Qualified PowerOcean – Charging power"},
       "powerocean_charging_status": {
         "name": "PowerOcean – Charging status",
         "state": {

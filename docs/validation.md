@@ -35,6 +35,45 @@ tested; its vehicle-backed transition validation remains pending.
 | --- | --- | --- |
 | `ISSUE-13` | Observe the raw and qualified PowerOcean power during active charging, then with the cable connected but Direct reporting an idle state. Preserve the raw entities and do not write a charger setting. | During charging, the qualified entity follows the fast PowerOcean power. During a fresh Direct-idle interval, it is `0 W` even if the raw PowerOcean entity is non-zero. |
 
+## Automated repository checks
+
+The `Validate` workflow runs on pushes, pull requests, the daily schedule and
+manual dispatch. `quality` uses Python 3.12 and runs pytest, Ruff over
+`custom_components`, `tests` and `scripts`, and `scripts/check_consistency.py`.
+The existing `validate-hacs` and `validate-hassfest` jobs remain in place.
+Python setup follows the [official setup-python guidance](https://github.com/actions/setup-python).
+
+The consistency checker runs offline. It compares translation leaf keys against
+`strings.json`, validates local Markdown links/images (including reference links)
+and heading anchors in root documents and `docs/`, and checks explicit
+`Current stable release` declarations in README/index against the newest stable
+changelog entry. The newest dated changelog entry must match the manifest, including
+prereleases; a tag run additionally requires `v` plus the manifest version.
+Historical version mentions are not treated as current declarations. External URLs
+are not fetched. Fenced code and inline code examples are not treated as links.
+
+Before merge/release, require green `quality`, `validate-hacs` and
+`validate-hassfest` checks for the exact intended revision. Each quality run records
+the checked Git SHA in its summary. Pull-request runs check GitHub's merge revision;
+after a merge or any further edit, the resulting commit/tag needs its own green run.
+An earlier green branch revision is not release evidence. These are documented
+gates; branch protection/rulesets are not changed by this workflow implementation.
+
+Local equivalents:
+
+```shell
+python -m pip install -r requirements_test.txt
+python -m pytest -q
+python -m ruff check custom_components tests scripts
+python scripts/check_consistency.py
+```
+
+For Issue #17, 170 tests pass on the independent main-based branch (2026-09-10).
+Negative fixtures verify rejection of failed assertions, undefined Python names,
+wrong current versions/tags, missing/extra translation keys, missing files and
+missing heading anchors. The larger suites on the separate #14/#15 branches are
+not part of this branch. No device or Home Assistant deployment is involved.
+
 ## Test principles
 
 - A control is successful only after command acknowledgement **and** a newer

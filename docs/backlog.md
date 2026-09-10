@@ -62,6 +62,15 @@ and the release contains no unverified new controls or guessed field mappings.
 
 ## Roadmap bis Version 2.0
 
+Stand 2026-09-10: [V2-QA-01 / Issue #17](https://github.com/Xygen/EcoFlow-PowerPulse-2-for-Home-Assistant/issues/17)
+ist auf einem unabhängigen Branch von `main` umgesetzt: pytest, Ruff und
+Dokumentationskonsistenz laufen zusätzlich zu HACS/Hassfest. Lokal bestehen
+170 Tests einschließlich absichtlich fehlerhafter Prüffälle. Workflow-Abnahme
+erfolgt am zugehörigen PR; Repository-Schutzregeln werden nicht geändert.
+Details: [automatische Prüfungen](validation.md#automated-repository-checks).
+Die damit zwingend verbundenen Versionskorrekturen in README/Index und der fehlende
+Schlüssel in `strings.json` erledigen einen Teil von #20; die übrige Anleitung bleibt dort offen.
+
 Planungsstand: 2026-09-09. Vollständige Befunde und Validierungsgrenzen:
 [Prüfbericht](review_2026-09-09.md). Diese Roadmap ist ein Vorschlag zur
 Umsetzungsreihenfolge, keine Aussage über bereits gelieferte Funktionen.
