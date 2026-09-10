@@ -6,6 +6,12 @@ Current outstanding work is maintained only in
 
 ## Unreleased
 
+- Add a Python 3.12 quality job for pytest, Ruff and offline documentation checks,
+  including translation-key parity, current release declarations and local links.
+  Retain HACS/Hassfest, record the checked Git revision and document release gates.
+- Align explicit stable-version declarations with 1.0.4 and add the missing
+  qualified PowerOcean power sensor key to `strings.json`.
+
 ## 1.0.4 - 2026-09-07
 
 - Add `Qualified PowerOcean – Charging power`, which preserves the fast
