@@ -136,13 +136,13 @@ Klassifikationsregel, der Vergleich mit `ecoflow-energy-ha` und die
 Aussagegrenzen stehen in [der Analyse](issue_16_auth_analysis.md); die
 fahrzeugunabhängigen Abnahmeschritte in der
 [Validierung](validation.md#unreleased-authentication-failure-handling).
-Abnahmestand 2026-09-10 auf `1.0.5-beta.3`: Ein falsches Passwort bei der
-Einrichtung meldet abgelehnte Zugangsdaten statt eines Verbindungsproblems.
-Damit sind die Klassifikation am Credential-Endpunkt und die Übersetzung
-belegt, nicht jedoch die Gegenrichtung. Offen bleiben Ausfallmeldung,
-Erneuerung und der Auslöser des Reparaturdialogs; Kontoschutz und
-Eintragsaktualisierung sind über den Rekonfigurationsdialog ohne ungültige
-Zugangsdaten prüfbar, weil beide Flows dieselbe Sequenz durchlaufen.
+Abnahmestand 2026-09-11 auf `1.0.5-beta.6`: Anmeldung mit falschem Passwort,
+Kontoschutz, Eintragsaktualisierung und Broker-Adresse sind bestätigt, jeweils
+mit Rücklesen des Integrationszustands über die HA-API. Offen bleiben die
+Ausfallmeldung, die Erneuerung und der Auslöser des Reparaturdialogs. Drei
+Aussagegrenzen sind festgehalten: gleiche Zugangsdaten bei der
+Rekonfiguration, gleicher Broker-Host wie die Konstante, und rund 58 Sekunden
+`unknown` nach dem Reload.
 Einzelheiten: [Validierung](validation.md#open-and-how-to-reach-each-one).
 Das Issue bleibt offen.
 
