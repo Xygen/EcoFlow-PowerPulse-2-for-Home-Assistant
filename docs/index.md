@@ -14,6 +14,7 @@ from the evidence archives created during protocol research.
 | Choose a charging-power source for an automation | [Power readings and freshness limits](user-guide.md#choosing-a-power-reading) |
 | Confirm supported entities, sources, and control safety | [Data-path overview](data_paths_overview.md) |
 | Review test coverage, live validation, and release readiness | [Validation status](validation.md) |
+| Work through the open acceptance steps in one pass | [Abnahmeliste](acceptance_checklist.md) |
 | See active, deferred, and release work | [Project backlog](backlog.md) |
 | Review delivered changes | [Changelog](../CHANGELOG.md) |
 | Review the 2026-09-09 integration audit | [Dated review](review_2026-09-09.md); planned work remains in the [backlog roadmap](backlog.md#roadmap-bis-version-20) |
