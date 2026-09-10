@@ -73,13 +73,20 @@ def harness(monkeypatch):
 
     module("homeassistant")
     module("homeassistant.config_entries", ConfigEntry=object)
-    module("homeassistant.core", HomeAssistant=object)
+    # @callback marks a function as event-loop safe and returns it
+    # unchanged, so the identity function is a faithful stand-in.
+    module("homeassistant.core", HomeAssistant=object, callback=lambda func: func)
     module(
         "homeassistant.exceptions",
         ConfigEntryAuthFailed=AuthFailed,
         HomeAssistantError=HAError,
     )
     module("homeassistant.helpers")
+    # Returns the unsubscribe callable; these tests never run the timer.
+    module(
+        "homeassistant.helpers.event",
+        async_track_time_interval=lambda *args, **kwargs: (lambda: None),
+    )
     module("homeassistant.helpers.aiohttp_client", async_get_clientsession=lambda hass: None)
     module("homeassistant.helpers.storage", Store=StoreDouble)
     module("homeassistant.helpers.update_coordinator", DataUpdateCoordinator=CoordinatorShell, UpdateFailed=HAError)

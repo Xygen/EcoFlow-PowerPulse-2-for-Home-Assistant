@@ -81,6 +81,20 @@ and the release contains no unverified new controls or guessed field mappings.
 
 ## Roadmap bis Version 2.0
 
+### Completion phase (2026-09-10)
+
+Only Issue #16 is actively developed after documentation/diagnostic consolidation.
+Finish its authentication acceptance against explicit evidence before starting
+another issue. Issues #14/#15 and PR #22/#23 form the next joint control review
+and vehicle-acceptance block; include relevant #13 power tests in that session.
+Issues #11/#18 follow one at a time; #25 is deferred. Keep #12's accepted
+deadlines unless a newly captured delayed action justifies revisiting them.
+
+Issue #19 is observation-only for 24–48 hours on the installed beta.5. Evaluate
+one bounded export, then decide whether a demonstrated failure warrants a fix
+or the item waits for reproduction. No new gap is not proof of recovery.
+New research and unrelated features are paused during this completion phase.
+
 Completed on 2026-09-10: V2-DOC-01 / Issue #20 was accepted through
 [PR #26](https://github.com/Xygen/EcoFlow-PowerPulse-2-for-Home-Assistant/pull/26),
 merge `678303a`. Smart drafts, source selection, field 17 and stable/beta scope
@@ -98,6 +112,14 @@ connection/recovery timeline with report ages and integration start time before
 changing recovery policy. Current snapshots cannot establish connectivity or
 recovery decisions during earlier gaps; no vehicle is required for this step.
 
+Implementation for Issue #19: diagnostics now include an in-memory
+stream timeline with connection callbacks, recovery reasons, report ages and
+reconnect outcomes. See [the diagnostic contract](validation.md#stream-timeline-diagnostics).
+The independent sampler correction is included. Beta.5 is installed and its
+startup and five-minute observations were live-verified. A new idle-gap
+observation remains pending. Main does not yet include the separate safety/readback
+changes in PR #22/#23; the installed beta preserves PR #22 and excludes PR #23.
+Persistence across reload/restart is not implemented; export before restarting.
 Stand 2026-09-10: [V2-AUTH-01 / Issue #16](https://github.com/Xygen/EcoFlow-PowerPulse-2-for-Home-Assistant/issues/16)
 ist in Stufe 1 auf einem unabhängigen Branch von `main` umgesetzt: abgelehnte
 Zugangsdaten sind von einem nicht erreichbaren Endpunkt unterscheidbar, und Home

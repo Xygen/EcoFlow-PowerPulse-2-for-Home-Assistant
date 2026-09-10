@@ -6,6 +6,12 @@ and raw chronology remain in the evidence archives linked from the
 
 ## Current baseline
 
+As verified on 2026-09-10, the installed test build is `1.0.5-beta.5`.
+It preserves PR #22 safety and PR #29/#30 authentication changes and includes
+PR #28 diagnostics plus independent sampling. PR #23 remains excluded.
+Stable documentation remains at 1.0.4. Earlier installation records below
+are historical observations, not the current installed version.
+
 The current stable release is `1.0.4`; README, index and user guide describe that
 baseline. Its scope and accepted limitations are recorded in the
 [release record](backlog.md#v100-release-record). PowerOcean idle qualification
@@ -207,6 +213,11 @@ The `Validate` workflow runs on pushes, pull requests, the daily schedule and
 manual dispatch. `quality` uses Python 3.12 and runs pytest, Ruff over
 `custom_components`, `tests` and `scripts`, and `scripts/check_consistency.py`.
 The existing `validate-hacs` and `validate-hassfest` jobs remain in place.
+
+The suite also checks the coordinator transaction harness against the
+coordinator itself: every Home Assistant name the coordinator imports must be
+stubbed. Without that check the gap appears only where both files meet, which
+is at a merge, and reports itself as an unexplained `ImportError`.
 Python setup follows the [official setup-python guidance](https://github.com/actions/setup-python).
 
 The consistency checker runs offline. It compares translation leaf keys against
@@ -239,6 +250,54 @@ Negative fixtures verify rejection of failed assertions, undefined Python names,
 wrong current versions/tags, missing/extra translation keys, missing files and
 missing heading anchors. The larger suites on the separate #14/#15 branches are
 not part of this branch. No device or Home Assistant deployment is involved.
+
+## Stream timeline diagnostics
+
+Independent sampling is installed in beta.5. Frequent MQTT pushes can defer
+coordinator polling, so a separate HA timer observes report ages every 30 seconds
+without provider calls, reconnects or device commands. `watchdog_sample` entries
+are observations, distinct from actual `recovery_check` decisions; the two event
+types coalesce separately. The timer starts after platform setup and is cancelled
+on unload. The recovery scheduler itself is unchanged.
+
+Live acceptance on 2026-09-10 confirmed beta.5 loaded, both streams fresh,
+independent observations after startup and another unchanged-state observation
+five minutes later. This establishes sampling, not long-outage recovery.
+The installed release commit `57e9f49` passed 325 tests and tag CI run
+`34526135571`; its 48-file archive matched SHA256
+`80c18c02316db70274af76e4843b942bf205887e9fb3175895c5c48aff90b048`.
+
+The unreleased Issue #19 implementation exposes
+`data.passive_settings_refresh.stream_timeline` in integration diagnostics.
+It records MQTT connected/disconnected callbacks, recovery eligibility reasons,
+automatic attempts/results and WSS reconnect outcomes. Each entry includes a
+runtime-local source alias and role, settings/heartbeat ages and freshness,
+connection state and remaining automatic cooldown. It stores no message text,
+topics, packet payloads, credentials or full device identifiers.
+
+Recovery checks are recorded when the reason, connectivity or freshness changes,
+and otherwise at most once every 300 seconds per charger. Connection and attempt
+events are not coalesced. The shared ring retains at most 2,048 entries; its
+`dropped_events` counter discloses eviction. It is **current-runtime only**:
+`started_at` marks coordinator construction, not HA boot. Reload/restart clears
+the ring. Source aliases are distinct within this runtime and are not stable
+across reloads. Export before restarting; retention is a count limit, not a
+guarantee of a complete 24-hour window.
+
+UTC event timestamps describe observation on the HA event loop; callback delivery
+can lag the transport event. Ages and cooldown use monotonic time. Samples are
+not packet history, and a previous connected event does not prove uninterrupted
+connectivity before the retained window. `returned` means the reconnect routine
+returned, not that both streams recovered: consult the separate outcome and ages.
+`confirmed` in the existing reconnect routine confirms only a new settings report.
+
+Tests exercise bounded storage, alias privacy, transition sampling and production
+coordinator methods with isolated HA boundaries, including disconnected and
+never-started streams, error cooldown and callback queuing. These are not full
+HA lifecycle fixtures or live outage acceptance. The policy still requires both
+previously observed streams stale for 300 seconds and a 1,800-second cooldown.
+Diagnostics are deployed in beta.5; remaining recovery and vehicle acceptance are
+tracked in the [central backlog](backlog.md).
 
 ## Test principles
 

@@ -6,6 +6,11 @@ Current outstanding work is maintained only in
 
 ## Unreleased
 
+- Add a bounded runtime timeline for MQTT connection transitions, recovery
+  decisions, report ages and reconnect outcomes. Exports use source aliases and
+  disclose reset/eviction boundaries. Independent read-only observations are
+  sampled every 30 seconds and coalesced to five minutes when unchanged, so MQTT
+  pushes cannot defer diagnostic sampling. Recovery scheduling is unchanged.
 - Consume the MQTT layer's expired-certificate detection, which until now logged
   that a refresh was scheduled while nothing was listening. A refused certificate
   is replaced and handed to the live clients, the session is renewed once if the

@@ -11,9 +11,10 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.exceptions import ConfigEntryAuthFailed, HomeAssistantError
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
+from homeassistant.helpers.event import async_track_time_interval
 from homeassistant.helpers.storage import Store
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
@@ -78,7 +79,8 @@ from .smart_staging import (
     SmartStagingError,
     validate_smart_bundle,
 )
-from .stream_recovery import automatic_recovery_due
+from .stream_recovery import recovery_reason
+from .stream_timeline import StreamTimeline
 from .telemetry_qualification import qualified_powerocean_charging_power
 
 _LOGGER = logging.getLogger(__name__)
@@ -205,6 +207,8 @@ class PowerPulse2Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
             maxlen=_DIRECT_STREAM_DIAGNOSTIC_ATTEMPTS
         )
         self._last_automatic_reconnect_at: dict[str, float] = {}
+        self._stream_timeline = StreamTimeline()
+        self._stream_diagnostics_unsub = None
         self._accessory_descriptors: dict[str, bytes] = {}
         self._reply_waiters: dict[tuple[str, int, int, int], asyncio.Future[None]] = {}
         self._control_lock = asyncio.Lock()
@@ -343,6 +347,7 @@ class PowerPulse2Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
         """Return identifier-free diagnostics for app-triggered provider reads."""
         return {
             "delay_seconds": SETTINGS_REFRESH_DELAY_SECONDS,
+            "stream_timeline": self._stream_timeline.snapshot(),
             "confirmed_reply_count": self._settings_reply_count,
             "completed_refresh_count": self._settings_refresh_count,
             "active": self._settings_refresh.active,
@@ -550,6 +555,7 @@ class PowerPulse2Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
                 certificate_password=password,
                 device_sn=serial,
                 message_handler=lambda topic, payload, sn=serial: self._schedule_mqtt_frame(sn, topic, payload),
+                status_handler=lambda status, code, message, sn=serial: self._schedule_mqtt_status(sn, status, code),
                 user_id=self.api.user_id,
                 wss_mode=True,
                 enhanced_mode=True,
@@ -697,11 +703,11 @@ class PowerPulse2Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
         """Recover a proven-but-stale C376 stream at a bounded cadence."""
         client = self.mqtt_clients.get(serial)
         now = time.monotonic()
-        if (
-            self._shutting_down
-            or client is None
-            or not client.is_connected()
-            or not automatic_recovery_due(
+        reason = (
+            "shutting_down" if self._shutting_down else
+            "missing_client" if client is None else
+            "disconnected" if not client.is_connected() else
+            recovery_reason(
                 now=now,
                 last_direct_at=self._last_direct_settings_at.get(serial),
                 last_heartbeat_at=self._last_heartbeat_at.get(serial),
@@ -709,22 +715,88 @@ class PowerPulse2Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
                 stale_seconds=_AUTOMATIC_RECOVERY_STALE_SECONDS,
                 cooldown_seconds=_AUTOMATIC_RECOVERY_COOLDOWN_SECONDS,
             )
-        ):
+        )
+        self._record_stream_event(serial, "recovery_check", reason)
+        if reason != "due":
             return
 
         # Record before reconnecting so failures cannot create a retry loop on
         # the coordinator's 30-second update cadence.
         self._last_automatic_reconnect_at[serial] = now
+        self._record_stream_event(serial, "recovery_attempt", "started")
         try:
             await self._async_reconnect_direct_stream(
                 serial, method="automatic_wss_reconnect"
             )
         except HomeAssistantError as exc:
+            self._record_stream_event(serial, "recovery_result", "error")
             _LOGGER.debug(
                 "Automatic direct-stream recovery failed for %s…: %s",
                 serial[:4],
                 exc,
             )
+        else:
+            self._record_stream_event(serial, "recovery_result", "returned")
+
+    @callback
+    def async_start_stream_diagnostics(self) -> None:
+        """Observe freshness independently of the push-reset polling timer."""
+        if self._stream_diagnostics_unsub is not None or self._shutting_down:
+            return
+        self._stream_diagnostics_unsub = async_track_time_interval(
+            self.hass, self._sample_stream_diagnostics, timedelta(seconds=30)
+        )
+        self._sample_stream_diagnostics(None)
+
+    @callback
+    def async_stop_stream_diagnostics(self) -> None:
+        """Cancel observations when the config entry unloads."""
+        if self._stream_diagnostics_unsub is not None:
+            self._stream_diagnostics_unsub()
+            self._stream_diagnostics_unsub = None
+
+    @callback
+    def _sample_stream_diagnostics(self, _now: datetime | None) -> None:
+        """Record observations only: no provider read, reconnect or publish."""
+        if self._shutting_down:
+            return
+        for serial in self.devices:
+            self._record_stream_event(serial, "watchdog_sample", "observation_only")
+
+    def _schedule_mqtt_status(self, serial: str, status: str, code: int) -> None:
+        """Marshal transport callbacks onto the HA loop; discard free text."""
+        if status not in {"connected", "disconnected"}:
+            return
+        try:
+            self.hass.loop.call_soon_threadsafe(
+                self._record_stream_event, serial, "mqtt_connection", status,
+                code if isinstance(code, int) else None,
+            )
+        except RuntimeError:
+            pass  # The HA loop has already closed.
+
+    def _record_stream_event(
+        self, serial: str, event: str, reason: str, code: int | None = None,
+    ) -> None:
+        """Sample report ages on the loop, independently of wall-clock changes."""
+        now = time.monotonic()
+        direct = self._last_direct_settings_at.get(serial)
+        heartbeat = self._last_heartbeat_at.get(serial)
+        attempt = self._last_automatic_reconnect_at.get(serial)
+        client = self.mqtt_clients.get(serial)
+        self._stream_timeline.record(
+            serial, now=now,
+            role="powerpulse" if serial in self.devices else "powerocean_observer",
+            event=event, reason=reason,
+            connected=(reason == "connected") if event == "mqtt_connection"
+            else bool(client and client.is_connected()),
+            settings_age=max(0, now - direct) if direct is not None else None,
+            heartbeat_age=max(0, now - heartbeat) if heartbeat is not None else None,
+            cooldown_remaining=max(0, _AUTOMATIC_RECOVERY_COOLDOWN_SECONDS - (now - attempt))
+            if attempt is not None else 0,
+            settings_fresh=self.direct_stream_active(serial),
+            heartbeat_fresh=self.heartbeat_stream_active(serial), reason_code=code,
+        )
 
     def _schedule_mqtt_frame(self, serial: str, topic: str, payload: bytes) -> None:
         loop = self.hass.loop
@@ -1249,6 +1321,7 @@ class PowerPulse2Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
             if attempt["direct_was_fresh"]:
                 attempt["status"] = "already_active"
                 self._direct_stream_attempts.append(attempt)
+                self._record_stream_event(serial, "reconnect_outcome", "already_active")
                 self.async_update_listeners()
                 return
 
@@ -1303,6 +1376,7 @@ class PowerPulse2Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
             if attempt["direct_was_fresh"]:
                 attempt["status"] = "already_active"
                 self._direct_stream_attempts.append(attempt)
+                self._record_stream_event(serial, "reconnect_outcome", "already_active")
                 self.async_update_listeners()
                 return
 
@@ -1310,6 +1384,7 @@ class PowerPulse2Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
             if not started:
                 attempt["status"] = "reconnect_failed"
                 self._direct_stream_attempts.append(attempt)
+                self._record_stream_event(serial, "reconnect_outcome", "reconnect_failed")
                 self.async_update_listeners()
                 raise HomeAssistantError("Direct MQTT WSS reconnect failed")
 
@@ -1327,6 +1402,7 @@ class PowerPulse2Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
                 attempt["status"] = "no_direct_report"
 
             self._direct_stream_attempts.append(attempt)
+            self._record_stream_event(serial, "reconnect_outcome", attempt["status"])
             self.async_update_listeners()
 
     def phase_control_available(self, serial: str) -> bool:
@@ -2033,6 +2109,7 @@ class PowerPulse2Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
 
     async def async_shutdown(self) -> None:
         self._shutting_down = True
+        self.async_stop_stream_diagnostics()
         await self._settings_refresh.async_close()
         if self._smart_staging_tasks:
             await asyncio.gather(*self._smart_staging_tasks, return_exceptions=True)
