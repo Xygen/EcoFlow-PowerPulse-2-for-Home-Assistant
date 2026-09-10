@@ -6,6 +6,15 @@ Current outstanding work is maintained only in
 
 ## Unreleased
 
+- Qualify generic settings confirmation using the actual field, exact source and
+  observation time. Partial reports cannot refresh a cached target, and fresh
+  conflicting Direct evidence blocks provider fallback. Provider requests started
+  before the command cannot confirm it when they finish later.
+- Require a complete, conflict-free provider snapshot of the prepared settings
+  bundle before skipping a redundant write. Phase transition requirements remain
+  separate. Implementation for [Issue #15](https://github.com/Xygen/EcoFlow-PowerPulse-2-for-Home-Assistant/issues/15);
+  not included in the installed `1.0.5-beta.1` test build.
+
 ## 1.0.5-beta.1 - 2026-09-09
 
 Test build for PR #22; vehicle-backed acceptance remains open.

@@ -73,6 +73,14 @@ Begleitwerte blieben erhalten. Die fahrzeuggestützte Abnahme steht aus
 (Live-Status `unplugged`); das Item und PR #22 bleiben offen.
 Details zur Aussagegrenze: [Validierung](validation.md#unreleased-control-transaction-hardening).
 
+Stand 2026-09-10: `V2-SAFE-02` / [Issue #15](https://github.com/Xygen/EcoFlow-PowerPulse-2-for-Home-Assistant/issues/15)
+ist auf `codex/issue-15-readback`, aufbauend auf PR #22, lokal implementiert.
+270 Tests bestehen. Feldbezogene Bestätigung, Konfliktsperren, vollständige
+Provider-No-ops und überlappende Providerabrufe sind geprüft; die speziellen
+Phasen-Übergangsregeln bleiben erhalten. Keine Installation oder Live-Abnahme
+dieser Änderung; die installierte Beta bleibt unverändert. Das Item bleibt offen.
+Nachweise: [Validierung](validation.md#unreleased-field-qualified-readback).
+
 Vollständige Befunde und Validierungsgrenzen:
 [Prüfbericht](review_2026-09-09.md). Diese Roadmap ist ein Vorschlag zur
 Umsetzungsreihenfolge, keine Aussage über bereits gelieferte Funktionen.
