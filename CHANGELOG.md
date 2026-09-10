@@ -6,6 +6,23 @@ Current outstanding work is maintained only in
 
 ## Unreleased
 
+## 1.0.5-beta.5 - 2026-09-10
+
+First test build cut directly from `main`, and the first to contain every
+change below at once. `1.0.5-beta.2` through `1.0.5-beta.4` were combination
+builds assembled on branches while these changes were still unmerged; their
+notes remain with their GitHub releases, and the branches are gone. Everything
+those builds carried is in this one.
+
+`V2-SAFE-02` / Issue #15 reaches a test build for the first time. Until now it
+was complete and reviewed but installed nowhere, so it could not be accepted
+even in principle.
+
+Acceptance is not implied by any of this. The vehicle-backed acceptance for
+Issue #14, #15 and #13 remains open, and of the Issue #16 steps only the wrong
+password at setup has been observed. See
+[the validation status](docs/validation.md).
+
 - Add a bounded runtime timeline for MQTT connection transitions, recovery
   decisions, report ages and reconnect outcomes. Exports use source aliases and
   disclose reset/eviction boundaries. Independent read-only observations are
@@ -51,7 +68,7 @@ Current outstanding work is maintained only in
 - Require a complete, conflict-free provider snapshot of the prepared settings
   bundle before skipping a redundant write. Phase transition requirements remain
   separate. Implementation for [Issue #15](https://github.com/Xygen/EcoFlow-PowerPulse-2-for-Home-Assistant/issues/15);
-  not included in the installed `1.0.5-beta.1` test build.
+  first included in a test build here.
 
 ## 1.0.5-beta.1 - 2026-09-09
 
