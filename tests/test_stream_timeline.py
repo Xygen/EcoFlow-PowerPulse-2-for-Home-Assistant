@@ -2,6 +2,7 @@ import ast
 import asyncio
 import json
 import logging
+from datetime import datetime, timedelta
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
@@ -50,10 +51,13 @@ def coordinator_harness():
     tree = ast.parse(Path("custom_components/ecoflow_powerpulse2/coordinator.py").read_text())
     cls = next(node for node in tree.body if isinstance(node, ast.ClassDef))
     names = {"_async_maybe_recover_direct_stream", "_record_stream_event",
-             "_schedule_mqtt_status", "direct_stream_active", "heartbeat_stream_active"}
+             "_schedule_mqtt_status", "direct_stream_active", "heartbeat_stream_active",
+             "async_start_stream_diagnostics", "async_stop_stream_diagnostics",
+             "_sample_stream_diagnostics"}
     methods = [node for node in cls.body if getattr(node, "name", None) in names]
     module = ast.Module(body=methods, type_ignores=[])
     namespace = dict(time=SimpleNamespace(monotonic=lambda: 1000),
+                     callback=lambda function: function, datetime=datetime, timedelta=timedelta,
                      recovery_reason=recovery_reason, HomeAssistantError=RuntimeError,
                      _AUTOMATIC_RECOVERY_STALE_SECONDS=300,
                      _AUTOMATIC_RECOVERY_COOLDOWN_SECONDS=1800,
@@ -68,6 +72,8 @@ def coordinator_harness():
     harness._last_automatic_reconnect_at = {}
     harness._stream_timeline = StreamTimeline()
     harness._shutting_down = False
+    harness._stream_diagnostics_unsub = None
+    harness.test_namespace = namespace
     harness._async_reconnect_direct_stream = AsyncMock()
     return harness
 
@@ -119,3 +125,40 @@ def test_recovery_error_is_recorded_and_cooldown_retained():
     assert snapshot["events"][-1]["reason"] == "error"
     assert "secret details" not in json.dumps(snapshot)
     assert harness._last_automatic_reconnect_at["private-device"] == 1000
+
+
+def test_watchdog_runs_without_polling_and_cancels_on_stop():
+    harness = coordinator_harness()
+    scheduled = []
+    cancelled = []
+    harness.hass = object()
+    def track(hass, callback, interval):
+        assert interval.total_seconds() == 30
+        scheduled.append(callback)
+        return lambda: cancelled.append(True)
+    harness.test_namespace["async_track_time_interval"] = track
+    harness.async_start_stream_diagnostics()
+    harness.async_start_stream_diagnostics()
+    assert len(scheduled) == 1
+    # No polling or MQTT delivery is needed for these independent observations.
+    harness.test_namespace["time"].monotonic = lambda: 1300
+    scheduled[0](None)
+    events = harness._stream_timeline.snapshot()["events"]
+    assert [event["event"] for event in events] == ["watchdog_sample"] * 2
+    assert events[-1]["settings_age_s"] == 700
+    harness._async_reconnect_direct_stream.assert_not_awaited()
+    assert not harness._last_automatic_reconnect_at
+    harness._shutting_down = True
+    harness.async_stop_stream_diagnostics()
+    harness.async_stop_stream_diagnostics()
+    scheduled[0](None)
+    assert cancelled == [True]
+    assert len(harness._stream_timeline.snapshot()["events"]) == 2
+
+
+def test_observations_do_not_suppress_real_recovery_checks():
+    timeline = StreamTimeline()
+    record(timeline, event="watchdog_sample")
+    record(timeline, event="recovery_check")
+    record(timeline, now=1, event="watchdog_sample")
+    assert len(timeline.snapshot()["events"]) == 2

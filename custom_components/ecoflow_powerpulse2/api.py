@@ -7,6 +7,14 @@ from typing import Any
 
 import aiohttp
 
+from .auth_classification import (
+    AuthOutcome,
+    PowerPulse2AuthError,
+    PowerPulse2ConnectionError,
+    aggregate_outcomes,
+    classify_data_response,
+    describe_response,
+)
 from .discovery import classify_device_records
 from .ecoflow.const import IOT_API_BASE
 from .ecoflow.enhanced_auth import enhanced_login, get_enhanced_credentials
@@ -39,30 +47,48 @@ class PowerPulse2ApiClient:
         return dict(self._mqtt_observers)
 
     async def async_login(self) -> None:
+        """Sign in, letting a rejected credential stay distinguishable.
+
+        Raises ``PowerPulse2AuthError`` or ``PowerPulse2ConnectionError`` so
+        the coordinator can start a re-authentication flow instead of
+        retrying a credential EcoFlow has already refused.
+        """
         result = await enhanced_login(self._session, self._email, self._password)
-        if result is None:
-            raise ConnectionError("EcoFlow login failed")
         self._token = result["token"]
         self._user_id = result["user_id"]
         self._base_url = result.get("base_url", IOT_API_BASE)
 
     async def async_get_mqtt_credentials(self) -> dict[str, Any]:
-        result = await get_enhanced_credentials(self._session, self._token, base_url=self._base_url)
+        result = await get_enhanced_credentials(
+            self._session, self._token, base_url=self._base_url
+        )
         if not result:
-            raise ConnectionError("EcoFlow MQTT credentials unavailable")
+            raise PowerPulse2ConnectionError("EcoFlow MQTT credentials unavailable")
         return result
 
     async def async_discover(self) -> dict[str, dict[str, str]]:
         """Return bound/shared CP307 PowerPulse devices keyed by serial."""
-        async with self._session.get(
-            f"{self._base_url}{_DEVICE_LIST_PATH}",
-            headers=self._headers(),
-            timeout=aiohttp.ClientTimeout(total=15),
-        ) as response:
-            response.raise_for_status()
-            data = (await response.json()).get("data", {})
+        try:
+            async with self._session.get(
+                f"{self._base_url}{_DEVICE_LIST_PATH}",
+                headers=self._headers(),
+                timeout=aiohttp.ClientTimeout(total=15),
+            ) as response:
+                status = response.status
+                try:
+                    body = await response.json(content_type=None)
+                except (aiohttp.ClientError, ValueError):
+                    body = None
+        except (aiohttp.ClientError, TimeoutError) as exc:
+            raise PowerPulse2ConnectionError(str(exc)) from exc
 
-        found, self._mqtt_observers = classify_device_records(data)
+        outcome = classify_data_response(status, body)
+        if outcome is AuthOutcome.AUTH_FAILURE:
+            raise PowerPulse2AuthError(describe_response(status, body))
+        if outcome is not AuthOutcome.SUCCESS:
+            raise PowerPulse2ConnectionError(describe_response(status, body))
+
+        found, self._mqtt_observers = classify_device_records(body.get("data", {}))
         return found
 
     async def async_read(self, device: dict[str, str]) -> dict[str, Any]:
@@ -80,8 +106,16 @@ class PowerPulse2ApiClient:
     async def _async_read_detail(
         self, device: dict[str, str]
     ) -> dict[str, Any] | None:
-        """Fetch one provider detail response without retaining raw data."""
+        """Fetch one provider detail response without retaining raw data.
+
+        This is the bounded best-effort fallback, so an endpoint that fails
+        still yields ``None`` and leaves the direct path untouched. The one
+        exception is a token every endpoint refuses: that is not a transient
+        read failure but an expired session, and silently returning ``None``
+        for it is what used to disable this path permanently and invisibly.
+        """
         headers = self._headers(device.get("product_type", ""))
+        outcomes: list[AuthOutcome] = []
         for base_url in dict.fromkeys((self._base_url, IOT_API_BASE, "https://api-a.ecoflow.com")):
             try:
                 async with self._session.get(
@@ -90,12 +124,28 @@ class PowerPulse2ApiClient:
                     headers=headers,
                     timeout=aiohttp.ClientTimeout(total=15),
                 ) as response:
-                    response.raise_for_status()
-                    body = await response.json()
-                if str(body.get("code", "0")) == "0":
-                    return body
-            except (aiohttp.ClientError, TimeoutError, ValueError) as exc:
+                    status = response.status
+                    try:
+                        body = await response.json(content_type=None)
+                    except (aiohttp.ClientError, ValueError):
+                        body = None
+            except (aiohttp.ClientError, TimeoutError) as exc:
+                outcomes.append(AuthOutcome.CONNECTION_FAILURE)
                 _LOGGER.debug("PowerPulse detail request failed via %s: %s", base_url, exc)
+                continue
+
+            outcome = classify_data_response(status, body)
+            outcomes.append(outcome)
+            if outcome is AuthOutcome.SUCCESS:
+                return body
+            _LOGGER.debug(
+                "PowerPulse detail request rejected via %s: %s",
+                base_url,
+                describe_response(status, body, detailed=True),
+            )
+
+        if aggregate_outcomes(outcomes) is AuthOutcome.AUTH_FAILURE:
+            raise PowerPulse2AuthError("provider detail rejected the stored session")
         return None
 
     def _headers(self, product_type: str = "") -> dict[str, str]:

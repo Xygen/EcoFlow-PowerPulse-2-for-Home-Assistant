@@ -8,7 +8,30 @@ Current outstanding work is maintained only in
 
 - Add a bounded runtime timeline for MQTT connection transitions, recovery
   decisions, report ages and reconnect outcomes. Exports use source aliases and
-  disclose reset/eviction boundaries; automatic recovery policy is unchanged.
+  disclose reset/eviction boundaries. Independent read-only observations are
+  sampled every 30 seconds and coalesced to five minutes when unchanged, so MQTT
+  pushes cannot defer diagnostic sampling. Recovery scheduling is unchanged.
+- Consume the MQTT layer's expired-certificate detection, which until now logged
+  that a refresh was scheduled while nothing was listening. A refused certificate
+  is replaced and handed to the live clients, the session is renewed once if the
+  certificate endpoint refuses it, and a still-working certificate is replaced
+  once it reaches a set age. Both paths are rate limited. The broker address is
+  now taken from the credential response instead of a compile-time constant,
+  because a renewed certificate can name a different server and keeping the old
+  address fails silently; a malformed or absent address falls back to the
+  previous behaviour. A session is rebuilt only when the certificate or the
+  address actually changed.
+
+- Tell a refused EcoFlow credential apart from an unreachable endpoint, and offer
+  Home Assistant re-authentication and reconfiguration instead of an endless
+  retry. Sign-in, certification, device discovery and provider detail reads now
+  classify their answers, so an expired session starts the credential repair
+  dialog while a temporary outage keeps retrying. Repairing credentials updates
+  the existing config entry, preserving entity IDs, history, user activations and
+  local Smart drafts. An expired token no longer disables the bounded PowerOcean
+  fallback silently: the stored credentials are tried again first, at most once
+  every five minutes, so only credentials EcoFlow actually refuses reach the user
+  as a dialog.
 
 - Explain local Smart drafts, activation and observed device settings in the user
   guide; document raw/qualified charging-power sources, automation limits and

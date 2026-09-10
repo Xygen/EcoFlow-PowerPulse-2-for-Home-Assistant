@@ -34,6 +34,7 @@ must not be read as the current product contract.
 | Phase measurement research | [DATA-06 analysis](phase_measurement_entities_analysis.md) |
 | Smart-mode bootstrap research | [SMART-01 analysis](smart_mode_bootstrap_analysis.md) |
 | Start/Stop readback and timeout analysis | [Issue #12 analysis](issue_12_charge_readback_analysis.md) |
+| Authentication failure and re-authentication analysis | [Issue #16 analysis](issue_16_auth_analysis.md) |
 
 ## Documentation status and resolved contradictions
 

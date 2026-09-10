@@ -62,6 +62,20 @@ and the release contains no unverified new controls or guessed field mappings.
 
 ## Roadmap bis Version 2.0
 
+### Completion phase (2026-09-10)
+
+Only Issue #16 is actively developed after documentation/diagnostic consolidation.
+Finish its authentication acceptance against explicit evidence before starting
+another issue. Issues #14/#15 and PR #22/#23 form the next joint control review
+and vehicle-acceptance block; include relevant #13 power tests in that session.
+Issues #11/#18 follow one at a time; #25 is deferred. Keep #12's accepted
+deadlines unless a newly captured delayed action justifies revisiting them.
+
+Issue #19 is observation-only for 24–48 hours on the installed beta.5. Evaluate
+one bounded export, then decide whether a demonstrated failure warrants a fix
+or the item waits for reproduction. No new gap is not proof of recovery.
+New research and unrelated features are paused during this completion phase.
+
 Completed on 2026-09-10: V2-DOC-01 / Issue #20 was accepted through
 [PR #26](https://github.com/Xygen/EcoFlow-PowerPulse-2-for-Home-Assistant/pull/26),
 merge `678303a`. Smart drafts, source selection, field 17 and stable/beta scope
@@ -79,13 +93,39 @@ connection/recovery timeline with report ages and integration start time before
 changing recovery policy. Current snapshots cannot establish connectivity or
 recovery decisions during earlier gaps; no vehicle is required for this step.
 
-Implementation prepared for Issue #19: diagnostics now include an in-memory
+Implementation for Issue #19: diagnostics now include an in-memory
 stream timeline with connection callbacks, recovery reasons, report ages and
 reconnect outcomes. See [the diagnostic contract](validation.md#stream-timeline-diagnostics).
-Review, deployment to the installed beta line and a new idle-gap observation
-remain pending. This branch does not include the safety/readback changes in
-PR #22/#23; do not install it over the existing beta as a replacement build.
+The independent sampler correction is included. Beta.5 is installed and its
+startup and five-minute observations were live-verified. A new idle-gap
+observation remains pending. Main does not yet include the separate safety/readback
+changes in PR #22/#23; the installed beta preserves PR #22 and excludes PR #23.
 Persistence across reload/restart is not implemented; export before restarting.
+Stand 2026-09-10: [V2-AUTH-01 / Issue #16](https://github.com/Xygen/EcoFlow-PowerPulse-2-for-Home-Assistant/issues/16)
+ist in Stufe 1 auf einem unabhängigen Branch von `main` umgesetzt: abgelehnte
+Zugangsdaten sind von einem nicht erreichbaren Endpunkt unterscheidbar, und Home
+Assistant bietet Neuanmeldung und Rekonfiguration an, ohne den Config-Eintrag zu
+ersetzen. Ein abgelaufener Token schaltet den PowerOcean-Fallback nicht mehr
+lautlos ab, sondern führt zu einem begrenzten erneuten Login: höchstens alle
+fünf Minuten, und nur abgelehnte Zugangsdaten erreichen den Nutzer als Dialog.
+Stufe 2 ist auf einem Folgebranch umgesetzt: die Erkennung abgelaufener
+Zertifikate in der MQTT-Schicht wird verarbeitet, ein abgelehntes oder
+gealtertes Zertifikat wird begrenzt ersetzt und an die laufenden Clients
+übergeben, und die Broker-Adresse stammt aus der Credential-Antwort statt aus
+einer Konstante. Lokal bestehen 286 Tests. Befunde,
+Klassifikationsregel, der Vergleich mit `ecoflow-energy-ha` und die
+Aussagegrenzen stehen in [der Analyse](issue_16_auth_analysis.md); die
+fahrzeugunabhängigen Abnahmeschritte in der
+[Validierung](validation.md#unreleased-authentication-failure-handling).
+Abnahmestand 2026-09-10 auf `1.0.5-beta.3`: Ein falsches Passwort bei der
+Einrichtung meldet abgelehnte Zugangsdaten statt eines Verbindungsproblems.
+Damit sind die Klassifikation am Credential-Endpunkt und die Übersetzung
+belegt, nicht jedoch die Gegenrichtung. Offen bleiben Ausfallmeldung,
+Erneuerung und der Auslöser des Reparaturdialogs; Kontoschutz und
+Eintragsaktualisierung sind über den Rekonfigurationsdialog ohne ungültige
+Zugangsdaten prüfbar, weil beide Flows dieselbe Sequenz durchlaufen.
+Einzelheiten: [Validierung](validation.md#open-and-how-to-reach-each-one).
+Das Issue bleibt offen.
 
 Planungsstand: 2026-09-09. Vollständige Befunde und Validierungsgrenzen:
 [Prüfbericht](review_2026-09-09.md). Diese Roadmap ist ein Vorschlag zur
