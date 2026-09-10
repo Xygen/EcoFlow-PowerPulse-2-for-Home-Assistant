@@ -6,6 +6,7 @@ import asyncio
 import logging
 import time
 from collections import deque
+from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
@@ -36,7 +37,7 @@ from .control_readback import (
     matching_readback_source,
     provider_readback_attempt_details,
 )
-from .control_safety import control_allowed_for_status
+from .control_safety import CHARGING_LOCKED_SETTING_KEYS, control_allowed_for_status
 from .data_merge import merge_snapshot_after_read
 from .diagnostic_support import redact_serial_shaped_bytes
 from .ecoflow.cloud_mqtt import EcoFlowMQTTClient
@@ -138,6 +139,7 @@ _SETTING_OBSERVATION_KEYS = frozenset(
         "smart_target_type",
         "user_current_set_raw",
         "work_mode",
+        "switch_bits_raw",
     }
 )
 
@@ -824,6 +826,12 @@ class PowerPulse2Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
             now=time.monotonic(),
         )
 
+    def _control_setting_value(self, serial: str, key: str) -> Any:
+        """Reject newer contradictory evidence before preserving a setting."""
+        return self._setting_observations.current_value(
+            serial=serial, key=key, now=time.monotonic(), reject_newer_conflicts=True,
+        )
+
     async def _async_refresh_after_settings_reply(self) -> None:
         """Refresh provider state after a confirmed official-app settings reply."""
         try:
@@ -836,6 +844,8 @@ class PowerPulse2Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
 
     def settings_control_available(self, serial: str) -> bool:
         """Return whether the captured settings transport can be used."""
+        if self._shutting_down or serial not in self.devices:
+            return False
         if serial not in self._accessory_descriptors or len(self.observer_devices) != 1:
             return False
         observer_serial = next(iter(self.observer_devices))
@@ -846,15 +856,23 @@ class PowerPulse2Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
         self, serial: str, setting_key: str
     ) -> bool:
         """Return whether transport and the live charging state allow a write."""
-        return self.settings_control_available(serial) and control_allowed_for_status(
-            setting_key,
-            (self.data or {}).get(serial, {}).get("charging_status"),
+        if not self.settings_control_available(serial):
+            return False
+        if setting_key not in CHARGING_LOCKED_SETTING_KEYS:
+            return True
+        return (
+            self.direct_stream_available(serial)
+            and self.heartbeat_stream_active(serial)
+            and control_allowed_for_status(
+                setting_key, direct_charging_status((self.data or {}).get(serial, {}))
+            )
         )
 
     def charge_action_available(self, serial: str, action: str) -> bool:
         """Return whether transport and fresh state allow Start or Stop."""
         return (
             self.settings_control_available(serial)
+            and self.direct_stream_available(serial)
             and self.heartbeat_stream_active(serial)
             and charge_action_allowed(
                 action, direct_charging_status((self.data or {}).get(serial, {}))
@@ -886,6 +904,8 @@ class PowerPulse2Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
             )
 
         async with self._control_lock:
+            if not self.direct_stream_available(serial) or not self.heartbeat_stream_active(serial):
+                raise HomeAssistantError("Charging control requires a recent device heartbeat")
             status = direct_charging_status((self.data or {}).get(serial, {}))
             if not charge_action_allowed(action, status):
                 raise HomeAssistantError(
@@ -1211,28 +1231,29 @@ class PowerPulse2Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
         self, serial: str, enabled: bool
     ) -> None:
         """Set battery-discharge blocking while preserving every other flag."""
-        flags = self._required_int_setting(serial, "switch_bits_raw")
-        flags = flags | 0x01 if enabled else flags & ~0x01
         await self._async_write_settings(
             serial,
-            {1: flags},
+            lambda: {1: self._updated_switch_flags(serial, 0x01, enabled)},
             expected_key="battery_discharge_disabled",
             expected_value=enabled,
         )
 
     async def async_set_plug_and_play(self, serial: str, enabled: bool) -> None:
         """Set Plug-and-Play while preserving every other settings flag."""
-        flags = self._required_int_setting(serial, "switch_bits_raw")
-        flags = flags | 0x02 if enabled else flags & ~0x02
         await self._async_write_settings(
             serial,
-            {1: flags},
+            lambda: {1: self._updated_switch_flags(serial, 0x02, enabled)},
             expected_key="plug_and_play",
             expected_value=enabled,
         )
 
     async def async_set_work_mode(self, serial: str, mode: str) -> None:
         """Select a live-confirmed charging mode with its required companion data."""
+        async with self._control_lock:
+            await self._async_set_work_mode_locked(serial, mode)
+
+    async def _async_set_work_mode_locked(self, serial: str, mode: str) -> None:
+        """Prepare the complete mode bundle only after acquiring the control lock."""
         staged_after_write: dict[str, Any] | None = None
         if mode == "fast":
             settings: dict[int, int | bytes] = {2: 1}
@@ -1256,7 +1277,7 @@ class PowerPulse2Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
             }
         else:
             raise HomeAssistantError(f"Unsupported charging mode: {mode}")
-        await self._async_write_settings(
+        await self._async_write_settings_locked(
             serial, settings, expected_key="work_mode", expected_value=mode
         )
         if staged_after_write is not None:
@@ -1325,21 +1346,30 @@ class PowerPulse2Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
         expected_key: str,
         expected_value: Any,
     ) -> None:
-        if (self.data or {}).get(serial, {}).get("work_mode") != "smart":
+        # Preserve the user's local-edit versus live-write intent across queuing.
+        local_edit = (self.data or {}).get(serial, {}).get("work_mode") != "smart"
+        async with self._control_lock:
+            if local_edit:
+                if (self.data or {}).get(serial, {}).get("work_mode") == "smart":
+                    raise HomeAssistantError("Smart mode changed while the edit was waiting; retry the edit")
+                await self._async_update_smart_staging(serial, overrides)
+                return
+            candidate = {
+                key: self._control_setting_value(serial, key)
+                for key in STAGED_SMART_KEYS
+            }
+            candidate.update(overrides)
+            await self._async_write_settings_locked(
+                serial,
+                {
+                    1: self._required_int_setting(serial, "switch_bits_raw"),
+                    2: 4,
+                    7: self._smart_settings_payload(serial, candidate),
+                },
+                expected_key=expected_key,
+                expected_value=expected_value,
+            )
             await self._async_update_smart_staging(serial, overrides)
-            return
-        candidate = self._smart_settings_candidate(serial, overrides)
-        await self._async_write_settings(
-            serial,
-            {
-                1: self._required_int_setting(serial, "switch_bits_raw"),
-                2: 4,
-                7: self._smart_settings_payload(serial, candidate),
-            },
-            expected_key=expected_key,
-            expected_value=expected_value,
-        )
-        await self._async_update_smart_staging(serial, overrides)
 
     def _remember_smart_settings(self, serial: str, values: dict[str, Any]) -> None:
         keys = (
@@ -1431,12 +1461,13 @@ class PowerPulse2Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
         values = (self.data or {}).get(serial, {})
         if values.get("work_mode") != "solar":
             raise HomeAssistantError("Continuous charging can only be changed in Solar mode")
-        flags = self._required_int_setting(serial, "switch_bits_raw")
-        solar_current = self._required_int_setting(serial, "solar_current_min_raw")
-        flags = flags | 0x10 if enabled else flags & ~0x10
         await self._async_write_settings(
             serial,
-            {1: flags, 2: 2, 4: solar_current},
+            lambda: {
+                1: self._updated_switch_flags(serial, 0x10, enabled),
+                2: 2,
+                4: self._required_int_setting(serial, "solar_current_min_raw"),
+            },
             expected_key="continuous_charging",
             expected_value=enabled,
         )
@@ -1459,10 +1490,9 @@ class PowerPulse2Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
                 "Solar minimum current requires Solar mode and Continuous charging"
             )
         raw = self._validated_whole_amp_setting(amps)
-        flags = self._required_int_setting(serial, "switch_bits_raw")
         await self._async_write_settings(
             serial,
-            {1: flags, 2: 2, 4: raw},
+            lambda: {1: self._required_int_setting(serial, "switch_bits_raw"), 2: 2, 4: raw},
             expected_key="solar_current_min_raw",
             expected_value=raw,
         )
@@ -1498,15 +1528,30 @@ class PowerPulse2Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
     async def _async_write_display_settings(
         self, serial: str, *, expected_key: str, expected_value: Any, **overrides: Any
     ) -> None:
-        values = dict((self.data or {}).get(serial, {}))
-        values.update(overrides)
+        await self._async_write_settings(
+            serial,
+            lambda: {21: self._display_settings_payload(serial, overrides)},
+            expected_key=expected_key,
+            expected_value=expected_value,
+        )
+
+    def _display_settings_payload(self, serial: str, overrides: dict[str, Any]) -> bytes:
+        """Preserve freshly observed display companions at dispatch time."""
         required = (
             "indicator_enabled", "screen_enabled",
             "indicator_brightness_pct", "screen_brightness_pct",
         )
-        if any(key not in values for key in required):
+        values = {key: self._control_setting_value(serial, key) for key in required}
+        values.update(overrides)
+        if (
+            any(type(values[key]) is not bool for key in ("indicator_enabled", "screen_enabled"))
+            or any(
+                type(values[key]) is not int or values[key] not in (25, 50, 75, 100)
+                for key in ("indicator_brightness_pct", "screen_brightness_pct")
+            )
+        ):
             raise HomeAssistantError("Complete display settings readback is unavailable")
-        raw = bytes((
+        return bytes((
             int(values["indicator_enabled"]),
             int(values["screen_enabled"]),
             int(values["indicator_brightness_pct"]),
@@ -1514,9 +1559,6 @@ class PowerPulse2Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
             0,
             0,
         ))
-        await self._async_write_settings(
-            serial, {21: raw}, expected_key=expected_key, expected_value=expected_value
-        )
 
     @staticmethod
     def _validated_brightness(percent: float) -> int:
@@ -1525,10 +1567,34 @@ class PowerPulse2Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
         return int(percent)
 
     def _required_int_setting(self, serial: str, key: str) -> int:
-        value = (self.data or {}).get(serial, {}).get(key)
-        if not isinstance(value, int):
+        value = self._control_setting_value(serial, key)
+        if type(value) is not int:
             raise HomeAssistantError(f"Required device readback is unavailable: {key}")
         return value
+
+    def _updated_switch_flags(self, serial: str, mask: int, enabled: bool) -> int:
+        flags = self._required_int_setting(serial, "switch_bits_raw")
+        return flags | mask if enabled else flags & ~mask
+
+    def _validate_setting_write(self, serial: str, key: str) -> None:
+        """Recheck mutable prerequisites while holding the transaction lock."""
+        if not self.charging_sensitive_control_available(serial, key):
+            raise HomeAssistantError("Control requires a connected source and a fresh permitted charging state")
+        required_mode = {
+            "user_current_set_raw": "custom",
+            "continuous_charging": "solar",
+            "solar_current_min_raw": "solar",
+            **dict.fromkeys(STAGED_SMART_KEYS, "smart"),
+        }.get(key)
+        if required_mode is not None and self._control_setting_value(serial, "work_mode") != required_mode:
+            raise HomeAssistantError(f"This setting requires fresh {required_mode} mode readback")
+        enabled_key = {
+            "solar_current_min_raw": "continuous_charging",
+            "screen_brightness_pct": "screen_enabled",
+            "indicator_brightness_pct": "indicator_enabled",
+        }.get(key)
+        if enabled_key and self._control_setting_value(serial, enabled_key) is not True:
+            raise HomeAssistantError(f"This setting requires fresh enabled readback: {enabled_key}")
 
     @staticmethod
     def _validated_whole_amp_setting(amps: float) -> int:
@@ -1539,20 +1605,13 @@ class PowerPulse2Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
     async def _async_write_settings(
         self,
         serial: str,
-        settings: dict[int, int | bytes],
+        settings: dict[int, int | bytes] | Callable[[], dict[int, int | bytes]],
         *,
         expected_key: str,
         expected_value: Any,
         phase_specific: bool = False,
     ) -> None:
         """Publish one settings command and require reply plus confirmed readback."""
-        if not control_allowed_for_status(
-            expected_key,
-            (self.data or {}).get(serial, {}).get("charging_status"),
-        ):
-            raise HomeAssistantError(
-                "This setting cannot be changed while the vehicle is charging"
-            )
         async with self._control_lock:
             await self._async_write_settings_locked(
                 serial,
@@ -1565,12 +1624,14 @@ class PowerPulse2Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
     async def _async_write_settings_locked(
         self,
         serial: str,
-        settings: dict[int, int | bytes],
+        settings: dict[int, int | bytes] | Callable[[], dict[int, int | bytes]],
         *,
         expected_key: str,
         expected_value: Any,
         phase_specific: bool = False,
     ) -> None:
+        self._validate_setting_write(serial, expected_key)
+        settings = settings() if callable(settings) else settings
         if not self.settings_control_available(serial):
             raise HomeAssistantError(
                 "Control is unavailable until a direct device settings report "

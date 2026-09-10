@@ -82,12 +82,23 @@ recovery decisions during earlier gaps; no vehicle is required for this step.
 Implementation prepared for Issue #19: diagnostics now include an in-memory
 stream timeline with connection callbacks, recovery reasons, report ages and
 reconnect outcomes. See [the diagnostic contract](validation.md#stream-timeline-diagnostics).
-Review, deployment to the installed beta line and a new idle-gap observation
-remain pending. This branch does not include the safety/readback changes in
-PR #22/#23; do not install it over the existing beta as a replacement build.
+PR #28 review is complete; `1.0.5-beta.2` combines this timeline with the
+previously installed PR #22 safety changes. PR #23 is not included. Deployment
+and a new idle-gap observation remain pending until separately verified below.
 Persistence across reload/restart is not implemented; export before restarting.
 
-Planungsstand: 2026-09-09. Vollständige Befunde und Validierungsgrenzen:
+Implementierungsstand: 2026-09-09.
+`V2-SAFE-01` / [Issue #14](https://github.com/Xygen/EcoFlow-PowerPulse-2-for-Home-Assistant/issues/14)
+ist lokal implementiert; 193 Tests bestehen, davon 31 neue Coordinator-Transaktionstests.
+Die Review ergänzte eine Sendesperre bei neueren widersprüchlichen Begleitwerten
+oder Modus-/Freigabewerten aus einer niedriger priorisierten Quelle.
+`1.0.5-beta.1` ist per HACS installiert und nach HA-Neustart geladen.
+Der Display-Test 100 → 75 → 100 % wurde zweimal per Direct-Readback bestätigt;
+Begleitwerte blieben erhalten. Die fahrzeuggestützte Abnahme steht aus
+(Live-Status `unplugged`); das Item und PR #22 bleiben offen.
+Details zur Aussagegrenze: [Validierung](validation.md#unreleased-control-transaction-hardening).
+
+Vollständige Befunde und Validierungsgrenzen:
 [Prüfbericht](review_2026-09-09.md). Diese Roadmap ist ein Vorschlag zur
 Umsetzungsreihenfolge, keine Aussage über bereits gelieferte Funktionen.
 Bestehende IDs oben bleiben maßgeblich und werden unten nur zugeordnet.
