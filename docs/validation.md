@@ -234,7 +234,18 @@ They coalesce independently from actual `recovery_check` events, keeping state
 changes and otherwise one record per five minutes. Thus observations do not
 claim that the recovery routine ran. The original recovery scheduling is unchanged.
 Tests cover independent invocation, coalescing, no reconnect and cancellation.
-Live acceptance of this corrected sampling remains pending until verified below.
+Live acceptance on 2026-09-10: HACS installed beta.5, the post-restart config entry
+was loaded, and runtime diagnostics confirmed `1.0.5-beta.5`. The timeline
+contained independent observations both at startup and later, capturing the
+heartbeat becoming fresh while settings remained fresh. Both stream entities
+were on. No reconnect was induced. This validates independent sampling, not
+long-outage recovery or vehicle-backed control behavior.
+
+Release commit `57e9f4972313cec08ff595087188fc03cb986c41` passed 325 local tests,
+Ruff and offline consistency checks; tag CI run `34526135571` passed quality,
+HACS and Hassfest. The archive's 48 files matched the working source tree;
+GitHub's published asset digest matched SHA256
+`80c18c02316db70274af76e4843b942bf205887e9fb3175895c5c48aff90b048`.
 
 ### Original timeline contract
 
@@ -267,8 +278,8 @@ coordinator methods with isolated HA boundaries, including disconnected and
 never-started streams, error cooldown and callback queuing. These are not full
 HA lifecycle fixtures or live outage acceptance. The policy still requires both
 previously observed streams stale for 300 seconds and a 1,800-second cooldown.
-The original timeline is present in the installed beta.4; periodic sampling
-acceptance requires the beta.5 correction above. Installed-beta and vehicle acceptance are
+The timeline and independent sampling are installed in beta.5 as verified above.
+Vehicle acceptance and remaining recovery investigation are
 tracked in the [central backlog](backlog.md).
 
 ## Test principles

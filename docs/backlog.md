@@ -64,9 +64,11 @@ and the release contains no unverified new controls or guessed field mappings.
 
 Issue #19 follow-up: beta.4 live verification confirms connection events but
 exposes polling-dependent diagnostic starvation under frequent MQTT pushes.
-Beta.5 prepares a separate, read-only sampler while preserving beta.4 safety
+Beta.5 adds a separate, read-only sampler while preserving beta.4 safety
 and authentication changes. See [the evidence and contract](validation.md#independent-observations-in-beta5).
-Next gate: verify independent samples in HA; then observe a new idle gap.
+Beta.5 is installed and independent observations were verified in HA after
+restart. Next gate: observe a new idle gap and compare observation samples with
+actual recovery-check/attempt events before changing recovery scheduling.
 Recovery scheduling starvation is a separate remaining investigation item;
 this change does not enable extra recovery attempts or close Issue #19.
 
