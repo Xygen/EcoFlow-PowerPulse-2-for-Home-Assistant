@@ -5,13 +5,25 @@
         "title": "EcoFlow PowerPulse 2",
         "description": "Melde dich mit dem EcoFlow-App-Konto der Wallbox an. Experimentelle Steuerungen sind standardmäßig deaktiviert und müssen ausdrücklich in der Entitätsverwaltung aktiviert werden.",
         "data": {"email": "E-Mail", "password": "Passwort"}
+      },
+      "reauth_confirm": {
+        "title": "EcoFlow PowerPulse 2 neu anmelden",
+        "description": "EcoFlow hat die gespeicherten Zugangsdaten für {email} abgelehnt. Gib das aktuelle Passwort dieses EcoFlow-App-Kontos ein. Geräte, Entitäts-IDs, Verlauf und lokale Smart-Entwürfe bleiben erhalten.",
+        "data": {"email": "E-Mail", "password": "Passwort"}
+      },
+      "reconfigure": {
+        "title": "EcoFlow-Zugangsdaten aktualisieren",
+        "description": "Gib die EcoFlow-App-Zugangsdaten ein, die diese Integration verwenden soll. Das Konto muss dasselbe bleiben, damit bestehende Entitäten weiter funktionieren.",
+        "data": {"email": "E-Mail", "password": "Passwort"}
       }
     },
     "error": {
       "cannot_connect": "Verbindung oder Anmeldung bei EcoFlow fehlgeschlagen",
-      "no_devices": "In diesem Konto wurde keine unterstützte PowerPulse gefunden"
+      "no_devices": "In diesem Konto wurde keine unterstützte PowerPulse gefunden",
+      "invalid_auth": "EcoFlow hat diese Zugangsdaten abgelehnt",
+      "unknown": "Es ist ein unerwarteter Fehler aufgetreten"
     },
-    "abort": {"already_configured": "Dieses EcoFlow-Konto ist bereits eingerichtet"}
+    "abort": {"already_configured": "Dieses EcoFlow-Konto ist bereits eingerichtet", "reauth_successful": "Neuanmeldung erfolgreich", "reconfigure_successful": "Zugangsdaten aktualisiert", "wrong_account": "Diese Zugangsdaten gehören zu einem anderen EcoFlow-Konto"}
   },
   "entity": {
     "binary_sensor": {

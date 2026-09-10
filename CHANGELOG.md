@@ -6,6 +6,28 @@ Current outstanding work is maintained only in
 
 ## Unreleased
 
+- Tell a refused EcoFlow credential apart from an unreachable endpoint, and offer
+  Home Assistant re-authentication and reconfiguration instead of an endless
+  retry. Sign-in, certification, device discovery and provider detail reads now
+  classify their answers, so an expired session starts the credential repair
+  dialog while a temporary outage keeps retrying. Repairing credentials updates
+  the existing config entry, preserving entity IDs, history, user activations and
+  local Smart drafts. An expired token no longer disables the bounded PowerOcean
+  fallback silently: the stored credentials are tried again first, at most once
+  every five minutes, so only credentials EcoFlow actually refuses reach the user
+  as a dialog.
+
+- Explain local Smart drafts, activation and observed device settings in the user
+  guide; document raw/qualified charging-power sources, automation limits and
+  unknown/unavailable handling. Correct the field-17 reference from existing
+  DATA-03 evidence and distinguish stable documentation from the dated beta test.
+
+- Add a Python 3.12 quality job for pytest, Ruff and offline documentation checks,
+  including translation-key parity, current release declarations and local links.
+  Retain HACS/Hassfest, record the checked Git revision and document release gates.
+- Align explicit stable-version declarations with 1.0.4 and add the missing
+  qualified PowerOcean power sensor key to `strings.json`.
+
 - Qualify generic settings confirmation using the actual field, exact source and
   observation time. Partial reports cannot refresh a cached target, and fresh
   conflicting Direct evidence blocks provider fallback. Provider requests started

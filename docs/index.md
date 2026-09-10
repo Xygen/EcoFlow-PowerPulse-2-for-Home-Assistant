@@ -1,5 +1,7 @@
 # PowerPulse 2 documentation
 
+Current stable release: `1.0.4`.
+
 Use this page as the entry point. It separates current product documentation
 from the evidence archives created during protocol research.
 
@@ -8,6 +10,8 @@ from the evidence archives created during protocol research.
 | Need | Source of truth |
 | --- | --- |
 | Install, configure, and use the integration | [User guide](user-guide.md) |
+| Prepare a Smart draft and distinguish it from device settings | [Smart charging plans](user-guide.md#preparing-and-using-a-smart-charging-plan) |
+| Choose a charging-power source for an automation | [Power readings and freshness limits](user-guide.md#choosing-a-power-reading) |
 | Confirm supported entities, sources, and control safety | [Data-path overview](data_paths_overview.md) |
 | Review test coverage, live validation, and release readiness | [Validation status](validation.md) |
 | See active, deferred, and release work | [Project backlog](backlog.md) |
@@ -30,12 +34,13 @@ must not be read as the current product contract.
 | Phase measurement research | [DATA-06 analysis](phase_measurement_entities_analysis.md) |
 | Smart-mode bootstrap research | [SMART-01 analysis](smart_mode_bootstrap_analysis.md) |
 | Start/Stop readback and timeout analysis | [Issue #12 analysis](issue_12_charge_readback_analysis.md) |
+| Authentication failure and re-authentication analysis | [Issue #16 analysis](issue_16_auth_analysis.md) |
 
 ## Documentation status and resolved contradictions
 
 | Finding | Resolution |
 | --- | --- |
-| README named `0.1.1-beta.6`; the manifest and active backlog named `0.1.1-beta.8`. | Resolved before `1.0.0`; current release documents consistently name `1.0.0`. |
+| README named `0.1.1-beta.6`; the manifest and active backlog named `0.1.1-beta.8`. | Resolved before `1.0.0`; documents were aligned to `1.0.0` at that time. The current stable release is identified above. |
 | README said phase control required fresh Direct `241/44` only. | It now describes the implemented, source-qualified Parent-Accessory fallback and links its remaining validation to `PHASE-01`. |
 | The data-path overview both decoded field `21` as the display block and called it unassigned. | Field `21` is now consistently documented as the confirmed six-byte display block; only fields `5` and `9` remain unresolved. |
 | Chronological records looked like current product documentation. | Protocol and Issue #247 files are explicitly labelled as evidence archives; this index points to the current references. |
