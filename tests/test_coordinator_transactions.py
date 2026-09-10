@@ -107,6 +107,8 @@ class Harness:
         self.connected = True
         self.reply = True
         self.readback = True
+        self.report_values = None
+        self.report_source = "direct_fast_settings_241_44"
         self.coordinator = module.PowerPulse2Coordinator(
             SimpleNamespace(async_add_executor_job=self.execute),
             SimpleNamespace(data={"email": "test", "password": "test"}, entry_id="test"),
@@ -137,11 +139,14 @@ class Harness:
         c.data[SERIAL].update(direct_charging_status=status, charging_status=status)
         c._last_heartbeat_at[SERIAL] = self.now() - age
 
-    def observe(self, **values):
+    def observe(self, source="direct_fast_settings_241_44", **values):
         c = self.coordinator
         c.data[SERIAL].update(values)
-        c._record_setting_observations(SERIAL, "direct_fast_settings_241_44", values)
+        c._record_setting_observations(SERIAL, source, values)
         c._last_direct_settings_at[SERIAL] = self.now()
+        if "phase_specified_raw" in values:
+            phase_source = "direct_241_44" if source == "direct_fast_settings_241_44" else source
+            c._phase_readbacks.record(SERIAL, phase_source, values)
 
     def expire_settings(self):
         c = self.coordinator
@@ -162,6 +167,9 @@ class Harness:
                               battery_discharge_disabled=bool(flags & 1), continuous_charging=bool(flags & 16))
             if 2 in settings:
                 values["work_mode"] = {1: "fast", 2: "solar", 3: "custom", 4: "smart"}[settings[2]]
+            if 5 in settings:
+                values.update(phase_specified_raw=settings[5],
+                              phase_mode={0: "auto", 1: "one_phase", 2: "three_phase"}[settings[5]])
             for field, key in ((3, "output_current_max_raw"), (4, "solar_current_min_raw"),
                                (6, "user_current_set_raw")):
                 if field in settings:
@@ -175,13 +183,16 @@ class Harness:
                 values.update(ready_by_timestamp=smart[1],
                               smart_target_type="energy" if smart[2] == 1 else "distance",
                               smart_charge_target_wh=smart[3], smart_target_distance_km=smart[4])
+                if smart[2] == 2:
+                    values["smart_calculated_energy_wh"] = smart[3]
         else:
             self.sent.append({"action": command})
 
         def receive():
             if self.readback:
                 if command == 102:
-                    self.observe(**values)
+                    self.observe(source=self.report_source,
+                                 **(values if self.report_values is None else self.report_values))
                 else:
                     self.heartbeat("charging")
             if self.reply:
@@ -410,3 +421,142 @@ async def test_newer_conflicting_source_blocks_queued_solar_write(harness, sourc
     with pytest.raises(HAError):
         await harness.queued(c.async_set_solar_minimum_current(SERIAL, 7), lambda: None)
     assert harness.sent == []
+
+
+def test_partial_direct_report_cannot_confirm_cached_target(harness):
+    c = harness.coordinator
+    issued = harness.now() + 1
+    c._last_direct_settings_at[SERIAL] = issued + 1
+    assert c._control_readback_source(SERIAL, issued, "output_current_max_raw", 160) is None
+
+
+def test_provider_target_cannot_override_postwrite_direct_conflict(harness):
+    c = harness.coordinator
+    issued = harness.now() - 1
+    c._last_polled_settings[SERIAL] = {"output_current_max_raw": 60}
+    c._last_polled_settings_at[SERIAL] = harness.now()
+    assert c._control_readback_source(SERIAL, issued, "output_current_max_raw", 60) is None
+
+
+@pytest.mark.asyncio
+async def test_provider_noop_cannot_suppress_required_current_write(harness):
+    c = harness.coordinator
+    c._last_polled_settings[SERIAL] = {"output_current_max_raw": 60}
+    c._last_polled_settings_at[SERIAL] = harness.now()
+    c._record_setting_observations(SERIAL, "provider_device_detail", {"output_current_max_raw": 60})
+    await harness.queued(c.async_set_maximum_output_current(SERIAL, 6), lambda: None)
+    assert harness.sent == [{3: 60}]
+
+
+CONTROL_CASES = [
+    ("maximum_output_current", 7, "solar"),
+    ("battery_discharge_disabled", True, "solar"),
+    ("plug_and_play", True, "solar"),
+    ("work_mode", "fast", "solar"),
+    ("work_mode", "solar", "fast"),
+    ("work_mode", "custom", "solar"),
+    ("work_mode", "smart", "solar"),
+    ("custom_current", 7, "custom"),
+    ("continuous_charging", False, "solar"),
+    ("solar_minimum_current", 7, "solar"),
+    ("smart_ready_by", 2000003600, "smart"),
+    ("smart_target_type", "distance", "smart"),
+    ("smart_energy_target", 20, "smart"),
+    ("smart_distance_target", 200, "smart"),
+    ("screen_enabled", False, "solar"),
+    ("indicator_enabled", False, "solar"),
+    ("screen_brightness", 75, "solar"),
+    ("indicator_brightness", 75, "solar"),
+]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("method,value,mode", CONTROL_CASES)
+@pytest.mark.parametrize("readback", ["direct", "provider", "omitted"])
+async def test_all_generic_controls_require_actual_field_readback(harness, monkeypatch, method, value, mode, readback):
+    c = harness.coordinator
+    c.hass.loop = asyncio.get_running_loop()
+    harness.observe(work_mode=mode, ready_by_timestamp=2000000000,
+                    smart_target_type="energy", smart_charge_target_wh=10000, smart_target_distance_km=100)
+    if method == "work_mode" and value == "smart":
+        await c._async_update_smart_staging(SERIAL, {
+            "ready_by_timestamp": 2000000000, "smart_target_type": "energy",
+            "smart_charge_target_wh": 10000,
+        })
+    if readback == "provider":
+        harness.expire_settings()
+        harness.report_source = "provider_parent_accessory"
+        harness.observe(source=harness.report_source, **c.data[SERIAL])
+    if readback == "omitted":
+        harness.report_values = {"unrelated_field": 1}
+        monkeypatch.setattr(harness.module, "_CONTROL_DIRECT_WAIT_SECONDS", 0)
+        monkeypatch.setattr(harness.module, "_CONTROL_PROVIDER_RETRY_DELAYS", ())
+        with pytest.raises(HAError, match="neither direct nor provider"):
+            await getattr(c, "async_set_" + method)(SERIAL, value)
+        assert len(harness.sent) == 1  # ACK alone did not establish success.
+    else:
+        await getattr(c, "async_set_" + method)(SERIAL, value)
+        assert c._control_readback_counts[readback] == 1
+        # A fresh, complete provider snapshot can now qualify a repeat as no-op.
+        harness.expire_settings()
+        harness.observe(source="provider_parent_accessory", **c.data[SERIAL])
+        await getattr(c, "async_set_" + method)(SERIAL, value)
+        assert len(harness.sent) == 1
+        assert c._control_readback_counts["noop"] == 1
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("path", ["detail", "parent"])
+async def test_provider_read_started_before_command_cannot_confirm_it(harness, path):
+    c = harness.coordinator
+    started, release = asyncio.Event(), asyncio.Event()
+
+    async def read(device):
+        started.set()
+        await release.wait()
+        values = {"output_current_max_raw": 60}
+        return values if path == "detail" else {SERIAL: values}
+
+    c.api.async_read = read
+    c.api.async_read_accessories = read
+    operation = (
+        c._async_read_combined_snapshot(SERIAL, {}, {}) if path == "detail"
+        else c._async_read_parent_accessories()
+    )
+    task = asyncio.create_task(operation)
+    await started.wait()
+    await asyncio.sleep(0.02)
+    issued = harness.now()
+    release.set()
+    await task
+    assert c._control_readback_source(SERIAL, issued, "output_current_max_raw", 60) is None
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("source,initial,success", [
+    ("direct_fast_settings_241_44", 1, True),
+    ("provider_parent_accessory", 0, True),
+    ("provider_parent_accessory", 1, False),
+])
+async def test_phase_keeps_transition_requirement_and_never_uses_generic_noop(
+    harness, monkeypatch, source, initial, success,
+):
+    c = harness.coordinator
+    c.hass.loop = asyncio.get_running_loop()
+    harness.report_source = source
+    harness.observe(source=source, phase_specified_raw=initial,
+                    phase_mode="auto" if initial == 0 else "one_phase")
+    monkeypatch.setattr(harness.module, "_CONTROL_DIRECT_WAIT_SECONDS", 0)
+    monkeypatch.setattr(harness.module, "_CONTROL_PROVIDER_RETRY_DELAYS", (0,))
+
+    async def refresh():
+        pass
+
+    c.async_request_refresh = refresh
+    if success:
+        await c.async_set_phase_mode(SERIAL, "one_phase")
+    else:
+        with pytest.raises(HAError, match="neither direct nor provider"):
+            await c.async_set_phase_mode(SERIAL, "one_phase")
+    assert harness.sent == [{5: 1}]
+    assert c._control_readback_counts["noop"] == 0

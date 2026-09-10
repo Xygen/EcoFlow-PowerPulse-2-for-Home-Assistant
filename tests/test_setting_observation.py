@@ -38,6 +38,16 @@ def test_missing_observation_is_unknown() -> None:
     assert _value(SettingObservationTracker(FRESH_SECONDS), 100) is None
 
 
+def test_late_completion_of_older_read_cannot_replace_newer_field():
+    tracker = SettingObservationTracker(FRESH_SECONDS)
+    _record(tracker, source="provider_device_detail", value="fast", observed_monotonic=110)
+    _record(tracker, source="provider_device_detail", value="solar", observed_monotonic=100)
+    assert _value(tracker, 111) == "fast"
+    assert tracker.fresh_observations(serial="C376-test", key="work_mode", now=171) == ()
+    assert tracker.fresh_observations(serial="C376-other", key="work_mode", now=111) == ()
+    assert tracker.fresh_observations(serial="C376-test", key="phase_mode", now=111) == ()
+
+
 def test_direct_report_sources_are_kept_distinct() -> None:
     assert setting_source_from_headers([{"cmd_func": 2, "cmd_id": 33}]) == (
         "direct_heartbeat_2_33"

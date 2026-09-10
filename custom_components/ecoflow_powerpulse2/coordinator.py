@@ -40,9 +40,9 @@ from .const import (
     UPDATE_INTERVAL_SECONDS,
 )
 from .control_readback import (
-    fresh_polled_value_matches,
     matching_readback_source,
-    provider_readback_attempt_details,
+    provider_bundle_matches,
+    settings_bundle_values,
 )
 from .control_safety import CHARGING_LOCKED_SETTING_KEYS, control_allowed_for_status
 from .data_merge import merge_snapshot_after_read
@@ -86,7 +86,6 @@ _MAX_FRAME_BYTES = 2048
 _DIRECT_SETTINGS_FRESH_SECONDS = 10
 _CONTROL_DIRECT_WAIT_SECONDS = 2
 _CONTROL_PROVIDER_RETRY_DELAYS = (0, 3, 5, 5, 5)
-_CONTROL_NOOP_FRESH_SECONDS = UPDATE_INTERVAL_SECONDS * 2
 _PHASE_PROVIDER_FRESH_SECONDS = UPDATE_INTERVAL_SECONDS * 2
 _CONTROL_DIAGNOSTIC_ATTEMPTS = 32
 _CHARGE_ACTION_DIAGNOSTIC_ATTEMPTS = 16
@@ -130,6 +129,8 @@ _DIRECT_SETTINGS_KEYS = frozenset(
 )
 _SETTING_OBSERVATION_KEYS = frozenset(
     {
+        "output_current_max_raw",
+        "smart_calculated_energy_wh",
         "battery_discharge_disabled",
         "continuous_charging",
         "current_limit_raw",
@@ -494,15 +495,17 @@ class PowerPulse2Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
         updates: dict[str, dict[str, Any]] = {}
         snapshot_keys: dict[str, list[str]] = {}
         for source_serial, device in self.observer_devices.items():
+            read_started = time.monotonic()
             reports = await self.api.async_read_accessories(device)
             matched_keys: set[str] = set()
             for target_serial in self.devices:
                 values = reports.get(target_serial, {})
                 self._phase_readbacks.record(
-                    target_serial, "provider_parent_accessory", values
+                    target_serial, "provider_parent_accessory", values,
                 )
                 self._record_setting_observations(
-                    target_serial, "provider_parent_accessory", values
+                    target_serial, "provider_parent_accessory", values,
+                    observed_monotonic=read_started,
                 )
                 if not values:
                     continue
@@ -519,10 +522,11 @@ class PowerPulse2Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
         provider: dict[str, Any],
     ) -> dict[str, Any]:
         """Combine direct and already-fetched parent data before race-safe merge."""
+        read_started = time.monotonic()
         snapshot = await self.api.async_read(device)
         self._phase_readbacks.record(serial, "provider_device_detail", snapshot)
         self._record_setting_observations(
-            serial, "provider_device_detail", snapshot
+            serial, "provider_device_detail", snapshot, observed_monotonic=read_started,
         )
         snapshot.update(provider)
         self._last_polled_settings[serial] = dict(snapshot)
@@ -936,11 +940,13 @@ class PowerPulse2Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
         return frozenset(preferred)
 
     def _record_setting_observations(
-        self, serial: str, source: SettingSource, values: dict[str, Any]
+        self, serial: str, source: SettingSource, values: dict[str, Any],
+        *, observed_monotonic: float | None = None,
     ) -> None:
         """Record fields from one qualified provider snapshot."""
         observed_at = datetime.now(UTC).isoformat()
-        observed_monotonic = time.monotonic()
+        if observed_monotonic is None:
+            observed_monotonic = time.monotonic()
         self._setting_observations.record_snapshot(
             serial=serial,
             source=source,
@@ -1776,13 +1782,14 @@ class PowerPulse2Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
             )
         else:
             now = time.monotonic()
-            if fresh_polled_value_matches(
-                polled_values=self._last_polled_settings.get(serial, {}),
-                polled_at=self._last_polled_settings_at.get(serial, 0),
-                now=now,
-                max_age=_CONTROL_NOOP_FRESH_SECONDS,
-                expected_key=expected_key,
-                expected_value=expected_value,
+            expected_bundle = settings_bundle_values(settings)
+            if expected_bundle:
+                expected_bundle[expected_key] = expected_value
+            if provider_bundle_matches(
+                expected=expected_bundle,
+                evidence={key: self._setting_observations.fresh_observations(
+                    serial=serial, key=key, now=now,
+                ) for key in expected_bundle},
             ):
                 self._record_control_readback("noop")
                 return
@@ -1923,12 +1930,10 @@ class PowerPulse2Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
         expected_value: Any,
     ) -> str | None:
         return matching_readback_source(
-            current_values=(self.data or {}).get(serial, {}),
-            direct_reported_at=self._last_direct_settings_at.get(serial, 0),
-            polled_values=self._last_polled_settings.get(serial, {}),
-            polled_at=self._last_polled_settings_at.get(serial, 0),
+            observations=self._setting_observations.fresh_observations(
+                serial=serial, key=expected_key, now=time.monotonic(),
+            ),
             issued_at=issued_at,
-            expected_key=expected_key,
             expected_value=expected_value,
         )
 
@@ -1949,13 +1954,19 @@ class PowerPulse2Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
         refresh_succeeded: bool,
     ) -> None:
         """Retain a bounded, identifier-free provider qualification trace."""
-        details = provider_readback_attempt_details(
-            polled_values=self._last_polled_settings.get(serial, {}),
-            polled_at=self._last_polled_settings_at.get(serial, 0),
-            issued_at=issued_at,
-            expected_key=expected_key,
-            expected_value=expected_value,
+        observations = self._setting_observations.fresh_observations(
+            serial=serial, key=expected_key, now=time.monotonic(),
         )
+        provider = [o for o in observations if o.source.startswith("provider_")]
+        details = {
+            "snapshot_after_command": any(o.observed_monotonic > issued_at for o in provider),
+            "expected_key_present": bool(provider),
+            "matched": matching_readback_source(
+                observations=observations, issued_at=issued_at, expected_value=expected_value,
+            ) == "provider",
+            "field_evidence": [{"source": o.source, "after_command": o.observed_monotonic > issued_at,
+                                "value_matches": o.value == expected_value} for o in observations],
+        }
         self._control_provider_attempts.append(
             {
                 "timestamp": datetime.now(UTC).isoformat(),

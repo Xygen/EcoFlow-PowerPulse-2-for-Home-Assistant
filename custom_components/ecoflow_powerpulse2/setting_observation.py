@@ -70,12 +70,26 @@ class SettingObservationTracker:
         for key in keys:
             if key not in values:
                 continue
+            previous = self._observations.get((serial, key, source))
+            if previous is not None and previous.observed_monotonic > observed_monotonic:
+                continue
             self._observations[(serial, key, source)] = SettingObservation(
                 value=values[key],
                 source=source,
                 observed_at=observed_at,
                 observed_monotonic=observed_monotonic,
             )
+
+    def fresh_observations(
+        self, *, serial: str, key: str, now: float,
+    ) -> tuple[SettingObservation, ...]:
+        """Return field-specific evidence without joining independent sources."""
+        return tuple(
+            observation
+            for (item_serial, item_key, source), observation in self._observations.items()
+            if item_serial == serial and item_key == key
+            and 0 <= now - observation.observed_monotonic <= self._fresh_seconds[source]
+        )
 
     def current_value(
         self, *, serial: str, key: str, now: float,
