@@ -62,6 +62,49 @@ and the release contains no unverified new controls or guessed field mappings.
 
 ## Roadmap bis Version 2.0
 
+Stand 2026-09-10: [V2-DOC-01 / Issue #20](https://github.com/Xygen/EcoFlow-PowerPulse-2-for-Home-Assistant/issues/20)
+ist zur Review dokumentiert: lokale Smart-Entwürfe, Aktivierung und Gerätemeldungen
+sind getrennt erklärt; die Quellenwahl für Automationen enthält die Frischegrenzen
+von 1.0.4; Feld 17 verweist auf die abgeschlossene DATA-03-Validierung.
+README/Index/Anleitung nennen die stabile Basis, der Validierungsbericht trennt
+den datierten Beta-Test davon. Versions-/Übersetzungskorrekturen sind mit PR #24
+bereits gemergt. Das Issue bleibt bis zur Prüfung und Übernahme der restlichen Doku offen.
+
+Stand 2026-09-10: [V2-QA-01 / Issue #17](https://github.com/Xygen/EcoFlow-PowerPulse-2-for-Home-Assistant/issues/17)
+ist auf einem unabhängigen Branch von `main` umgesetzt: pytest, Ruff und
+Dokumentationskonsistenz laufen zusätzlich zu HACS/Hassfest. Lokal bestehen
+170 Tests einschließlich absichtlich fehlerhafter Prüffälle. Workflow-Abnahme
+erfolgt am zugehörigen PR; Repository-Schutzregeln werden nicht geändert.
+Details: [automatische Prüfungen](validation.md#automated-repository-checks).
+Die damit zwingend verbundenen Versionskorrekturen in README/Index und der fehlende
+Schlüssel in `strings.json` erledigen einen Teil von #20; die übrige Anleitung bleibt dort offen.
+
+Stand 2026-09-10: [V2-AUTH-01 / Issue #16](https://github.com/Xygen/EcoFlow-PowerPulse-2-for-Home-Assistant/issues/16)
+ist in Stufe 1 auf einem unabhängigen Branch von `main` umgesetzt: abgelehnte
+Zugangsdaten sind von einem nicht erreichbaren Endpunkt unterscheidbar, und Home
+Assistant bietet Neuanmeldung und Rekonfiguration an, ohne den Config-Eintrag zu
+ersetzen. Ein abgelaufener Token schaltet den PowerOcean-Fallback nicht mehr
+lautlos ab, sondern führt zu einem begrenzten erneuten Login: höchstens alle
+fünf Minuten, und nur abgelehnte Zugangsdaten erreichen den Nutzer als Dialog.
+Lokal bestehen 230 Tests. Nicht enthalten ist Stufe 2, die
+MQTT-Credential-Erneuerung: die MQTT-Schicht erkennt abgelaufene Zertifikate
+weiterhin, ohne dass diese Erkennung verarbeitet wird, und bestehende
+MQTT-Clients behalten ihr Zertifikat. Befunde,
+Klassifikationsregel, der Vergleich mit `ecoflow-energy-ha` und die
+Aussagegrenzen stehen in [der Analyse](issue_16_auth_analysis.md); die
+fahrzeugunabhängigen Abnahmeschritte in der
+[Validierung](validation.md#unreleased-authentication-failure-handling).
+Abnahmestand 2026-09-10 auf `1.0.5-beta.3`: Ein falsches Passwort bei der
+Einrichtung meldet abgelehnte Zugangsdaten statt eines Verbindungsproblems.
+Damit sind die Klassifikation am Credential-Endpunkt und die Übersetzung
+belegt, nicht jedoch die Gegenrichtung. Offen bleiben Ausfallmeldung,
+Erneuerung und der Auslöser des Reparaturdialogs; Kontoschutz und
+Eintragsaktualisierung sind über den Rekonfigurationsdialog ohne ungültige
+Zugangsdaten prüfbar, weil beide Flows dieselbe Sequenz durchlaufen.
+Einzelheiten: [Validierung](validation.md#open-and-how-to-reach-each-one).
+Das Issue bleibt offen.
+
+Planungsstand: 2026-09-09. Vollständige Befunde und Validierungsgrenzen:
 Implementierungsstand: 2026-09-09.
 `V2-SAFE-01` / [Issue #14](https://github.com/Xygen/EcoFlow-PowerPulse-2-for-Home-Assistant/issues/14)
 ist lokal implementiert; 193 Tests bestehen, davon 31 neue Coordinator-Transaktionstests.

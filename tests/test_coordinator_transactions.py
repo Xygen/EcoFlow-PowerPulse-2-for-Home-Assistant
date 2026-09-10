@@ -26,6 +26,14 @@ class HAError(Exception):
     pass
 
 
+class AuthFailed(Exception):
+    """Stand-in for ConfigEntryAuthFailed.
+
+    Kept distinct from HAError so a refused credential stays
+    distinguishable from an ordinary failed update.
+    """
+
+
 class CoordinatorShell:
     def __class_getitem__(cls, item):
         return cls
@@ -66,7 +74,11 @@ def harness(monkeypatch):
     module("homeassistant")
     module("homeassistant.config_entries", ConfigEntry=object)
     module("homeassistant.core", HomeAssistant=object)
-    module("homeassistant.exceptions", HomeAssistantError=HAError)
+    module(
+        "homeassistant.exceptions",
+        ConfigEntryAuthFailed=AuthFailed,
+        HomeAssistantError=HAError,
+    )
     module("homeassistant.helpers")
     module("homeassistant.helpers.aiohttp_client", async_get_clientsession=lambda hass: None)
     module("homeassistant.helpers.storage", Store=StoreDouble)
@@ -74,7 +86,9 @@ def harness(monkeypatch):
     module(PACKAGE + ".api", PowerPulse2ApiClient=lambda *args: SimpleNamespace())
     module(
         PACKAGE + ".const", CONF_EMAIL="email", CONF_PASSWORD="password",
-        DOMAIN="ecoflow_powerpulse2", SETTINGS_REFRESH_DELAY_SECONDS=20, UPDATE_INTERVAL_SECONDS=30,
+        DOMAIN="ecoflow_powerpulse2", CREDENTIAL_MAX_AGE_SECONDS=72_000,
+        CREDENTIAL_REFRESH_INTERVAL_SECONDS=300, SESSION_RENEWAL_INTERVAL_SECONDS=300,
+        SETTINGS_REFRESH_DELAY_SECONDS=20, UPDATE_INTERVAL_SECONDS=30,
     )
     name = PACKAGE + "._transaction_test_coordinator"
     path = Path(__file__).parents[1] / "custom_components/ecoflow_powerpulse2/coordinator.py"

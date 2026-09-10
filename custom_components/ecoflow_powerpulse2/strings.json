@@ -8,14 +8,35 @@
           "email": "Email",
           "password": "Password"
         }
+      },
+      "reauth_confirm": {
+        "title": "Re-authenticate EcoFlow PowerPulse 2",
+        "description": "EcoFlow refused the stored credentials for {email}. Enter the current password for this EcoFlow app account. The existing devices, entity IDs, history and local Smart drafts are kept.",
+        "data": {
+          "email": "Email",
+          "password": "Password"
+        }
+      },
+      "reconfigure": {
+        "title": "Update EcoFlow credentials",
+        "description": "Enter the EcoFlow app credentials this integration should use. The account must stay the same, so that existing entities keep working.",
+        "data": {
+          "email": "Email",
+          "password": "Password"
+        }
       }
     },
     "error": {
       "cannot_connect": "Could not connect to EcoFlow or sign in",
-      "no_devices": "No supported PowerPulse device was found in this account"
+      "no_devices": "No supported PowerPulse device was found in this account",
+      "invalid_auth": "EcoFlow rejected these credentials",
+      "unknown": "An unexpected error occurred"
     },
     "abort": {
-      "already_configured": "This EcoFlow account is already configured"
+      "already_configured": "This EcoFlow account is already configured",
+      "reauth_successful": "Re-authentication successful",
+      "reconfigure_successful": "Credentials updated",
+      "wrong_account": "Those credentials belong to a different EcoFlow account"
     }
   },
   "entity": {
@@ -73,6 +94,7 @@
       "direct_total_energy": {"name": "Direct wallbox – Total charging energy"},
       "direct_session_energy_raw": {"name": "Direct wallbox – Session energy raw"},
       "powerocean_charging_power": {"name": "PowerOcean – Charging power"},
+      "qualified_powerocean_charging_power": {"name": "Qualified PowerOcean – Charging power"},
       "powerocean_charging_status": {
         "name": "PowerOcean – Charging status",
         "state": {

@@ -35,7 +35,7 @@ diagnostics.
 
 ## Current scope
 
-Version `1.0.1` keeps automatic MQTT activity listen-only and provides
+The current stable release keeps automatic MQTT activity listen-only and provides
 disabled-by-default, user-triggered controls:
 
 - EcoFlow app-account login and PowerPulse discovery
@@ -47,6 +47,9 @@ disabled-by-default, user-triggered controls:
   coherent PowerPulse 2 accessory-relay report (`241/3`): charging power and
   state plus session duration and energy. The compatible `209/8` session form
   is also understood, but neither path overwrites the direct wallbox entities
+- a **Qualified PowerOcean – Charging power** reading that uses fresh Direct
+  charging state to qualify PowerOcean power. Its behavior and remaining
+  freshness limitation are explained in the [source-selection guide](docs/user-guide.md#choosing-a-power-reading)
 - operating mode, Smart ready-by time, and Smart energy target from the
   provider snapshot when EcoFlow reports them
 - Smart target type and distance from the fast direct report, including the
@@ -80,6 +83,8 @@ disabled-by-default, user-triggered controls:
 - Smart controls for ready-by date/time, energy/distance target type and the
   selected target value; Smart writes preserve the captured nested settings
   block rather than inventing missing defaults
+- persistent local Smart drafts editable in Solar, Fast or Custom mode without
+  a charger write; see [preparing a Smart plan](docs/user-guide.md#preparing-and-using-a-smart-charging-plan)
 - maximum output current, Plug-and-Play, phase selection, battery-discharge
   blocking, screen/LED state, and both brightness settings from the live-
   confirmed CP307 settings report
@@ -117,7 +122,8 @@ disabled-by-default, user-triggered controls:
 - a delayed, coalesced provider refresh after a matched official-app
   `241/102` settings reply; explicit HA writes instead verify synchronously,
   preferring direct `241/44` readback and then requesting bounded fresh provider
-  snapshots. Cached merged values never confirm a write
+  snapshots. The current confirmation model and its validation boundaries are
+  documented in [validation](docs/validation.md)
 
 The MQTT transport retains its hard `listen_only` guard for every automatic
 publish path. All controls are disabled in the entity registry
@@ -129,8 +135,11 @@ one connected PowerOcean source, and reports success only after both a matching
 `set_reply` and either fresh direct or raw provider readback. Current controls
 accept whole values from 6 through 16 A; Solar, Custom, and Smart controls
 additionally enforce their applicable operating-mode conditions. Smart-mode
-selection requires previously read device settings, avoiding guessed timestamps
-or targets. Phase selection prefers a fresh direct `241/44` value. When it is
+selection requires a complete configuration assembled from persistent local
+drafts and available device-reported context, without guessed timestamps or targets.
+Editing a draft outside Smart does not publish a command; editing while Smart is
+active requests a device change. Read-only observations remain separate from drafts.
+Phase selection prefers a fresh direct `241/44` value. When it is
 stale, the control can use only the dedicated, source-qualified
 Parent-Accessory provider fallback; stale merged or device-detail values cannot
 qualify. The remaining live validation is tracked as `PHASE-01` in the backlog.
@@ -162,7 +171,7 @@ This project uses Semantic Versioning. Regular releases use `MAJOR.MINOR.PATCH`
 and matching Git tags such as `v0.1.0`. Patch releases contain compatible fixes;
 minor releases add functionality. Intentional preview builds use explicit
 prerelease identifiers such as `-beta.1`; the earlier sequential `-devNN`
-scheme ended with dev30. Version `1.0.1` is the current stable release. The
+scheme ended with dev30. Current stable release: `1.0.4`. The
 first stable release's scope and accepted limitations are recorded in the
 [v1.0.0 release record](docs/backlog.md#v100-release-record).
 
