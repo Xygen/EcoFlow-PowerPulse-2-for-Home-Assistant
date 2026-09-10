@@ -17,6 +17,25 @@ is project evidence, not a prescription for another repository.
 
 Current implementation baseline: `1.0.4`.
 
+## Merge and release gates
+
+Decided on 2026-09-10. `main` accepts finished work whose live acceptance is
+still open, provided the automated gates pass: pytest, Ruff, the repository
+consistency checks, HACS and Hassfest. Acceptance is a **release** gate, not a
+merge gate.
+
+The reason is that the two were previously the same gate, and the result was
+that finished branches aged unmerged while waiting for a physical condition. It
+produced the worst possible state for `V2-SAFE-02`: complete, reviewed, and in
+no test build at all, so it could not be accepted even in principle.
+
+What this does **not** change: no release declares a behaviour accepted without
+the evidence named for it here and in the validation document. Code on `main`
+is code that compiles, passes its tests and has been reviewed. It is not a
+claim that it was observed working on the device. An item stays open until its
+acceptance evidence exists, whether or not its branch has merged.
+
+
 Die [Roadmap bis Version 2.0](#roadmap-bis-version-20) ergänzt die bestehenden
 Arbeitsitems. Grundlage ist die Gesamtprüfung vom 2026-09-09 einschließlich
 lesender MCP-Prüfung der verbundenen Home-Assistant-Instanz.
@@ -114,15 +133,17 @@ oder Modus-/Freigabewerten aus einer niedriger priorisierten Quelle.
 `1.0.5-beta.1` ist per HACS installiert und nach HA-Neustart geladen.
 Der Display-Test 100 → 75 → 100 % wurde zweimal per Direct-Readback bestätigt;
 Begleitwerte blieben erhalten. Die fahrzeuggestützte Abnahme steht aus
-(Live-Status `unplugged`); das Item und PR #22 bleiben offen.
+(Live-Status `unplugged`). PR #22 ist am 2026-09-10 nach `main` gemergt;
+das Item bleibt bis zur fahrzeuggestützten Abnahme offen.
 Details zur Aussagegrenze: [Validierung](validation.md#unreleased-control-transaction-hardening).
 
 Stand 2026-09-10: `V2-SAFE-02` / [Issue #15](https://github.com/Xygen/EcoFlow-PowerPulse-2-for-Home-Assistant/issues/15)
-ist auf `codex/issue-15-readback`, aufbauend auf PR #22, lokal implementiert.
-270 Tests bestehen. Feldbezogene Bestätigung, Konfliktsperren, vollständige
-Provider-No-ops und überlappende Providerabrufe sind geprüft; die speziellen
-Phasen-Übergangsregeln bleiben erhalten. Keine Installation oder Live-Abnahme
-dieser Änderung; die installierte Beta bleibt unverändert. Das Item bleibt offen.
+ist über PR #23 am 2026-09-10 nach `main` gemergt.
+Feldbezogene Bestätigung, Konfliktsperren, vollständige Provider-No-ops und
+überlappende Providerabrufe sind geprüft; die speziellen Phasen-Übergangsregeln
+bleiben erhalten. Diese Änderung war in keiner Beta enthalten und ist auch in
+`1.0.5-beta.4` nicht enthalten, muss also zuerst in einen Testbuild gelangen,
+bevor sie überhaupt abgenommen werden kann. Das Item bleibt offen.
 Nachweise: [Validierung](validation.md#unreleased-field-qualified-readback).
 
 Vollständige Befunde und Validierungsgrenzen:
