@@ -75,10 +75,40 @@ Assistant interface and the warning log, and this integration cannot vouch for
 what EcoFlow writes there. A test enforces that rule against both transport
 modules.
 
-Not implemented in this change: MQTT credential refresh and proactive renewal
-before expiry. The MQTT layer still detects an expired certificate and logs
-that a refresh is scheduled, but nothing consumes that signal, and existing
-MQTT clients keep the certificate they connected with.
+## Unreleased MQTT credential refresh
+
+The transport's expired-certificate detection now has a consumer. A refusal
+fetches a new certificate, renewing the session once if the endpoint refuses
+it, and hands it to every live client. A certificate is also replaced once it
+reaches a set age, so recovery does not depend on first observing a failure.
+The broker address is taken from the credential response rather than a
+compile-time constant.
+
+What the automated suite covers: the broker address rules, including that an
+unusable host, port or path falls back to the built-in default and that a port
+quoted for a plaintext protocol is never dialled over TLS; that the client
+dials the adopted address on both connect and force-reconnect; that a refused
+certificate reaches the handler for reason codes 4, 5, 134 and 135 and no
+others; and the coordinator's wiring, meaning setup passes the handler and
+adopts the address, the transport callback hands its work to the event loop,
+the refresh is rate limited and never raises, and an unchanged certificate at
+an unchanged address does not rebuild the session.
+
+What it does not cover: any of it against a real broker. The rate limits and
+the replacement age are policy choices, not measurements; EcoFlow does not
+state the real certificate lifetime, and the age used here follows the value
+running in `ecoflow-energy-ha`.
+
+| Item | Test without a vehicle | Passing result |
+| --- | --- | --- |
+| `V2-AUTH-01` certificate refresh | Observe a run long enough for the certificate to reach the replacement age, or for the broker to refuse one. | The log records a certificate refresh, and the stream continues or resumes without the config entry being reloaded and without a dialog. |
+| `V2-AUTH-01` broker address | Check the debug log at setup for the broker address in use. | Either the built-in host, or the host the credential response named, and the stream connects either way. |
+
+This is the item most likely to expose a wrong assumption in the field,
+because it changes which host the integration connects to. The fallback path
+is the previous behaviour, so a malformed or absent address cannot make things
+worse than they were.
+
 
 ### Confirmed on 2026-09-10 on `1.0.5-beta.3`
 
