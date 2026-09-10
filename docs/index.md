@@ -10,6 +10,8 @@ from the evidence archives created during protocol research.
 | Need | Source of truth |
 | --- | --- |
 | Install, configure, and use the integration | [User guide](user-guide.md) |
+| Prepare a Smart draft and distinguish it from device settings | [Smart charging plans](user-guide.md#preparing-and-using-a-smart-charging-plan) |
+| Choose a charging-power source for an automation | [Power readings and freshness limits](user-guide.md#choosing-a-power-reading) |
 | Confirm supported entities, sources, and control safety | [Data-path overview](data_paths_overview.md) |
 | Review test coverage, live validation, and release readiness | [Validation status](validation.md) |
 | See active, deferred, and release work | [Project backlog](backlog.md) |

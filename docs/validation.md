@@ -6,10 +6,17 @@ and raw chronology remain in the evidence archives linked from the
 
 ## Current baseline
 
-The current installed baseline is `1.0.4`. Its scope and accepted limitations
-are recorded in the [release record](backlog.md#v100-release-record). The
-PowerOcean idle qualification added in `1.0.4` is installed and statically
-tested; its vehicle-backed transition validation remains pending.
+The current stable release is `1.0.4`; README, index and user guide describe that
+baseline. Its scope and accepted limitations are recorded in the
+[release record](backlog.md#v100-release-record). PowerOcean idle qualification
+was added in `1.0.4`; its vehicle-backed transition validation remains pending.
+
+Separately, on 2026-09-09, HACS and the runtime diagnostics confirmed the installed
+test build `1.0.5-beta.1` for [PR #22](https://github.com/Xygen/EcoFlow-PowerPulse-2-for-Home-Assistant/pull/22).
+Its display test restored brightness from 100 to 75 to 100 percent with two
+Direct confirmations and unchanged companion values. That is a dated partial
+test, not a stable release or a completed vehicle-backed acceptance. The
+documentation update for Issue #20 made no new installation or device change.
 
 ## Confirmed behavior
 
