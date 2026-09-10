@@ -70,6 +70,9 @@ class SettingObservationTracker:
         for key in keys:
             if key not in values:
                 continue
+            previous = self._observations.get((serial, key, source))
+            if previous is not None and previous.observed_monotonic > observed_monotonic:
+                continue
             self._observations[(serial, key, source)] = SettingObservation(
                 value=values[key],
                 source=source,
@@ -77,7 +80,21 @@ class SettingObservationTracker:
                 observed_monotonic=observed_monotonic,
             )
 
-    def current_value(self, *, serial: str, key: str, now: float) -> Any:
+    def fresh_observations(
+        self, *, serial: str, key: str, now: float,
+    ) -> tuple[SettingObservation, ...]:
+        """Return field-specific evidence without joining independent sources."""
+        return tuple(
+            observation
+            for (item_serial, item_key, source), observation in self._observations.items()
+            if item_serial == serial and item_key == key
+            and 0 <= now - observation.observed_monotonic <= self._fresh_seconds[source]
+        )
+
+    def current_value(
+        self, *, serial: str, key: str, now: float,
+        reject_newer_conflicts: bool = False,
+    ) -> Any:
         """Return the highest-priority fresh observation, otherwise unknown."""
         candidates = [
             observation
@@ -93,4 +110,10 @@ class SettingObservationTracker:
             candidates,
             key=lambda item: (_SOURCE_PRIORITY[item.source], item.observed_monotonic),
         )
+        if reject_newer_conflicts and any(
+            item.observed_monotonic >= selected.observed_monotonic
+            and item.value != selected.value
+            for item in candidates
+        ):
+            return None
         return selected.value
