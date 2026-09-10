@@ -81,6 +81,40 @@ wrong current versions/tags, missing/extra translation keys, missing files and
 missing heading anchors. The larger suites on the separate #14/#15 branches are
 not part of this branch. No device or Home Assistant deployment is involved.
 
+## Stream timeline diagnostics
+
+The unreleased Issue #19 implementation exposes
+`data.passive_settings_refresh.stream_timeline` in integration diagnostics.
+It records MQTT connected/disconnected callbacks, recovery eligibility reasons,
+automatic attempts/results and WSS reconnect outcomes. Each entry includes a
+runtime-local source alias and role, settings/heartbeat ages and freshness,
+connection state and remaining automatic cooldown. It stores no message text,
+topics, packet payloads, credentials or full device identifiers.
+
+Recovery checks are recorded when the reason, connectivity or freshness changes,
+and otherwise at most once every 300 seconds per charger. Connection and attempt
+events are not coalesced. The shared ring retains at most 2,048 entries; its
+`dropped_events` counter discloses eviction. It is **current-runtime only**:
+`started_at` marks coordinator construction, not HA boot. Reload/restart clears
+the ring. Source aliases are distinct within this runtime and are not stable
+across reloads. Export before restarting; retention is a count limit, not a
+guarantee of a complete 24-hour window.
+
+UTC event timestamps describe observation on the HA event loop; callback delivery
+can lag the transport event. Ages and cooldown use monotonic time. Samples are
+not packet history, and a previous connected event does not prove uninterrupted
+connectivity before the retained window. `returned` means the reconnect routine
+returned, not that both streams recovered: consult the separate outcome and ages.
+`confirmed` in the existing reconnect routine confirms only a new settings report.
+
+Tests exercise bounded storage, alias privacy, transition sampling and production
+coordinator methods with isolated HA boundaries, including disconnected and
+never-started streams, error cooldown and callback queuing. These are not full
+HA lifecycle fixtures or live outage acceptance. The policy still requires both
+previously observed streams stale for 300 seconds and a 1,800-second cooldown.
+This code has not been deployed; installed-beta and vehicle acceptance are
+tracked in the [central backlog](backlog.md).
+
 ## Test principles
 
 - A control is successful only after command acknowledgement **and** a newer

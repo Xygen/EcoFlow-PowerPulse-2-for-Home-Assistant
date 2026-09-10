@@ -6,6 +6,10 @@ Current outstanding work is maintained only in
 
 ## Unreleased
 
+- Add a bounded runtime timeline for MQTT connection transitions, recovery
+  decisions, report ages and reconnect outcomes. Exports use source aliases and
+  disclose reset/eviction boundaries; automatic recovery policy is unchanged.
+
 - Explain local Smart drafts, activation and observed device settings in the user
   guide; document raw/qualified charging-power sources, automation limits and
   unknown/unavailable handling. Correct the field-17 reference from existing
