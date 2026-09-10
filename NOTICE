@@ -8,4 +8,10 @@ https://github.com/rabits/ha-ef-ble
 MQTT frame capture and command-routing design is informed by ecoflow-energy-ha:
 https://github.com/shuette42/ecoflow-energy-ha
 
+The credential lifecycle here also follows that project: the config entry is
+updated rather than replaced when credentials are repaired, and the broker
+address is taken from the credential response instead of a compile-time
+constant, which is the fix recorded as its issue #184. Both projects are MIT
+licensed. The decision rules were reimplemented, not copied.
+
 No ha-ef-ble source code is bundled in this repository at this stage.
