@@ -38,7 +38,7 @@ mapping yet.
 | Session duration | Field `41`, seconds. Exposed as a numeric HA duration sensor | — | — | — |
 | Charging-session energy | Field `42`, Wh. `1815` corresponded to about `1.82 kWh` in the app; live sessions produced `19` after 59 s, `451` after 21 min 08 s, and `3685` after 2 h 50 min. Exposed normally in kWh and resets per session; raw diagnostics remain available | — | — | — |
 | Suspend reason, raw | Field `102` | — | — | — |
-| Charge-current setpoint, raw | Field `17`; exact role still needs separation | — | — | — |
+| Charge-current setpoint, raw | Field `17`: dynamic charging-current target in deciamperes (raw / 10 = A); not a persisted current setting | — | — | — |
 | Operating mode | — | — | `1.4.8.2`: `1` Fast, `2` Solar, `3` Custom, `4` Smart | `paramSet.workMode` |
 | Continuous charging | — | — | Bit `0x10` in `1.4.8.1`; `16` means enabled when no other known bit is set | Bit `0x10` in `paramSet.switchBits` |
 | Maximum output current | Field `18` as current limit | Field `9`; `160` = 16 A | `1.4.8.4`; `160` = 16 A | `paramSet.currentOuputMax` |
@@ -69,6 +69,15 @@ The installed dev16 build confirmed the practical difference between the two
 main settings read paths. Restoring the Solar minimum from 7 A to 6 A updated
 the Home Assistant entities after about 1.77 seconds through `241/44`; the
 provider fallback completed only about 20.26 seconds after the app SET.
+
+## Dynamic charging-current target
+
+`DATA-03` was completed during the active Solar-session validation recorded in
+the [1.0.0 changelog](../CHANGELOG.md#100---2026-09-05): heartbeat field `17`
+tracked `133 → 130 → 108 → 86 → 60` (13.3 → 13.0 → 10.8 → 8.6 → 6.0 A)
+while measured phase current and charging power declined. Stored Solar minimum
+and maximum-current settings did not change. The field reports the dynamic target,
+not measured phase current and not a control for changing the active-session target.
 
 ## Local Smart staging path
 

@@ -62,6 +62,14 @@ and the release contains no unverified new controls or guessed field mappings.
 
 ## Roadmap bis Version 2.0
 
+Stand 2026-09-10: [V2-DOC-01 / Issue #20](https://github.com/Xygen/EcoFlow-PowerPulse-2-for-Home-Assistant/issues/20)
+ist zur Review dokumentiert: lokale Smart-Entwürfe, Aktivierung und Gerätemeldungen
+sind getrennt erklärt; die Quellenwahl für Automationen enthält die Frischegrenzen
+von 1.0.4; Feld 17 verweist auf die abgeschlossene DATA-03-Validierung.
+README/Index/Anleitung nennen die stabile Basis, der Validierungsbericht trennt
+den datierten Beta-Test davon. Versions-/Übersetzungskorrekturen sind mit PR #24
+bereits gemergt. Das Issue bleibt bis zur Prüfung und Übernahme der restlichen Doku offen.
+
 Stand 2026-09-10: [V2-QA-01 / Issue #17](https://github.com/Xygen/EcoFlow-PowerPulse-2-for-Home-Assistant/issues/17)
 ist auf einem unabhängigen Branch von `main` umgesetzt: pytest, Ruff und
 Dokumentationskonsistenz laufen zusätzlich zu HACS/Hassfest. Lokal bestehen

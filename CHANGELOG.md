@@ -6,6 +6,11 @@ Current outstanding work is maintained only in
 
 ## Unreleased
 
+- Explain local Smart drafts, activation and observed device settings in the user
+  guide; document raw/qualified charging-power sources, automation limits and
+  unknown/unavailable handling. Correct the field-17 reference from existing
+  DATA-03 evidence and distinguish stable documentation from the dated beta test.
+
 - Add a Python 3.12 quality job for pytest, Ruff and offline documentation checks,
   including translation-key parity, current release declarations and local links.
   Retain HACS/Hassfest, record the checked Git revision and document release gates.
