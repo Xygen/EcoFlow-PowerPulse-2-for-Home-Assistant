@@ -86,7 +86,8 @@ def harness(monkeypatch):
     module(PACKAGE + ".api", PowerPulse2ApiClient=lambda *args: SimpleNamespace())
     module(
         PACKAGE + ".const", CONF_EMAIL="email", CONF_PASSWORD="password",
-        DOMAIN="ecoflow_powerpulse2", SESSION_RENEWAL_INTERVAL_SECONDS=300,
+        DOMAIN="ecoflow_powerpulse2", CREDENTIAL_MAX_AGE_SECONDS=72_000,
+        CREDENTIAL_REFRESH_INTERVAL_SECONDS=300, SESSION_RENEWAL_INTERVAL_SECONDS=300,
         SETTINGS_REFRESH_DELAY_SECONDS=20, UPDATE_INTERVAL_SECONDS=30,
     )
     name = PACKAGE + "._transaction_test_coordinator"

@@ -139,17 +139,26 @@ def aggregate_outcomes(outcomes: Sequence[AuthOutcome]) -> AuthOutcome:
     return AuthOutcome.CONNECTION_FAILURE
 
 
-def describe_response(status: int, body: Any) -> str:
-    """Return a log-safe reason built only from non-credential fields."""
+def describe_response(status: int, body: Any, *, detailed: bool = False) -> str:
+    """Return a reason built from the response's own result fields.
+
+    The server's free-text ``message`` is omitted unless ``detailed`` is set.
+    These reasons travel into exception text, which reaches the Home Assistant
+    interface and the warning log, and a log is what people attach to a public
+    issue. A status and a result code cannot identify an account; a message
+    written by the server is not something this integration can vouch for, so
+    it stays at debug level where it helps without following the user around.
+    """
     if not isinstance(body, Mapping):
         return f"status={status}"
-    code = body.get("code")
-    message = body.get("message")
     parts = [f"status={status}"]
+    code = body.get("code")
     if code is not None:
         parts.append(f"code={code}")
-    if isinstance(message, str) and message:
-        parts.append(f"msg={message}")
+    if detailed:
+        message = body.get("message")
+        if isinstance(message, str) and message:
+            parts.append(f"msg={message}")
     return " ".join(parts)
 
 

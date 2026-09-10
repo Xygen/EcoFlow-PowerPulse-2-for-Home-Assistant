@@ -32,6 +32,8 @@ from .charge_diagnostics import ChargeActionDiagnostics
 from .const import (
     CONF_EMAIL,
     CONF_PASSWORD,
+    CREDENTIAL_MAX_AGE_SECONDS,
+    CREDENTIAL_REFRESH_INTERVAL_SECONDS,
     DOMAIN,
     SESSION_RENEWAL_INTERVAL_SECONDS,
     SETTINGS_REFRESH_DELAY_SECONDS,
@@ -45,6 +47,7 @@ from .control_readback import (
 from .control_safety import CHARGING_LOCKED_SETTING_KEYS, control_allowed_for_status
 from .data_merge import merge_snapshot_after_read
 from .diagnostic_support import redact_serial_shaped_bytes
+from .ecoflow.broker import broker_from_credentials
 from .ecoflow.cloud_mqtt import EcoFlowMQTTClient
 from .ecoflow.energy_stream import (
     build_powerpulse_charge_action_payload,
@@ -219,6 +222,8 @@ class PowerPulse2Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
         self._shutting_down = False
         self._initialized = False
         self._last_session_renewal = 0.0
+        self._last_credential_refresh = 0.0
+        self._credentials_obtained_at = 0.0
 
     async def async_load_smart_staging(self) -> None:
         """Load privacy-safe staged Smart input before device discovery."""
@@ -440,6 +445,26 @@ class PowerPulse2Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
         except Exception as exc:
             raise UpdateFailed(f"EcoFlow PowerPulse 2 update failed: {exc}") from exc
 
+    async def _async_sign_in_again(self) -> bool:
+        """Sign in with the stored credentials, at most once per interval.
+
+        Returns whether a usable session now exists. ``False`` means the
+        attempt was rate limited or the endpoint could not be reached, both of
+        which are worth retrying later. A refused credential is raised, because
+        it is the one outcome no retry can resolve.
+        """
+        now = time.monotonic()
+        if now - self._last_session_renewal < SESSION_RENEWAL_INTERVAL_SECONDS:
+            return False
+        self._last_session_renewal = now
+        try:
+            await self.api.async_login()
+        except PowerPulse2ConnectionError as exc:
+            _LOGGER.debug("EcoFlow sign-in retry could not reach the service: %s", exc)
+            return False
+        _LOGGER.info("Renewed the EcoFlow session after a refused request")
+        return True
+
     async def _async_renew_session(self, refusal: PowerPulse2AuthError) -> None:
         """Sign in again before troubling the user, then end this cycle.
 
@@ -453,23 +478,18 @@ class PowerPulse2Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
         Assistant is asked to repair them, or the cycle is reported as failed
         and the renewed session serves the next one.
         """
-        now = time.monotonic()
-        if now - self._last_session_renewal < SESSION_RENEWAL_INTERVAL_SECONDS:
-            # Renewed moments ago and refused again. Retrying harder would
-            # only produce a sign-in per cycle, and the repeat is not proof
-            # about the credentials themselves.
-            raise UpdateFailed(f"EcoFlow PowerPulse 2 session refused: {refusal}")
-        self._last_session_renewal = now
         try:
-            await self.api.async_login()
+            renewed = await self._async_sign_in_again()
         except PowerPulse2AuthError as exc:
             # The stored credentials themselves are refused. This is the one
             # case the user can fix, so it ends the retry loop and opens the
             # re-authentication dialog.
             raise ConfigEntryAuthFailed(str(exc)) from exc
-        except PowerPulse2ConnectionError as exc:
-            raise UpdateFailed(f"EcoFlow PowerPulse 2 unreachable: {exc}") from exc
-        _LOGGER.info("Renewed the EcoFlow session after a refused request")
+        if not renewed:
+            # Rate limited or unreachable. Retrying harder would only produce
+            # a sign-in per cycle, and the repeat says nothing about the
+            # credentials themselves.
+            raise UpdateFailed(f"EcoFlow PowerPulse 2 session refused: {refusal}")
         raise UpdateFailed("EcoFlow PowerPulse 2 session renewed") from refusal
 
     async def _async_read_parent_accessories(self) -> dict[str, dict[str, Any]]:
@@ -519,6 +539,7 @@ class PowerPulse2Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
         password = credentials.get("certificatePassword") or credentials.get("password", "")
         if not account or not password:
             raise PowerPulse2ConnectionError("Incomplete MQTT credentials")
+        self._credentials_obtained_at = time.monotonic()
 
         for serial in self._mqtt_sources:
             if serial in self.mqtt_clients:
@@ -534,6 +555,12 @@ class PowerPulse2Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
                 enhanced_mode=True,
                 subscribe_data=True,
                 listen_only=True,
+                auth_error_handler=lambda sn=serial: self._on_mqtt_auth_error(sn),
+            )
+            # The response names the broker its certificate is valid at, and
+            # that is not always the compile-time constant.
+            client.update_broker(
+                broker_from_credentials(credentials, wss_mode=client.wss_mode)
             )
             created = await self.hass.async_add_executor_job(client.create_client)
             if not created:
@@ -562,8 +589,109 @@ class PowerPulse2Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
             if attempted:
                 _LOGGER.debug("PowerPulse MQTT reconnect started for %s…", serial[:4])
 
+        await self._async_replace_aging_credentials()
+
         for serial in self.devices:
             await self._async_maybe_recover_direct_stream(serial)
+
+    def _on_mqtt_auth_error(self, serial: str) -> None:
+        """Consume the MQTT layer expired-certificate detection.
+
+        That detection has always existed and always logged that a refresh was
+        scheduled; nothing was listening, so the message described work that
+        never happened. This runs on the paho network thread, so it hands the
+        work to the event loop rather than doing any of it here.
+        """
+        if self._shutting_down:
+            return
+        _LOGGER.warning(
+            "MQTT rejected the stored certificate for %s; refreshing it",
+            serial[:4],
+        )
+        self.hass.loop.call_soon_threadsafe(
+            self.hass.async_create_task,
+            self._async_refresh_mqtt_credentials(f"rejected for {serial[:4]}"),
+        )
+
+    async def _async_replace_aging_credentials(self) -> None:
+        """Replace a still-working certificate before it can expire.
+
+        Waiting for the first refusal means every expiry costs a stream
+        outage. The age at which one is replaced is a policy choice, not a
+        measurement of the real lifetime, which EcoFlow does not state.
+        """
+        if not self._credentials_obtained_at or not self.mqtt_clients:
+            return
+        age = time.monotonic() - self._credentials_obtained_at
+        if age < CREDENTIAL_MAX_AGE_SECONDS:
+            return
+        await self._async_refresh_mqtt_credentials(f"age {age / 3600:.0f}h")
+
+    async def _async_refresh_mqtt_credentials(self, reason: str) -> None:
+        """Fetch a certificate and hand it to the live clients.
+
+        Never raises. Both callers sit outside the update cycle error mapping,
+        and one of them is a task started from the transport thread. A refused
+        sign-in is the only outcome the user can act on, and it opens the
+        repair dialog directly because there is no update cycle here to carry
+        a ConfigEntryAuthFailed.
+        """
+        if self._shutting_down:
+            return
+        now = time.monotonic()
+        if now - self._last_credential_refresh < CREDENTIAL_REFRESH_INTERVAL_SECONDS:
+            return
+        self._last_credential_refresh = now
+        _LOGGER.debug("Refreshing the MQTT certificate (%s)", reason)
+        try:
+            credentials = await self._async_fetch_credentials_with_retry()
+        except PowerPulse2AuthError as exc:
+            _LOGGER.warning(
+                "EcoFlow refused the stored credentials while refreshing the "
+                "MQTT certificate; asking for new ones"
+            )
+            _LOGGER.debug("Certificate refresh refused: %s", exc)
+            self.config_entry.async_start_reauth(self.hass)
+            return
+        except PowerPulse2ConnectionError as exc:
+            _LOGGER.debug("Certificate refresh could not reach EcoFlow: %s", exc)
+            return
+        if credentials is None:
+            return
+        await self._async_apply_mqtt_credentials(credentials)
+
+    async def _async_fetch_credentials_with_retry(self) -> dict[str, Any] | None:
+        """Fetch a certificate, renewing an expired session once first."""
+        try:
+            return await self.api.async_get_mqtt_credentials()
+        except PowerPulse2AuthError:
+            # The endpoint refused the session rather than the account. Sign
+            # in again; only a refused sign-in propagates from here.
+            if not await self._async_sign_in_again():
+                return None
+        return await self.api.async_get_mqtt_credentials()
+
+    async def _async_apply_mqtt_credentials(self, credentials: dict[str, Any]) -> None:
+        """Hand a fresh certificate and its broker to every live client."""
+        account = credentials.get("certificateAccount") or credentials.get("userName", "")
+        password = credentials.get("certificatePassword") or credentials.get("password", "")
+        if not account or not password:
+            _LOGGER.debug("Certificate refresh returned an incomplete answer")
+            return
+        self._credentials_obtained_at = time.monotonic()
+        for serial, client in list(self.mqtt_clients.items()):
+            previous_account = client.cert_account
+            client.update_credentials(account, password)
+            moved = client.update_broker(
+                broker_from_credentials(credentials, wss_mode=client.wss_mode)
+            )
+            if not moved and previous_account == account:
+                # Same certificate at the same address. The live client has
+                # it now, and tearing down a healthy session would cost a
+                # data gap for nothing.
+                continue
+            _LOGGER.debug("Rebuilding the MQTT session for %s", serial[:4])
+            await self.hass.async_add_executor_job(client.force_reconnect)
 
     async def _async_maybe_recover_direct_stream(self, serial: str) -> None:
         """Recover a proven-but-stale C376 stream at a bounded cadence."""

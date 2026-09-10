@@ -32,6 +32,13 @@ SETTINGS_REFRESH_DELAY_SECONDS = 20
 # session. Long enough that a repeatedly refused token cannot turn every
 # coordinator cycle into a login, short enough to recover unattended.
 SESSION_RENEWAL_INTERVAL_SECONDS = 300
+# Shortest gap between two MQTT certificate fetches. A broker that keeps
+# refusing must not turn every reconnect attempt into a certificate request.
+CREDENTIAL_REFRESH_INTERVAL_SECONDS = 300
+# Age at which a working certificate is replaced before it can expire, so
+# recovery does not depend on first observing a failure. The value follows the
+# one running in ecoflow-energy-ha rather than a guess of the real lifetime.
+CREDENTIAL_MAX_AGE_SECONDS = 72_000
 
 
 @dataclass(frozen=True, kw_only=True)

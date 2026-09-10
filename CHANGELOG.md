@@ -6,6 +6,28 @@ Current outstanding work is maintained only in
 
 ## Unreleased
 
+## 1.0.5-beta.4 - 2026-09-10
+
+Test build adding the PR #30 certificate refresh on top of 1.0.5-beta.3, and
+carrying the reason-text correction that 1.0.5-beta.3 predates. It keeps the
+PR #22 control safety, the PR #28 stream diagnostics and the PR #29
+authentication handling, so an idle-gap observation started earlier continues.
+PR #23 readback changes are not included. This build changes which host the
+MQTT connection dials when the credential response names one, which is the
+part most worth watching; a malformed or absent address falls back to the
+previous behaviour.
+
+- Consume the MQTT layer's expired-certificate detection, which until now logged
+  that a refresh was scheduled while nothing was listening. A refused certificate
+  is replaced and handed to the live clients, the session is renewed once if the
+  certificate endpoint refuses it, and a still-working certificate is replaced
+  once it reaches a set age. Both paths are rate limited. The broker address is
+  now taken from the credential response instead of a compile-time constant,
+  because a renewed certificate can name a different server and keeping the old
+  address fails silently; a malformed or absent address falls back to the
+  previous behaviour. A session is rebuilt only when the certificate or the
+  address actually changed.
+
 ## 1.0.5-beta.3 - 2026-09-10
 
 Test build adding the PR #29 authentication handling on top of 1.0.5-beta.2.

@@ -19,6 +19,7 @@ from typing import Any
 
 import paho.mqtt.client as mqtt
 
+from .broker import BrokerAddress
 from .clientid import generate_client_id
 from .const import (
     DEFAULT_COUNTER_RESET_INTERVAL,
@@ -64,6 +65,8 @@ class EcoFlowMQTTClient:
         self._device_sn = device_sn
         self._user_id = user_id
         self._mqtt_host = mqtt_host
+        self._mqtt_port = MQTT_PORT_WSS if (wss_mode and user_id) else MQTT_PORT_TCP
+        self._wss_path = MQTT_WSS_PATH
         self.message_handler = message_handler
         self.status_handler = status_handler
 
@@ -154,6 +157,27 @@ class EcoFlowMQTTClient:
             except Exception as exc:
                 _LOGGER.debug("MQTT: live credential update failed: %s", exc)
 
+    def update_broker(self, broker: BrokerAddress) -> bool:
+        """Adopt the broker a credential response named; report any change.
+
+        A renewed certificate can be issued for a different server, and
+        keeping the previous address while adopting the credentials fails
+        without a CONNACK and without a message that names a cause. The
+        caller uses the return value to decide whether the live session has
+        to be rebuilt rather than left to its own reconnect.
+        """
+        changed = (
+            broker.host != self._mqtt_host
+            or broker.port != self._mqtt_port
+            or broker.path != self._wss_path
+        )
+        if changed:
+            _LOGGER.debug("MQTT broker address is now %s", broker)
+        self._mqtt_host = broker.host
+        self._mqtt_port = broker.port
+        self._wss_path = broker.path
+        return changed
+
     def _masked_topic(self, topic: str) -> str:
         """Mask account and device identifiers before writing a topic to logs."""
         masked = topic
@@ -243,20 +267,20 @@ class EcoFlowMQTTClient:
 
             if self._wss_mode:
                 client_id = generate_client_id(self._user_id)
-                _LOGGER.debug("WSS MQTT client (port %d)", MQTT_PORT_WSS)
+                _LOGGER.debug("WSS MQTT client (port %d)", self._mqtt_port)
                 self.client = mqtt.Client(
                     mqtt.CallbackAPIVersion.VERSION2,
                     client_id=client_id,
                     transport="websockets",
                     clean_session=True,
                 )
-                self.client.ws_set_options(path=MQTT_WSS_PATH)
+                self.client.ws_set_options(path=self._wss_path)
             else:
                 # Must differ from other EcoFlow integrations'
                 # deterministic ID so both custom integrations can maintain a
                 # TCP session for the same device without kicking each other.
                 client_id = f"ecoflow_powerpulse2_{self._device_sn}"
-                _LOGGER.debug("TCP MQTT client (port %d)", MQTT_PORT_TCP)
+                _LOGGER.debug("TCP MQTT client (port %d)", self._mqtt_port)
                 self.client = mqtt.Client(
                     mqtt.CallbackAPIVersion.VERSION2,
                     client_id=client_id,
@@ -522,7 +546,7 @@ class EcoFlowMQTTClient:
                 if self.client is None and not self._create_client_unlocked():
                     return False
 
-                port = MQTT_PORT_WSS if self._wss_mode else MQTT_PORT_TCP
+                port = self._mqtt_port
                 keepalive = DEFAULT_WSS_KEEPALIVE if self._wss_mode else DEFAULT_MQTT_KEEPALIVE
 
                 _LOGGER.debug("Connecting to %s:%d (%s)", self._mqtt_host, port, "WSS" if self._wss_mode else "TCP")
@@ -583,7 +607,7 @@ class EcoFlowMQTTClient:
                 return False
 
             try:
-                port = MQTT_PORT_WSS if self._wss_mode else MQTT_PORT_TCP
+                port = self._mqtt_port
                 keepalive = DEFAULT_WSS_KEEPALIVE if self._wss_mode else DEFAULT_MQTT_KEEPALIVE
                 self.client.connect(self._mqtt_host, port, keepalive)
                 self.client.loop_start()

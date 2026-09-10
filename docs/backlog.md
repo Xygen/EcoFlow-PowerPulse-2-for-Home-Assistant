@@ -105,16 +105,25 @@ nicht erreichbaren Endpunkt unterscheidbar, und Home Assistant bietet
 Neuanmeldung und Rekonfiguration an, ohne den Config-Eintrag zu ersetzen. Ein
 abgelaufener Token schaltet den PowerOcean-Fallback nicht mehr lautlos ab,
 sondern führt zu einem begrenzten erneuten Login: höchstens alle fünf Minuten,
-und nur abgelehnte Zugangsdaten erreichen den Nutzer als Dialog. Nicht enthalten
-ist Stufe 2, die MQTT-Credential-Erneuerung: die MQTT-Schicht erkennt abgelaufene
-Zertifikate weiterhin, ohne dass diese Erkennung verarbeitet wird, und bestehende
-MQTT-Clients behalten ihr Zertifikat. Befunde, Klassifikationsregel, der
+und nur abgelehnte Zugangsdaten erreichen den Nutzer als Dialog. Stufe 2 ist über [PR #30](https://github.com/Xygen/EcoFlow-PowerPulse-2-for-Home-Assistant/pull/30)
+umgesetzt und in `1.0.5-beta.4` enthalten: die Erkennung abgelaufener
+Zertifikate in der MQTT-Schicht wird verarbeitet, ein abgelehntes oder
+gealtertes Zertifikat wird begrenzt ersetzt und an die laufenden Clients
+übergeben, und die Broker-Adresse stammt aus der Credential-Antwort statt aus
+einer Konstante. Lokal bestehen 286 Tests. Befunde, Klassifikationsregel, der
 Vergleich mit `ecoflow-energy-ha` und die Aussagegrenzen stehen in
 [der Analyse](issue_16_auth_analysis.md); die fahrzeugunabhängigen
 Abnahmeschritte in der
 [Validierung](validation.md#unreleased-authentication-failure-handling).
-Die Live-Abnahme mit absichtlich ungültigen Zugangsdaten steht aus;
-das Issue bleibt offen.
+Abnahmestand 2026-09-10 auf `1.0.5-beta.3`: Ein falsches Passwort bei der
+Einrichtung meldet abgelehnte Zugangsdaten statt eines Verbindungsproblems.
+Damit sind die Klassifikation am Credential-Endpunkt und die Übersetzung
+belegt, nicht jedoch die Gegenrichtung. Offen bleiben Ausfallmeldung,
+Erneuerung und der Auslöser des Reparaturdialogs; Kontoschutz und
+Eintragsaktualisierung sind über den Rekonfigurationsdialog ohne ungültige
+Zugangsdaten prüfbar, weil beide Flows dieselbe Sequenz durchlaufen.
+Einzelheiten: [Validierung](validation.md#open-and-how-to-reach-each-one).
+Das Issue bleibt offen.
 
 Vollständige Befunde und Validierungsgrenzen:
 [Prüfbericht](review_2026-09-09.md). Diese Roadmap ist ein Vorschlag zur
