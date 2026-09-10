@@ -6,13 +6,19 @@ Current outstanding work is maintained only in
 
 ## Unreleased
 
-## 1.0.5-beta.5 - 2026-09-10
+## 1.0.5-beta.6 - 2026-09-10
 
 First test build cut directly from `main`, and the first to contain every
-change below at once. `1.0.5-beta.2` through `1.0.5-beta.4` were combination
+change below at once. `1.0.5-beta.2` through `1.0.5-beta.5` were combination
 builds assembled on branches while these changes were still unmerged; their
 notes remain with their GitHub releases, and the branches are gone. Everything
 those builds carried is in this one.
+
+The number skips `1.0.5-beta.5` deliberately. That build was published from the
+combination line on the same day and does not contain Issue #15, so it is a
+different artifact and is left as it is. A published build is not renamed or
+replaced, because a name that once meant one thing and later means another
+makes every later report about it unreliable.
 
 `V2-SAFE-02` / Issue #15 reaches a test build for the first time. Until now it
 was complete and reviewed but installed nowhere, so it could not be accepted
