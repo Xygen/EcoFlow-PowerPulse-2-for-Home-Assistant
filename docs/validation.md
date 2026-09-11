@@ -464,6 +464,49 @@ reports, so a repeated field is counted in `unusable_device_smart_fields` under
 persistent problem visible without putting a line in the log for ordinary
 telemetry.
 
+### Confirmed live on 2026-09-11 on `1.0.5-beta.9`
+
+Performed on the maintainer's instance under explicit authorization, because the
+sequence commands the charger. The vehicle was unplugged throughout, so Smart
+mode could not start a charge.
+
+Before: runtime manifest `1.0.5-beta.9`, entry `loaded`, both stream sensors
+`on`, charger `unplugged`, `unusable_device_smart_fields` empty, and the draft
+holding ready-by `2026-09-12T06:00Z`, target type `distance`, distance 200.0 km,
+energy 30.0 kWh.
+
+`select.powerpulse_2_betriebsmodus` was set to `smart`, held for about ninety
+seconds, then set back to `solar`. While Smart was active the device
+observations confirmed the whole bundle: mode `smart`, ready-by
+`2026-09-12T06:00Z`, target type `distance`, distance `200`, calculated energy
+`30000`. The device-reported energy target stayed `unknown`, which is the
+direct parser declining to map field 3 for a distance target.
+
+| Read back afterwards | Result |
+| --- | --- |
+| Component entries in the system log | **None.** The previous build logged `Smart device configuration was not persisted` at this point |
+| `unusable_device_smart_fields` | `{"smart_charge_target_wh": 1, "ready_by_timestamp": 1}` |
+| The four draft values | All unchanged, energy target still 30.0 kWh |
+| Mode | `solar`, as found |
+
+Two skipped fields rather than the one expected, and the second is worth
+keeping. Back in Solar the charger has no Smart deadline and reports
+`ready_by_timestamp` as zero, which is as invalid an *entry* as the zero energy
+target and as ordinary a *report*. The previous build would have discarded that
+report whole, with a warning, on either field alone.
+
+**What this establishes:** the per-field rule runs on real charger reports, the
+skip is counted where it can be inspected, and the warning is gone.
+
+**What it does not establish:** a valid field surviving in the same report as an
+invalid one. Both fields the counter names were invalid, and the diagnostics do
+not record which valid fields that report also carried. The draft was already in
+agreement with the device, so nothing would have moved visibly either way.
+Demonstrating the adoption still needs the plan changed in the EcoFlow app
+during a Smart window, so that the charger reports something the draft does not
+hold. The unit and coordinator tests cover the mixed report; live evidence for
+it is still outstanding.
+
 **Not covered: the provider path that produced the zero.** The direct MQTT
 parser is already careful here — it maps field 3 to `smart_charge_target_wh`
 only when the selector says energy. The provider parser copies `chargeTarget`

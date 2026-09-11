@@ -100,6 +100,15 @@ in that session. Issue #11 follows on its own; #25 is deferred. Keep #12's
 accepted deadlines unless a newly captured delayed action justifies revisiting
 them.
 
+Accepted live on 2026-09-11 on `1.0.5-beta.9`: a Smart activation and return
+under explicit authorization produced two unusable reported fields,
+`smart_charge_target_wh` and `ready_by_timestamp`, both counted in diagnostics,
+with no warning logged and the draft intact including the 30.0 kWh energy
+target. A valid field surviving alongside an invalid one in the same report is
+covered by tests but not yet by live evidence; that needs the plan changed in
+the EcoFlow app during a Smart window. See
+[the validation record](validation.md#confirmed-live-on-2026-09-11-on-105-beta9).
+
 Work on 2026-09-11: Issue #53, found while accepting #18. A charger report
 carrying one unusable field no longer discards the whole report. `update` and
 `update_from_device` now state which provenance they serve; user edits keep
