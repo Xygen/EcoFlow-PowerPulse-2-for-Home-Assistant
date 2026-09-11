@@ -18,7 +18,7 @@
       }
     },
     "error": {
-      "cannot_connect": "Verbindung oder Anmeldung bei EcoFlow fehlgeschlagen",
+      "cannot_connect": "EcoFlow ist nicht erreichbar. Das deutet nicht auf ein Problem mit den Zugangsdaten hin",
       "no_devices": "In diesem Konto wurde keine unterstützte PowerPulse gefunden",
       "invalid_auth": "EcoFlow hat diese Zugangsdaten abgelehnt",
       "unknown": "Es ist ein unerwarteter Fehler aufgetreten"

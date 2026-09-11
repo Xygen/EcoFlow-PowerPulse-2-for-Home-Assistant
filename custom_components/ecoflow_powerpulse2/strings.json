@@ -27,7 +27,7 @@
       }
     },
     "error": {
-      "cannot_connect": "Could not connect to EcoFlow or sign in",
+      "cannot_connect": "Could not reach EcoFlow. This does not indicate a problem with the credentials",
       "no_devices": "No supported PowerPulse device was found in this account",
       "invalid_auth": "EcoFlow rejected these credentials",
       "unknown": "An unexpected error occurred"

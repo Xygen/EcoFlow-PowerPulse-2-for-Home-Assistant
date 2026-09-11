@@ -200,6 +200,23 @@ Home Assistant API rather than from the dialog alone.
 | `V2-AUTH-01` account guard | Reconfigure with a different EcoFlow address. | Confirmed. Aborted with the wrong-account reason before any sign-in was attempted. The entry was untouched: unique id unchanged, state `loaded`, and `modified_at` still equal to `created_at`, so no write occurred at all. Both languages were seen: the English string with the instance in English, the German string after switching it back. |
 | `V2-AUTH-01` entry update | Reconfigure with the current credentials. | Confirmed. Reported credentials updated and reloaded the entry. The Smart draft (ready-by `2026-09-01T11:00`, energy target `30.0`, distance target `200.0`, target type `distance`), the voice-assistant exposure set on the battery-discharge switch, the totals `1494.843` and `2.465`, and the operating mode `solar` all came back unchanged, with no new entity IDs. Recorded history spans the reload under the same entity ID. |
 | `V2-AUTH-01` broker address | Debug log after a reload. | Confirmed. Two clients, the charger and the PowerOcean observer, both logged `Connecting to mqtt-e.ecoflow.com:8084 (WSS)`. Both stream sensors reported `on`, data arrived, and the system log recorded no warning or error from the component. |
+| `V2-AUTH-01` outage | Both EcoFlow API hosts blocked at the firewall, then the integration added. | Confirmed on `1.0.5-beta.7`. The form reported a connection problem and never asked whether the password was correct. Together with the wrong-password step this settles both directions, which is what the claim needs. |
+| `V2-AUTH-01` outage, running entry | The same block observed against the already loaded entry. | Confirmed. The entry stayed `loaded` with `reason` empty, no repair flow started, and the component logged neither warning nor error, while `powerocean` and `ecoflow_powerglow` both reported connection failures against `api-e.ecoflow.com`. |
+
+The outage step also corrected an expectation. Entity states were predicted to
+go unavailable and did not: the block covered the two API hosts and not the
+MQTT broker, so the direct stream continued and the failed provider read was
+treated as absent data rather than as an error. That is the intended
+degradation, and it means an outage of the provider path alone is invisible in
+the entity states — which is the right behaviour and worth knowing before
+reading a future outage report.
+
+It also exposed a defect that the classification itself did not have. The
+`cannot_connect` text still read "Could not connect to EcoFlow **or sign in**",
+written when the two were indistinguishable. Reporting the right outcome and
+then describing it ambiguously puts back in words the doubt the classification
+removes, so the string now names the outage and states that it says nothing
+about the credentials.
 
 Three limits of what these observations establish:
 
@@ -229,7 +246,6 @@ observed without invalidating any credential.
 
 | Item | Test without a vehicle | Passing result |
 | --- | --- | --- |
-| `V2-AUTH-01` outage | Add the integration while the host cannot reach EcoFlow, for example with the internet uplink briefly disconnected. | The form reports a connection problem and never asks whether the password is correct. |
 | `V2-AUTH-01` renewal | Let the integration run until EcoFlow refuses the token, without changing the account password. | The log records a renewed session and data returns on a later cycle. No dialog appears, because the stored credentials still work. Cannot be forced; it waits for a real expiry. |
 | `V2-AUTH-01` repair trigger | Change the EcoFlow account password so the stored one is refused. | Home Assistant offers the repair dialog instead of retrying. This is the one step that needs an invalidated credential, and after the two reconfigure observations above it is the only untested part of the repair path. |
 

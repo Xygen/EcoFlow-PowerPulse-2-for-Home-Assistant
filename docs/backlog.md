@@ -146,10 +146,13 @@ Klassifikationsregel, der Vergleich mit `ecoflow-energy-ha` und die
 Aussagegrenzen stehen in [der Analyse](issue_16_auth_analysis.md); die
 fahrzeugunabhängigen Abnahmeschritte in der
 [Validierung](validation.md#unreleased-authentication-failure-handling).
-Abnahmestand 2026-09-11 auf `1.0.5-beta.6`: Anmeldung mit falschem Passwort,
-Kontoschutz, Eintragsaktualisierung und Broker-Adresse sind bestätigt, jeweils
-mit Rücklesen des Integrationszustands über die HA-API. Offen bleiben die
-Ausfallmeldung, die Erneuerung und der Auslöser des Reparaturdialogs. Drei
+Acceptance status 2026-09-11: the wrong-password sign-in, the account guard,
+the entry update and the broker address were confirmed on `1.0.5-beta.6`, and
+the outage report on `1.0.5-beta.7`, each with the integration state read back
+through the Home Assistant API. Both directions of the no-false-report claim
+are therefore observed. The renewal and the repair trigger remain open. The
+outage step also found that the `cannot_connect` text still blended connection
+and sign-in, which is corrected. Drei
 Aussagegrenzen sind festgehalten: gleiche Zugangsdaten bei der
 Rekonfiguration, gleicher Broker-Host wie die Konstante, und rund 58 Sekunden
 `unknown` nach dem Reload.
