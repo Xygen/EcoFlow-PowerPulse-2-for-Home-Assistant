@@ -100,6 +100,15 @@ in that session. Issue #11 follows on its own; #25 is deferred. Keep #12's
 accepted deadlines unless a newly captured delayed action justifies revisiting
 them.
 
+Work on 2026-09-11: Issue #53, found while accepting #18. A charger report
+carrying one unusable field no longer discards the whole report. `update` and
+`update_from_device` now state which provenance they serve; user edits keep
+their all-or-nothing rule. Unusable reported fields are counted in diagnostics
+rather than logged as a warning. Ten tests, seven verified against a mutation.
+The provider parser that produced the zero is deliberately unchanged, because
+no evidence about its payload schema was collected. See
+[the validation record](validation.md#unreleased-device-report-field-handling).
+
 Accepted live on 2026-09-11 on `1.0.5-beta.8`: the refusal, its German
 message naming the refused time, the preserved draft and the absence of any
 publish were all confirmed on the maintainer's instance against the expired

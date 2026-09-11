@@ -4,6 +4,16 @@ This file records delivered changes and the state of each historical build.
 Current outstanding work is maintained only in
 [the project backlog](docs/backlog.md).
 
+## Unreleased
+
+- Keep the fields a charger report does carry when one of them cannot be used.
+  With a distance target the charger reports its energy target as zero, which
+  is ordinary telemetry and invalid as user input; the whole report was being
+  discarded on that basis, so the local draft quietly stopped tracking the
+  device. User edits are still refused whole, which is the point of the split.
+  Unusable reported fields are counted in diagnostics instead of logged as a
+  warning.
+
 ## 1.0.5-beta.8 - 2026-09-11
 
 Smart deadline test build from merged PR #49. Automated coverage passes 439

@@ -427,6 +427,51 @@ use explicit `+01:00` and `+02:00` offsets rather than a named zone, so they
 state what a local time resolves to instead of depending on the IANA database
 and on the EU keeping its current rules.
 
+## Unreleased device-report field handling
+
+Storing what a user typed and storing what a charger said are different
+problems, and `_validated_value` was serving both. It answers "may a user enter
+this", so a distance-target report carrying an energy target of zero was read
+as a rejected entry, `SmartStaging.update` raised, and the whole report was
+discarded — ready-by time, target type and distance included.
+
+The split is now explicit. `update` stays all-or-nothing, because a user
+submitting one bad value should be told so rather than have half an edit
+applied. `update_from_device` judges each field on its own and reports which it
+could not use, exactly as `load` has always judged a stored record.
+
+A skipped field leaves the stored draft as it was. For the unused half of a
+target pair that is the right outcome rather than merely a safe one: the user's
+own energy figure survives a distance-target session and is there when they
+switch back.
+
+| Rule | Covered by |
+| --- | --- |
+| A report with one unusable field stages the rest | `tests/test_smart_staging.py` and `tests/test_coordinator_transactions.py`, both using the report the charger actually sent on 2026-09-11 |
+| The unusable field leaves the user's value alone | asserted against a staged 30 kWh energy draft |
+| A wholly malformed report stages nothing and names every field | `test_a_wholly_malformed_report_stages_nothing_and_names_every_field` |
+| A repeated report does not rewrite the store | asserted on the `Store` double |
+| User input is still refused whole | two tests, one at the staging boundary and one through the coordinator |
+
+Ten tests, of which seven were checked against a mutation that restores the
+all-or-nothing behaviour. All seven fail under it. The three that still pass
+are the ones asserting the user-input path is unchanged, which is what they
+should do.
+
+The warning is gone, deliberately. A user can do nothing about what the charger
+reports, so a repeated field is counted in `unusable_device_smart_fields` under
+`passive_settings_refresh` and named once at debug level. The count makes a
+persistent problem visible without putting a line in the log for ordinary
+telemetry.
+
+**Not covered: the provider path that produced the zero.** The direct MQTT
+parser is already careful here — it maps field 3 to `smart_charge_target_wh`
+only when the selector says energy. The provider parser copies `chargeTarget`
+unconditionally, which is where the zero came from. Whether the provider
+payload even carries a target-type field is unknown, and no evidence for it was
+collected, so nothing in the parser was changed on speculation. This fix is a
+backstop at the staging boundary and holds whichever path reports.
+
 ## Automated repository checks
 
 ### Issue #16 functional authentication acceptance

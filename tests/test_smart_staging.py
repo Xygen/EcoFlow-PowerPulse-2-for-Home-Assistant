@@ -265,3 +265,91 @@ def test_the_repeated_autumn_hour_is_two_different_deadlines() -> None:
     with pytest.raises(SmartDeadlineError):
         validate_smart_activation(_bundle(int(first.timestamp())), now=between)
     validate_smart_activation(_bundle(int(second.timestamp())), now=between)
+
+
+# The report the charger actually sent on 2026-09-11, which discarded the whole
+# batch before this rule existed: a distance target, and an energy target of
+# zero because the protocol carries the calculated energy in that field.
+DISTANCE_REPORT = {
+    "ready_by_timestamp": NOW + 86_400,
+    "smart_target_type": "distance",
+    "smart_target_distance_km": 200,
+    "smart_charge_target_wh": 0,
+}
+
+
+def test_a_device_report_keeps_the_fields_it_can_use() -> None:
+    staging = SmartStaging()
+    staging.update("C376-a", _bundle(NOW + 3_600))  # an energy draft of 30 kWh
+
+    result = staging.update_from_device("C376-a", DISTANCE_REPORT)
+
+    assert result.changed
+    assert result.skipped == ("smart_charge_target_wh",)
+    assert staging.values("C376-a") == {
+        "ready_by_timestamp": NOW + 86_400,
+        "smart_target_type": "distance",
+        "smart_target_distance_km": 200,
+        "smart_charge_target_wh": 30_000,
+    }
+
+
+def test_an_unusable_field_leaves_the_users_own_value_alone() -> None:
+    """The unused half of a target pair is the user's, not the charger's."""
+    staging = SmartStaging()
+    staging.update("C376-a", _bundle(NOW + 3_600))
+
+    staging.update_from_device("C376-a", DISTANCE_REPORT)
+
+    assert staging.value("C376-a", "smart_charge_target_wh") == 30_000
+
+
+def test_a_device_report_that_changes_nothing_reports_no_change() -> None:
+    staging = SmartStaging()
+    staging.update_from_device("C376-a", DISTANCE_REPORT)
+
+    repeat = staging.update_from_device("C376-a", DISTANCE_REPORT)
+
+    assert not repeat.changed
+    assert repeat.skipped == ("smart_charge_target_wh",)
+
+
+def test_a_wholly_malformed_report_stages_nothing_and_names_every_field() -> None:
+    staging = SmartStaging()
+    staging.update("C376-a", _bundle(NOW + 3_600))
+    before = staging.values("C376-a")
+
+    result = staging.update_from_device(
+        "C376-a",
+        {
+            "ready_by_timestamp": -1,
+            "smart_target_type": "guess",
+            "smart_target_distance_km": 5_000,
+        },
+    )
+
+    assert not result.changed
+    assert sorted(result.skipped) == [
+        "ready_by_timestamp",
+        "smart_target_distance_km",
+        "smart_target_type",
+    ]
+    assert staging.values("C376-a") == before
+
+
+def test_user_input_is_still_refused_whole() -> None:
+    """The point of the split: a user submitting zero is still told no."""
+    staging = SmartStaging()
+
+    with pytest.raises(SmartStagingError, match="energy target"):
+        staging.update(
+            "C376-a",
+            {"smart_target_type": "distance", "smart_charge_target_wh": 0},
+        )
+
+    assert staging.values("C376-a") == {}
+
+
+def test_a_device_report_still_needs_a_serial() -> None:
+    with pytest.raises(SmartStagingError, match="serial"):
+        SmartStaging().update_from_device("", DISTANCE_REPORT)
