@@ -100,6 +100,14 @@ in that session. Issue #11 follows on its own; #25 is deferred. Keep #12's
 accepted deadlines unless a newly captured delayed action justifies revisiting
 them.
 
+Accepted live on 2026-09-11 on `1.0.5-beta.8`: the refusal, its German
+message naming the refused time, the preserved draft and the absence of any
+publish were all confirmed on the maintainer's instance against the expired
+draft the item was raised for. `control_readback_counts` stayed at zero on all
+three paths, so no settings write was published. The real-device Smart
+activation criterion stays open and carries `needs:maintainer`. See
+[the validation record](validation.md#confirmed-live-on-2026-09-11-on-105-beta8).
+
 Work on 2026-09-11: V2-SMART-01 / Issue #18 refuses to activate a Smart plan
 whose ready-by time has passed, or is more than 366 days ahead. The draft is
 kept and never rolled forward, the message names the refused time, and the
