@@ -753,3 +753,178 @@ async def test_a_user_edit_is_still_refused_whole(harness):
         )
 
     assert c._smart_staging.values(SERIAL) == {}
+
+
+def _ready_to_charge(harness):
+    """Put the charger in a state where Start is allowed."""
+    c = harness.coordinator
+    c.hass.loop = asyncio.get_running_loop()
+    harness.heartbeat("plugged_in")
+    return c
+
+
+@pytest.mark.asyncio
+async def test_both_buttons_go_unavailable_while_an_action_is_pending(harness):
+    """Stop too, not only the button that was pressed."""
+    c = _ready_to_charge(harness)
+    assert c.charge_action_available(SERIAL, "start")
+
+    seen = {}
+
+    async def watch():
+        await asyncio.sleep(0.01)
+        seen["start"] = c.charge_action_available(SERIAL, "start")
+        seen["stop"] = c.charge_action_available(SERIAL, "stop")
+        seen["pending"] = c.charge_action_pending(SERIAL)
+
+    await asyncio.gather(c.async_start_charging(SERIAL), watch())
+
+    assert seen == {"start": False, "stop": False, "pending": True}
+
+
+@pytest.mark.asyncio
+async def test_availability_returns_after_a_confirmed_action(harness):
+    """Recalculated from the state the charger actually reported."""
+    c = _ready_to_charge(harness)
+
+    await c.async_start_charging(SERIAL)
+
+    assert not c.charge_action_pending(SERIAL)
+    assert c.data[SERIAL]["direct_charging_status"] == "charging"
+    assert not c.charge_action_available(SERIAL, "start")  # already charging
+    assert c.charge_action_available(SERIAL, "stop")
+
+
+@pytest.mark.asyncio
+async def test_a_second_action_is_refused_rather_than_queued(harness):
+    """The lock serialises; it does not refuse. This does."""
+    c = _ready_to_charge(harness)
+    refused = {}
+
+    async def press_again():
+        await asyncio.sleep(0.01)
+        try:
+            await c.async_stop_charging(SERIAL)
+        except HAError as exc:
+            refused["message"] = str(exc)
+
+    await asyncio.gather(c.async_start_charging(SERIAL), press_again())
+
+    assert "already waiting for confirmation" in refused["message"]
+    assert harness.sent == [{"action": 100}]  # the second never published
+
+
+@pytest.mark.asyncio
+async def test_a_duplicate_press_publishes_nothing_extra(harness):
+    c = _ready_to_charge(harness)
+
+    async def press_again():
+        await asyncio.sleep(0.01)
+        with pytest.raises(HAError):
+            await c.async_start_charging(SERIAL)
+
+    await asyncio.gather(c.async_start_charging(SERIAL), press_again())
+
+    assert harness.sent == [{"action": 100}]
+
+
+@pytest.mark.asyncio
+async def test_the_marker_clears_after_a_publish_rejection(harness):
+    c = _ready_to_charge(harness)
+    c.mqtt_clients[PARENT].send_explicit_control = lambda payload: False
+
+    with pytest.raises(HAError, match="rejected the MQTT publish"):
+        await c.async_start_charging(SERIAL)
+
+    assert not c.charge_action_pending(SERIAL)
+    assert c.charge_action_available(SERIAL, "start")
+
+
+@pytest.mark.asyncio
+async def test_the_marker_clears_after_a_set_reply_timeout(harness, monkeypatch):
+    c = _ready_to_charge(harness)
+    harness.reply = False
+    harness.readback = False
+    monkeypatch.setattr(harness.module, "_CHARGE_ACTION_SET_REPLY_SECONDS", 0.05)
+
+    with pytest.raises(HAError, match="No EcoFlow SET reply"):
+        await c.async_start_charging(SERIAL)
+
+    assert not c.charge_action_pending(SERIAL)
+
+
+@pytest.mark.asyncio
+async def test_the_marker_clears_after_a_readback_timeout(harness, monkeypatch):
+    """The false-negative case from the issue evidence table."""
+    c = _ready_to_charge(harness)
+    harness.readback = False
+    monkeypatch.setattr(
+        harness.module, "charge_action_confirm_seconds", lambda action: 0.05
+    )
+
+    with pytest.raises(HAError, match="did not confirm the charging state"):
+        await c.async_start_charging(SERIAL)
+
+    assert not c.charge_action_pending(SERIAL)
+    # Availability comes back from the real state, which never moved.
+    assert c.charge_action_available(SERIAL, "start")
+
+
+@pytest.mark.asyncio
+async def test_the_marker_clears_after_a_publish_exception(harness):
+    c = _ready_to_charge(harness)
+
+    def explode(payload):
+        raise RuntimeError("transport is gone")
+
+    c.mqtt_clients[PARENT].send_explicit_control = explode
+
+    with pytest.raises(RuntimeError):
+        await c.async_start_charging(SERIAL)
+
+    assert not c.charge_action_pending(SERIAL)
+
+
+@pytest.mark.asyncio
+async def test_the_marker_clears_after_cancellation(harness, monkeypatch):
+    c = _ready_to_charge(harness)
+    harness.reply = False
+    harness.readback = False
+    monkeypatch.setattr(harness.module, "_CHARGE_ACTION_SET_REPLY_SECONDS", 5)
+
+    task = asyncio.create_task(c.async_start_charging(SERIAL))
+    await asyncio.sleep(0.05)
+    task.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await task
+
+    assert not c.charge_action_pending(SERIAL)
+
+
+@pytest.mark.asyncio
+async def test_the_pending_marker_does_not_move_the_reported_state(harness, monkeypatch):
+    """Availability is gated; the charging status is never guessed."""
+    c = _ready_to_charge(harness)
+    harness.reply = False
+    harness.readback = False
+    monkeypatch.setattr(harness.module, "_CHARGE_ACTION_SET_REPLY_SECONDS", 0.05)
+    seen = {}
+
+    async def watch():
+        await asyncio.sleep(0.01)
+        seen["status"] = c.data[SERIAL]["direct_charging_status"]
+
+    with pytest.raises(HAError):
+        await asyncio.gather(c.async_start_charging(SERIAL), watch())
+
+    assert seen["status"] == "plugged_in"
+
+
+@pytest.mark.asyncio
+async def test_a_pending_action_on_one_device_does_not_block_another(harness):
+    """The marker is per serial, so a second charger stays usable."""
+    c = _ready_to_charge(harness)
+    c._pending_charge_actions.add("C376-other")
+
+    assert c.charge_action_available(SERIAL, "start")
+    assert c.charge_action_pending("C376-other")

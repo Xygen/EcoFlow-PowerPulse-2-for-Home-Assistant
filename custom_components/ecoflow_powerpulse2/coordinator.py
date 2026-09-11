@@ -223,6 +223,7 @@ class PowerPulse2Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
         )
         self._smart_staging_lock = asyncio.Lock()
         self._unusable_device_smart_fields: dict[str, int] = {}
+        self._pending_charge_actions: set[str] = set()
         self._smart_staging_tasks: set[asyncio.Task[None]] = set()
         self._shutting_down = False
         self._initialized = False
@@ -1134,10 +1135,20 @@ class PowerPulse2Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
             )
         )
 
+    def charge_action_pending(self, serial: str) -> bool:
+        """Return whether a charging action is waiting for its confirmation."""
+        return serial in self._pending_charge_actions
+
     def charge_action_available(self, serial: str, action: str) -> bool:
-        """Return whether transport and fresh state allow Start or Stop."""
+        """Return whether transport and fresh state allow Start or Stop.
+
+        Both actions go unavailable while either is pending. The control lock
+        serialises but does not refuse, so without this a contradictory action
+        could be queued behind the first and published the moment it returns.
+        """
         return (
-            self.settings_control_available(serial)
+            not self.charge_action_pending(serial)
+            and self.settings_control_available(serial)
             and self.direct_stream_available(serial)
             and self.heartbeat_stream_active(serial)
             and charge_action_allowed(
@@ -1157,6 +1168,13 @@ class PowerPulse2Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
         """Publish a captured charge action and require fresh heartbeat readback."""
         if serial not in self.devices:
             raise HomeAssistantError("Unknown PowerPulse device")
+        if self.charge_action_pending(serial):
+            # Checked before anything else so the message names the real
+            # reason. A state check would otherwise refuse the opposite action
+            # first, for a state that is about to change anyway.
+            raise HomeAssistantError(
+                "A charging action is already waiting for confirmation"
+            )
         status = direct_charging_status((self.data or {}).get(serial, {}))
         if action == "start" and status == "unplugged":
             raise HomeAssistantError("The EV charger is not connected to a vehicle")
@@ -1169,6 +1187,22 @@ class PowerPulse2Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
                 f"Charging action {action} is not valid for state {status or 'unknown'}"
             )
 
+        # Marked before the lock rather than before the publish. A second
+        # action must be refused outright, and one that waits on the lock has
+        # already passed its own state checks against a state the first action
+        # is in the middle of changing.
+        self._pending_charge_actions.add(serial)
+        # The service call is still running, so nothing else refreshes entity
+        # availability until it returns.
+        self.async_update_listeners()
+        try:
+            await self._async_set_charging_locked(serial, action)
+        finally:
+            self._pending_charge_actions.discard(serial)
+            self.async_update_listeners()
+
+    async def _async_set_charging_locked(self, serial: str, action: str) -> None:
+        """Publish the charge action once the shared control lock is held."""
         async with self._control_lock:
             if not self.direct_stream_available(serial) or not self.heartbeat_stream_active(serial):
                 raise HomeAssistantError("Charging control requires a recent device heartbeat")
