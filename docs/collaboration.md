@@ -34,6 +34,9 @@ there" cannot be decided without an argument each time: the authentication
 classification, the broker addressing and the Home Assistant fixture harness
 would all need adjudication. Naming an owner per item takes one sentence.
 
+Either agent may review any item. Reviewing does not transfer ownership, and a
+review comment is not a licence to take the work over.
+
 ## Check the seam before starting
 
 Before touching a file, check whether an open branch already edits it:
@@ -54,11 +57,22 @@ When a seam breaks twice, add a check that detects it. That is what
 coordinator's Home Assistant imports against what the harness stubs, and names
 the missing entry instead of failing later with an unexplained `ImportError`.
 
+## Worktrees belong to the agent that made them
+
+Three worktrees exist under `dist/`, on `codex/issue-19-*` branches. They are
+historical and currently clean. Do not commit into them, rebase, force-push,
+delete or move their branches, and do not repurpose one as scratch space: on
+2026-09-11 a push to `codex/issue-19-stream-timeline` left `timeline-merge`
+stale without anyone noticing. A new item gets a fresh branch and, if needed, a
+fresh worktree under its own owner. Only the owner removes an obsolete one, and
+only after confirming it is no longer needed.
+
 ## Releases have one owner
 
-Only the release owner raises the version in `manifest.json` and opens a new
-release section in the changelog. Either agent adds entries under
-`## Unreleased`.
+A release names its owner in its issue before any version is raised. Only that
+owner raises the version in `manifest.json`, opens a new release section in the
+changelog, and creates the tag and the GitHub release. Either agent adds factual
+entries under `## Unreleased` at any time.
 
 On 2026-09-10 two builds were prepared as `1.0.5-beta.5` from two lines within
 the hour. The published one was kept and the other became `1.0.5-beta.6`, per
@@ -68,14 +82,20 @@ a version, check `gh release list` and `git tag`.
 
 ## The pull request is the handover
 
-No second format. A pull request description in this repository already states
-what was done, what was deliberately left out, what remains unverified and
-where the evidence is. That is exactly what an agent picking the work up next
-needs, and it is already reviewed by the maintainer.
+No second format. A pull request description in this repository already carries
+what an agent picking the work up next needs, and the maintainer reads it
+anyway. It states:
 
-For work that has no pull request yet, the handover is a comment on the issue.
-Write it to be read without a reply: name the assumptions, because the reader
-cannot ask.
+- the owner, and the head and base it applies to;
+- the scope of what changed;
+- the checks that were run and what they reported;
+- what was deliberately left untested, and what only live evidence can settle;
+- the remaining risk;
+- any file seam or release-owner dependency it creates for the next item.
+
+For work that has no pull request yet, the handover is a comment on the issue
+carrying the same facts. Write it to be read without a reply: name the
+assumptions, because the reader cannot ask.
 
 ## Review runs both ways
 
@@ -95,19 +115,36 @@ disagrees with stays in the pull request thread, and the maintainer decides.
 An agent that reverts or rewrites the other's work without that decision
 destroys the record of why the work was the way it was.
 
-## What each agent is placed for
+## Capability decides an item, never a standing role
 
-Claude reaches the maintainer's Home Assistant instance through a connector.
-On 2026-09-11 that made the difference between "the dialog showed the right
-message" and reading back that `modified_at` still equalled `created_at`,
-proving the aborted flow performed no write at all. That is a tooling
-difference, not a judgement about code, and it suggests Claude carries live
-acceptance, verification and release work.
+Both agents reach the maintainer's Home Assistant instance through connected
+tools. Claude used that on 2026-09-11 to read back that `modified_at` still
+equalled `created_at`, proving an aborted flow performed no write at all; Codex
+used it to install `1.0.5-beta.7` and verify both MQTT streams after a restart.
 
-Everything else follows the per-item owner, not a standing rule.
+An earlier draft of this document gave Claude standing ownership of live
+acceptance, verification and release work on the strength of that access. Codex
+objected in issue #42 and was right on both counts: the access is not
+exclusive, and assigning activities permanently by agent is exactly the
+activity-based split the previous sections reject. Capability may well make one
+agent the right owner of a particular item — that belongs in the item's issue,
+with the access it needs named there, and never as a general rule.
 
-## What this rests on
+## Live tests need explicit authority
 
-This model assumes Codex can read and write GitHub issues and pull requests in
-this repository. If it cannot, the coordination channel has to be reconsidered
-before anything else here applies.
+Reading state is ordinary work. A live test that disturbs the installation is
+not: deliberately invalidating credentials, changing device settings, restarting
+Home Assistant. Those happen on the maintainer's explicit request for that test,
+recorded in the item's issue.
+
+Neither agent can rely on an unattended observation continuing after its session
+ends. Anything that needs a long window — an idle-gap observation, waiting for a
+real token expiry — needs an arrangement made for it, not an assumption.
+
+## Reach, as verified
+
+Codex confirmed in issue #42 that it reads and writes issues, creates and edits
+them, reads pull request descriptions, changed files and review comments,
+comments on pull requests and reads labels, and that it has merged and released
+here. The comment itself was the check. Network availability and session
+authorization remain the operational dependencies for both agents.
