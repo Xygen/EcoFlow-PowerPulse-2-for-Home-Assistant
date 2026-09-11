@@ -52,7 +52,7 @@ The ZIP's 45 files matched the source tree; SHA256:
 Vehicle-backed acceptance remains open in the [central backlog](backlog.md#roadmap-bis-version-20):
 the charger reported `unplugged`, so rejection of a queued sensitive write after
 actual charging starts has not been live-tested. Local concurrency tests do not
-replace that evidence. PR #22 and Issue #14 remain open.
+replace that evidence. PR #22 has merged; Issue #14 remains open for acceptance.
 General readback source atomicity and provider no-op qualification remain the
 separate scope of [Issue #15](https://github.com/Xygen/EcoFlow-PowerPulse-2-for-Home-Assistant/issues/15).
 
@@ -80,9 +80,10 @@ not be reported as success based only on the provider target. Retry delays are u
 Bounded diagnostics identify the exact field sources and whether their observations
 are post-command and matching, without exporting their raw values.
 
-These tests run the real coordinator with HA/network boundary doubles. Issue #15
-has not been installed or live-tested; `1.0.5-beta.1` remains the installed #14 test
-build. Live acceptance remains tracked in the [central backlog](backlog.md).
+These tests run the real coordinator with HA/network boundary doubles. The
+implementation has since merged and is included in the installed `1.0.5-beta.6`.
+Installation does not establish its remaining live acceptance, which stays
+tracked in the [central backlog](backlog.md).
 
 ### Released baseline evidence
 
@@ -250,6 +251,9 @@ certificate password at the same account/broker did not rebuild the session;
 and a request exceeding the retry interval allowed an overlapping refresh.
 CI run `34567772496` recorded 3 failures and 13 passes. After the focused fixes,
 run `34567907053` passed all 16 HA cases and the normal validation jobs.
+The final expanded suite passed 18 HA cases and 420 portable tests in
+[run `34568064061`](https://github.com/Xygen/EcoFlow-PowerPulse-2-for-Home-Assistant/actions/runs/34568064061),
+along with Ruff, documentation consistency, HACS and Hassfest.
 
 Cases cover rejected credentials versus network failure in all three forms,
 wrong-account rejection before sign-in, changing stored credentials while keeping
