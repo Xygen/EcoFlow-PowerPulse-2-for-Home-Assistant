@@ -4,7 +4,11 @@ This file records delivered changes and the state of each historical build.
 Current outstanding work is maintained only in
 [the project backlog](docs/backlog.md).
 
-## Unreleased
+## 1.0.5-beta.7 - 2026-09-11
+
+Authentication correction test build based on merged PR #36. Automated coverage
+passes 420 portable and 18 HA fixture tests. Live expiry and repaired-password
+recovery acceptance remain open; this prerelease does not declare them accepted.
 
 - Verify authentication with real Home Assistant flow/config-entry fixtures and
   mocked EcoFlow responses. Prevent false reauthentication after a successful

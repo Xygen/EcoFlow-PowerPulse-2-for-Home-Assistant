@@ -88,7 +88,7 @@ PR #27/#28 and the A1–A3 evidence from PR #35. Only Issue #16 remains active.
 Real HA functional tests reproduced three credential-renewal defects; focused
 fixes now pass those counterexamples. See
 [functional acceptance](validation.md#issue-16-functional-authentication-acceptance).
-Next gate: review and deploy these fixes, then retain the explicitly unobserved
+PR #36 is merged. Next gate: deploy beta.7 with these fixes, then retain the explicitly unobserved
 provider-expiry and differing-broker cases as open live evidence. Do not repeat
 A1–A3 or start another issue while completing this acceptance.
 
