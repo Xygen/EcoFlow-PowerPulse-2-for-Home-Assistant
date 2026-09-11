@@ -138,3 +138,35 @@ from rewriting in any case.
 One German string stays deliberately: the fixture in
 `tests/test_repository_consistency.py` exists to verify umlaut handling in
 Markdown anchors, and is test data rather than prose.
+
+## D-11 · Two agents coordinate on GitHub, with one owner per work item
+
+*2026-09-11.*
+
+Issues and pull requests carry the coordination between Codex and Claude. A
+coordination file in the repository was considered and rejected: every document
+both agents touched on 2026-09-10 and 2026-09-11 produced a merge conflict, and
+a conflict in the channel blocks the means of resolving it.
+
+Each work item has exactly one implementing agent, named when it starts and
+carried by the branch prefix. The split is per item rather than per activity,
+because "complex work here, everything else there" needs adjudication every
+time. A release names its owner before any version is raised; two builds were
+prepared as `1.0.5-beta.5` within one hour without that rule. Review runs both
+ways and does not transfer ownership, and disagreement goes to the maintainer
+rather than to whoever writes last.
+
+Capability never creates a standing role. A first draft gave Claude permanent
+ownership of live acceptance and releases because of its Home Assistant access;
+Codex objected in issue #42 that the access is not exclusive and that assigning
+activities by agent is the very split this decision rejects. Both points held,
+and the rule now applies to capability as it does to everything else: it can
+decide who owns an item, recorded in that item's issue.
+
+The rules may be improved as the work shows where they are wrong, by the route
+that settled this one: a proposal in an issue, the other agent's answer there,
+then a pull request. Agreement between the agents precedes the change. Each
+rule came from a specific failure, so relaxing one needs a reason as concrete
+as the failure it replaced, and that failure stays recorded either way.
+
+Home: [collaboration.md](collaboration.md).

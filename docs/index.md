@@ -17,6 +17,7 @@ from the evidence archives created during protocol research.
 | Work through the open acceptance steps in one pass | [Abnahmeliste](acceptance_checklist.md) |
 | See active, deferred, and release work | [Project backlog](backlog.md) |
 | Understand why the project works the way it does | [Decision log](decisions.md) |
+| See how the two agents divide and hand over work | [Collaboration model](collaboration.md) |
 | Review delivered changes | [Changelog](../CHANGELOG.md) |
 | Review the 2026-09-09 integration audit | [Dated review](review_2026-09-09.md); planned work remains in the [backlog roadmap](backlog.md#roadmap-bis-version-20) |
 
