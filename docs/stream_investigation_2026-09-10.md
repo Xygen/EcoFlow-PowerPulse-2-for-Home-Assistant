@@ -13,6 +13,16 @@ constrains the heartbeat cadence without determining it. See
 [the 2026-09-11 observation](stream_timeline_observation_2026-09-11.md). Nothing
 below is revised by it.
 
+**Later finding, 2026-09-11, second reading:** the same runtime then stalled,
+and the timeline caught it. The charger held its MQTT session while its own
+frames stopped for 86.5 s, taking the heartbeat age to 79.1 s against the 90 s
+limit that gates the qualified charging power. That is the mechanism behind the
+gaps counted below, seen directly rather than inferred from history: the
+session does not drop, the device stops sending. Automatic recovery could not
+have fired, needing both streams stale for 300 s. The correlation with
+integration loads reported below is neither confirmed nor refuted by it, and
+the counts below stand.
+
 ## Scope and provenance
 
 Read-only Home Assistant MCP queries covered **2026-09-09 17:10 UTC through

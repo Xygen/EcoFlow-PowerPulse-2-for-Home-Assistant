@@ -114,6 +114,18 @@ merge `7f09767`, including the version declarations and translation-key fix.
 Quality, HACS and Hassfest passed on both merge commits. See
 [automated checks](validation.md#automated-repository-checks).
 
+Observation on 2026-09-11, second reading: the same runtime stalled at
+09:56 UTC. The charger stayed connected while its own frames stopped: 86.5 s
+without a heartbeat and 47.7 s without a settings report, with no disconnection
+recorded. The heartbeat age reached 79.1 s against the 90 s limit that gates
+the qualified PowerOcean charging power, so it came within eleven seconds of
+the reported symptom and the recorder confirms no unknown interval occurred.
+Automatic recovery needs both streams stale for 300 s and could not have fired;
+the single recovery check in the window ran exactly 30 s after the last frame,
+which is the push-reset deadline, not a schedule. The cadence is now down to
+30.04 s or 60.08 s with the former strongly favoured. See
+[the observation](stream_timeline_observation_2026-09-11.md#later-finding-second-reading-at-1112-utc-the-fault-reproduced).
+
 Observation on 2026-09-11: the bounded timeline was read for the first time on
 `1.0.5-beta.7`. Two hours and fifteen minutes without a gap, no missed
 heartbeat, no recovery decision. It constrains the heartbeat cadence to
