@@ -4,7 +4,13 @@ This file records delivered changes and the state of each historical build.
 Current outstanding work is maintained only in
 [the project backlog](docs/backlog.md).
 
-## Unreleased
+## 1.0.5-beta.8 - 2026-09-11
+
+Smart deadline test build from merged PR #49. Automated coverage passes 439
+portable tests, three new Home Assistant fixture tests for the translated
+message, Ruff and the documentation checks. The refusal has not been observed
+on the real charger and a valid Smart activation has not been re-confirmed;
+this prerelease declares neither accepted.
 
 - Refuse to activate a Smart charging plan whose ready-by time has already
   passed, or lies more than a year ahead, instead of publishing it to the
@@ -12,6 +18,10 @@ Current outstanding work is maintained only in
   the user's behalf; the message names the refused time and says what to do.
   The check runs at dispatch, inside the control lock, so a plan waiting on the
   lock cannot expire its way past it.
+- Reject a ready-by time more than 366 days ahead. This bound is a chosen
+  guard, not a limit read off the charger.
+- Add the first translated exception messages, in English and German, and a
+  repository check that every translation key raised in code is declared.
 
 ## 1.0.5-beta.7 - 2026-09-11
 
