@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from datetime import UTC, datetime
-from typing import Any
+from typing import Any, NamedTuple
 
 # A charging deadline further ahead than this is not a plan, it is a mistyped
 # year. The bound is a chosen guard rather than an observed device limit: the
@@ -87,6 +87,13 @@ def _validated_value(key: str, value: Any) -> int | str:
     raise SmartStagingError(f"Unsupported staged Smart setting: {key}")
 
 
+class DeviceReportResult(NamedTuple):
+    """What a device report changed, and what could not be used from it."""
+
+    changed: bool
+    skipped: tuple[str, ...]
+
+
 class SmartStaging:
     """Hold validated Smart configuration drafts independently per serial."""
 
@@ -116,12 +123,55 @@ class SmartStaging:
                 self._devices[serial] = validated
 
     def update(self, serial: str, changes: Mapping[str, Any]) -> bool:
-        """Apply validated semantic changes and report whether state changed."""
-        if not isinstance(serial, str) or not serial:
-            raise SmartStagingError("Smart staging requires a device serial")
+        """Apply validated user changes and report whether state changed.
+
+        All or nothing, because a user submitting one bad value should be told
+        so rather than have part of their edit applied. Device reports need the
+        opposite and use `update_from_device`.
+        """
+        self._require_serial(serial)
         validated = {
             key: _validated_value(key, value) for key, value in changes.items()
         }
+        return self._apply(serial, validated)
+
+    def update_from_device(
+        self, serial: str, report: Mapping[str, Any]
+    ) -> DeviceReportResult:
+        """Stage what a device report does carry, skipping what it cannot.
+
+        A device report is not user input and the two cannot share a rule. The
+        charger legitimately reports an energy target of zero while a distance
+        target is selected — the protocol carries the calculated energy in that
+        field instead — and zero is not a target a user may enter. Refusing the
+        whole report on that basis would discard the ready-by time, the target
+        type and the distance reported alongside it, and the draft would quietly
+        stop tracking the device.
+
+        So each field is judged on its own, exactly as `load` already judges a
+        stored record. A field that cannot be used leaves the stored draft as it
+        was, which is the right outcome for the unused half of a target pair:
+        the user's own energy figure survives a distance-target session.
+        """
+        self._require_serial(serial)
+        validated: dict[str, int | str] = {}
+        skipped: list[str] = []
+        for key, value in report.items():
+            try:
+                validated[key] = _validated_value(key, value)
+            except SmartStagingError:
+                skipped.append(key)
+        return DeviceReportResult(
+            self._apply(serial, validated), tuple(skipped)
+        )
+
+    @staticmethod
+    def _require_serial(serial: str) -> None:
+        if not isinstance(serial, str) or not serial:
+            raise SmartStagingError("Smart staging requires a device serial")
+
+    def _apply(self, serial: str, validated: dict[str, int | str]) -> bool:
+        """Merge already-validated values, reporting whether anything moved."""
         current = dict(self._devices.get(serial, {}))
         updated = dict(current)
         updated.update(validated)

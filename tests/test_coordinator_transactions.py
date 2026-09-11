@@ -688,3 +688,68 @@ async def test_an_expired_draft_is_never_reported_as_device_state(harness):
 
     assert c.staged_smart_setting(SERIAL, "ready_by_timestamp") == expired
     assert c.setting_observation_value(SERIAL, "ready_by_timestamp") is None
+
+
+@pytest.mark.asyncio
+async def test_a_distance_report_stages_its_valid_fields(harness):
+    """The 2026-09-11 report: a zero energy target must not cost the rest."""
+    c = harness.coordinator
+    await _stage_smart_bundle(harness, harness.wall_clock + 3_600)
+
+    await c._async_update_smart_staging_from_device(
+        SERIAL,
+        {
+            "ready_by_timestamp": harness.wall_clock + 86_400,
+            "smart_target_type": "distance",
+            "smart_target_distance_km": 200,
+            "smart_charge_target_wh": 0,
+        },
+    )
+
+    assert c._smart_staging.value(SERIAL, "ready_by_timestamp") == harness.wall_clock + 86_400
+    assert c._smart_staging.value(SERIAL, "smart_target_type") == "distance"
+    assert c._smart_staging.value(SERIAL, "smart_target_distance_km") == 200
+    # The user's own energy figure survives a distance-target session.
+    assert c._smart_staging.value(SERIAL, "smart_charge_target_wh") == 10_000
+    assert c._unusable_device_smart_fields == {"smart_charge_target_wh": 1}
+
+
+@pytest.mark.asyncio
+async def test_the_staged_draft_reaches_the_store(harness):
+    c = harness.coordinator
+
+    await c._async_update_smart_staging_from_device(
+        SERIAL,
+        {"smart_target_type": "distance", "smart_charge_target_wh": 0},
+    )
+
+    saved = c._smart_staging_store.saved
+    assert saved["devices"][SERIAL] == {"smart_target_type": "distance"}
+
+
+@pytest.mark.asyncio
+async def test_a_repeated_report_does_not_rewrite_the_store(harness):
+    c = harness.coordinator
+    report = {"smart_target_type": "distance", "smart_charge_target_wh": 0}
+    await c._async_update_smart_staging_from_device(SERIAL, report)
+    c._smart_staging_store.saved = None
+
+    await c._async_update_smart_staging_from_device(SERIAL, report)
+
+    assert c._smart_staging_store.saved is None
+    # Counted on every report, because a persistent one is worth seeing.
+    assert c._unusable_device_smart_fields == {"smart_charge_target_wh": 2}
+
+
+@pytest.mark.asyncio
+async def test_a_user_edit_is_still_refused_whole(harness):
+    """The device path must not have loosened the control path."""
+    c = harness.coordinator
+
+    with pytest.raises(HAError, match="energy target"):
+        await c._async_update_smart_staging(
+            SERIAL,
+            {"smart_target_type": "energy", "smart_charge_target_wh": 0},
+        )
+
+    assert c._smart_staging.values(SERIAL) == {}

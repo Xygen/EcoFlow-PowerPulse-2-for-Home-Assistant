@@ -222,6 +222,7 @@ class PowerPulse2Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
             f"{DOMAIN}.smart_staging.{entry.entry_id}",
         )
         self._smart_staging_lock = asyncio.Lock()
+        self._unusable_device_smart_fields: dict[str, int] = {}
         self._smart_staging_tasks: set[asyncio.Task[None]] = set()
         self._shutting_down = False
         self._initialized = False
@@ -249,28 +250,65 @@ class PowerPulse2Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
                 changed = self._smart_staging.update(serial, changes)
             except SmartStagingError as exc:
                 raise HomeAssistantError(str(exc)) from exc
-            if not changed:
-                return False
-            try:
-                await self._smart_staging_store.async_save(
-                    self._smart_staging.export()
-                )
-            except Exception as exc:
-                self._smart_staging.load(previous)
-                raise HomeAssistantError(
-                    "Smart configuration could not be persisted"
-                ) from exc
+            return await self._async_store_smart_staging(previous, changed)
+
+    async def _async_store_smart_staging(
+        self, previous: dict[str, Any], changed: bool
+    ) -> bool:
+        """Write the staged drafts, restoring the previous set on failure.
+
+        Callers hold `_smart_staging_lock`.
+        """
+        if not changed:
+            return False
+        try:
+            await self._smart_staging_store.async_save(self._smart_staging.export())
+        except Exception as exc:
+            self._smart_staging.load(previous)
+            raise HomeAssistantError(
+                "Smart configuration could not be persisted"
+            ) from exc
         return True
 
     async def _async_update_smart_staging_from_device(
         self, serial: str, changes: dict[str, Any]
     ) -> None:
-        """Persist qualified Smart device input without failing telemetry."""
-        try:
-            changed = await self._async_apply_smart_staging(serial, changes)
-        except HomeAssistantError as exc:
-            _LOGGER.warning("Smart device configuration was not persisted: %s", exc)
-            return
+        """Stage what a device report carries, without failing telemetry.
+
+        Deliberately not `_async_apply_smart_staging`: that path is for user
+        edits and refuses a whole submission over one bad value. A report is
+        judged field by field, because the charger sends fields that are
+        perfectly ordinary telemetry and invalid as user input — a zero energy
+        target beside a distance target being the one that occurs in normal
+        use.
+        """
+        async with self._smart_staging_lock:
+            previous = self._smart_staging.export()
+            try:
+                result = self._smart_staging.update_from_device(serial, changes)
+            except SmartStagingError as exc:
+                _LOGGER.warning("Smart device report was not staged: %s", exc)
+                return
+            for key in result.skipped:
+                self._unusable_device_smart_fields[key] = (
+                    self._unusable_device_smart_fields.get(key, 0) + 1
+                )
+            if result.skipped:
+                # Debug, not a warning: the user can do nothing about what the
+                # charger reports, and the count below keeps it inspectable.
+                _LOGGER.debug(
+                    "Smart device report carried unusable fields: %s",
+                    ", ".join(sorted(result.skipped)),
+                )
+            try:
+                changed = await self._async_store_smart_staging(
+                    previous, result.changed
+                )
+            except HomeAssistantError as exc:
+                _LOGGER.warning(
+                    "Smart device configuration was not persisted: %s", exc
+                )
+                return
         if changed:
             self.async_update_listeners()
 
@@ -357,6 +395,7 @@ class PowerPulse2Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
             "last_confirmed_reply_at": self._last_settings_reply_at,
             "last_completed_refresh_at": self._last_settings_refresh_at,
             "control_readback_counts": dict(self._control_readback_counts),
+            "unusable_device_smart_fields": dict(self._unusable_device_smart_fields),
             "last_control_readback_source": self._last_control_readback_source,
             "last_control_readback_at": self._last_control_readback_at,
             "recent_provider_attempts": list(self._control_provider_attempts),
