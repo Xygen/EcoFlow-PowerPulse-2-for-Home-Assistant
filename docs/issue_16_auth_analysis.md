@@ -175,9 +175,13 @@ untouched by this change.
 
 - Unit tests cover the classification decisions and the transport error
   mapping against a doubled network boundary, plus the config flow's
-  structural contract. They are not a Home Assistant runtime test; the
-  component still has no HA fixture harness (roadmap `V2-QA-02`), so the
-  dialog itself and the reload after a repair are established live.
+  structural contract. When this was written they were not a Home Assistant
+  runtime test and the component had no fixture harness. PR #36 added one in
+  `ha_tests/`, running against real flow and config-entry fixtures with mocked
+  EcoFlow responses, and it reproduced three credential-renewal defects this
+  analysis did not anticipate. It covers the authentication paths, not the
+  breadth `V2-QA-02` asks for. The dialog itself and the reload after a repair
+  are still established live.
 - No vehicle is required for any part of this item.
 - The live acceptance test needs deliberately invalidated credentials. It is
   performed by the maintainer, not by the automated suite, and must confirm
