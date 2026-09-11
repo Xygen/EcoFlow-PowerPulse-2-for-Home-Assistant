@@ -16,6 +16,7 @@ from the evidence archives created during protocol research.
 | Review test coverage, live validation, and release readiness | [Validation status](validation.md) |
 | Work through the open acceptance steps in one pass | [Abnahmeliste](acceptance_checklist.md) |
 | See active, deferred, and release work | [Project backlog](backlog.md) |
+| Understand why the project works the way it does | [Decision log](decisions.md) |
 | Review delivered changes | [Changelog](../CHANGELOG.md) |
 | Review the 2026-09-09 integration audit | [Dated review](review_2026-09-09.md); planned work remains in the [backlog roadmap](backlog.md#roadmap-bis-version-20) |
 
@@ -53,3 +54,8 @@ must not be read as the current product contract.
 - Keep open and deferred work only in the backlog.
 - Preserve evidence archives; label later findings rather than rewriting past
   observations as if they were current facts.
+- Record a decision that shapes how the repository is built in the
+  [decision log](decisions.md), and keep it pointing at the document that
+  carries it in full.
+- Write in English. Existing German passages are rewritten in English when
+  they are edited for another reason, not converted for their own sake.
