@@ -23,7 +23,24 @@ PARENT = "HJ31-test"
 
 
 class HAError(Exception):
-    pass
+    """Stand-in for HomeAssistantError, including its translated form.
+
+    The real class accepts a translation key instead of a message, and the
+    Smart deadline errors use that form, so a bare Exception would fail on the
+    keywords rather than on the behaviour under test.
+    """
+
+    def __init__(
+        self,
+        *args,
+        translation_domain=None,
+        translation_key=None,
+        translation_placeholders=None,
+    ):
+        super().__init__(*args)
+        self.translation_domain = translation_domain
+        self.translation_key = translation_key
+        self.translation_placeholders = translation_placeholders
 
 
 class AuthFailed(Exception):
@@ -110,6 +127,10 @@ class Harness:
     def __init__(self, module):
         self.module = module
         self.now = module.time.monotonic
+        # Deadlines are wall-clock, so a fixture written with a fixed future
+        # timestamp would expire on its own one day. Fixing the clock keeps
+        # these tests about the behaviour and not about the year they run in.
+        self.wall_clock = 1_999_900_000
         self.sent = []
         self.connected = True
         self.reply = True
@@ -121,6 +142,7 @@ class Harness:
             SimpleNamespace(data={"email": "test", "password": "test"}, entry_id="test"),
         )
         c = self.coordinator
+        c._now_timestamp = lambda: self.wall_clock
         c.devices = {SERIAL: {}}
         c.observer_devices = {PARENT: {}}
         c.mqtt_clients = {
@@ -567,3 +589,102 @@ async def test_phase_keeps_transition_requirement_and_never_uses_generic_noop(
             await c.async_set_phase_mode(SERIAL, "one_phase")
     assert harness.sent == [{5: 1}]
     assert c._control_readback_counts["noop"] == 0
+
+
+HORIZON = 366 * 24 * 60 * 60
+
+
+async def _stage_smart_bundle(harness, ready_by):
+    """Stage a complete Smart draft with the given deadline, publishing nothing."""
+    await harness.coordinator._async_update_smart_staging(
+        SERIAL,
+        {
+            "ready_by_timestamp": ready_by,
+            "smart_target_type": "energy",
+            "smart_charge_target_wh": 10_000,
+        },
+    )
+
+
+@pytest.mark.asyncio
+async def test_smart_activation_refuses_an_expired_stored_deadline(harness):
+    """A draft whose time has passed must not become a new charging plan."""
+    c = harness.coordinator
+    c.hass.loop = asyncio.get_running_loop()
+    expired = harness.wall_clock - 86_400
+    await _stage_smart_bundle(harness, expired)
+
+    with pytest.raises(HAError) as error:
+        await c.async_set_work_mode(SERIAL, "smart")
+
+    assert error.value.translation_key == "smart_ready_by_expired"
+    assert harness.sent == []
+    # The draft survives, because usually only the hour is wrong.
+    assert c._smart_staging.value(SERIAL, "ready_by_timestamp") == expired
+
+
+@pytest.mark.asyncio
+async def test_smart_activation_publishes_a_deadline_that_is_still_ahead(harness):
+    c = harness.coordinator
+    c.hass.loop = asyncio.get_running_loop()
+    await _stage_smart_bundle(harness, harness.wall_clock + 3_600)
+
+    await c.async_set_work_mode(SERIAL, "smart")
+
+    smart = dict((key, value) for key, _, value in iter_protobuf_fields(harness.sent[0][7]))
+    assert smart[1] == harness.wall_clock + 3_600
+
+
+@pytest.mark.asyncio
+async def test_a_queued_smart_activation_is_rechecked_when_it_reaches_dispatch(harness):
+    """The wait is where a deadline expires, so the check belongs after it."""
+    c = harness.coordinator
+    await _stage_smart_bundle(harness, harness.wall_clock + 60)
+
+    def clock_runs_on():
+        harness.wall_clock += 120
+
+    with pytest.raises(HAError) as error:
+        await harness.queued(c.async_set_work_mode(SERIAL, "smart"), clock_runs_on)
+
+    assert error.value.translation_key == "smart_ready_by_expired"
+    assert harness.sent == []
+
+
+@pytest.mark.asyncio
+async def test_smart_activation_refuses_a_deadline_beyond_the_horizon(harness):
+    c = harness.coordinator
+    c.hass.loop = asyncio.get_running_loop()
+    await _stage_smart_bundle(harness, harness.wall_clock + HORIZON + 1)
+
+    with pytest.raises(HAError) as error:
+        await c.async_set_work_mode(SERIAL, "smart")
+
+    assert error.value.translation_key == "smart_ready_by_too_far_ahead"
+    assert harness.sent == []
+
+
+@pytest.mark.asyncio
+async def test_a_target_edit_inside_smart_will_not_republish_an_expired_plan(harness):
+    """Editing the target republishes the whole bundle, deadline included."""
+    c = harness.coordinator
+    c.hass.loop = asyncio.get_running_loop()
+    harness.observe(work_mode="smart", ready_by_timestamp=harness.wall_clock - 60,
+                    smart_target_type="energy", smart_charge_target_wh=10_000)
+
+    with pytest.raises(HAError) as error:
+        await c.async_set_smart_energy_target(SERIAL, 20)
+
+    assert error.value.translation_key == "smart_ready_by_expired"
+    assert harness.sent == []
+
+
+@pytest.mark.asyncio
+async def test_an_expired_draft_is_never_reported_as_device_state(harness):
+    """The control shows the draft; the sensor shows only what the device said."""
+    c = harness.coordinator
+    expired = harness.wall_clock - 86_400
+    await _stage_smart_bundle(harness, expired)
+
+    assert c.staged_smart_setting(SERIAL, "ready_by_timestamp") == expired
+    assert c.setting_observation_value(SERIAL, "ready_by_timestamp") is None

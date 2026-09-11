@@ -3,7 +3,15 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
+from datetime import UTC, datetime
 from typing import Any
+
+# A charging deadline further ahead than this is not a plan, it is a mistyped
+# year. The bound is a chosen guard rather than an observed device limit: the
+# protocol carries the deadline as a varint and no upper limit has been read
+# off the charger. It is deliberately generous, because rejecting a deadline a
+# user meant costs more than accepting an odd one.
+SMART_READY_BY_MAX_HORIZON_SECONDS = 366 * 24 * 60 * 60
 
 STAGED_SMART_KEYS = frozenset(
     {
@@ -17,6 +25,32 @@ STAGED_SMART_KEYS = frozenset(
 
 class SmartStagingError(ValueError):
     """A staged Smart value is invalid."""
+
+
+class SmartDeadlineError(SmartStagingError):
+    """A stored Smart deadline cannot be activated as it stands.
+
+    Distinct from the other staging errors because the user can act on it and
+    the message reaches them translated. The deadline itself is carried so the
+    message can name the time that was refused, which is the difference between
+    "that did not work" and knowing which value to change.
+    """
+
+    def __init__(self, message: str, *, translation_key: str, ready_by: int) -> None:
+        super().__init__(message)
+        self.translation_key = translation_key
+        self.ready_by = ready_by
+
+    @property
+    def translation_placeholders(self) -> dict[str, str]:
+        """Render the refused deadline, falling back to the raw seconds."""
+        try:
+            stamp = datetime.fromtimestamp(self.ready_by, UTC)
+        except (OSError, OverflowError, ValueError):
+            # Out-of-range values are exactly what this error reports, so
+            # formatting one must not raise on top of it.
+            return {"ready_by": str(self.ready_by)}
+        return {"ready_by": stamp.strftime("%Y-%m-%d %H:%M UTC")}
 
 
 def _validated_value(key: str, value: Any) -> int | str:
@@ -135,3 +169,35 @@ def validate_smart_bundle(values: Mapping[str, Any]) -> None:
             )
         except SmartStagingError as exc:
             raise SmartStagingError("Smart mode requires a distance target") from exc
+
+
+def validate_smart_activation(values: Mapping[str, Any], *, now: int) -> None:
+    """Require a complete bundle whose deadline is still ahead of `now`.
+
+    Storing a deadline and publishing one are different acts. A draft whose
+    time has passed stays stored and stays editable, because the user may only
+    want to change the hour; what must not happen is that draft becoming a new
+    charging plan. So this rule lives here, on the publish path, and not in
+    `_validated_value`, which `load()` also runs.
+
+    The deadline is never moved forward on the user's behalf. Guessing which
+    day they meant would silently schedule a charge they did not ask for.
+
+    Timestamps are absolute seconds, so this comparison is free of any
+    timezone or daylight-saving question. Those belong where a local wall-clock
+    time is converted into a timestamp, which is the datetime entity.
+    """
+    validate_smart_bundle(values)
+    ready_by = values["ready_by_timestamp"]
+    if ready_by <= now:
+        raise SmartDeadlineError(
+            "Smart ready-by time has already passed",
+            translation_key="smart_ready_by_expired",
+            ready_by=ready_by,
+        )
+    if ready_by - now > SMART_READY_BY_MAX_HORIZON_SECONDS:
+        raise SmartDeadlineError(
+            "Smart ready-by time is too far ahead",
+            translation_key="smart_ready_by_too_far_ahead",
+            ready_by=ready_by,
+        )

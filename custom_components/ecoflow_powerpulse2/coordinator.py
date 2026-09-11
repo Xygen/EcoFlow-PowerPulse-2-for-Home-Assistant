@@ -75,9 +75,10 @@ from .setting_observation import (
 )
 from .smart_staging import (
     STAGED_SMART_KEYS,
+    SmartDeadlineError,
     SmartStaging,
     SmartStagingError,
-    validate_smart_bundle,
+    validate_smart_activation,
 )
 from .stream_recovery import recovery_reason
 from .stream_timeline import StreamTimeline
@@ -1656,12 +1657,30 @@ class PowerPulse2Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
             smart.update(overrides)
         return smart
 
+    def _now_timestamp(self) -> int:
+        """Return wall-clock seconds for deadline checks.
+
+        Separate from `time.monotonic`, which the freshness logic uses: a
+        deadline is a point on the user's calendar, not an elapsed interval.
+        A method rather than a direct call so tests can fix the clock and not
+        expire with the fixtures they use.
+        """
+        return int(time.time())
+
     def _smart_settings_payload(
         self, serial: str, values: dict[str, Any] | None = None
     ) -> bytes:
         smart = self._smart_settings_candidate(serial, values)
         try:
-            validate_smart_bundle(smart)
+            validate_smart_activation(smart, now=self._now_timestamp())
+        except SmartDeadlineError as exc:
+            # The user can fix this one, so it reaches them translated and
+            # names the time that was refused.
+            raise HomeAssistantError(
+                translation_domain=DOMAIN,
+                translation_key=exc.translation_key,
+                translation_placeholders=exc.translation_placeholders,
+            ) from exc
         except SmartStagingError as exc:
             raise HomeAssistantError(str(exc)) from exc
         ready_by = smart.get("ready_by_timestamp")

@@ -1,6 +1,8 @@
+import ast
 import json
 import subprocess
 import sys
+from pathlib import Path
 
 import pytest
 
@@ -84,3 +86,36 @@ def test_quality_commands_reject_deliberate_failures(tmp_path):
     )
     assert result.returncode == 1
     assert "F821" in result.stdout
+
+
+def test_every_raised_translation_key_exists_under_exceptions() -> None:
+    """A translated error with no entry shows the user the key, not a message.
+
+    `check_translations` keeps `strings.json` and the language files in step
+    with each other, and nothing keeps the code in step with `strings.json`.
+    A key raised but never declared fails silently, in the one place where the
+    user is already being told something went wrong.
+    """
+    root = Path(__file__).parents[1]
+    component = root / COMPONENT
+    declared = set(
+        json.loads((component / "strings.json").read_text(encoding="utf-8"))
+        .get("exceptions", {})
+    )
+
+    raised: dict[str, str] = {}
+    for path in sorted(component.rglob("*.py")):
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.Call):
+                continue
+            name = node.func.attr if isinstance(node.func, ast.Attribute) else getattr(node.func, "id", "")
+            if not name.endswith("Error"):
+                continue
+            for keyword in node.keywords:
+                if keyword.arg == "translation_key" and isinstance(keyword.value, ast.Constant):
+                    raised[keyword.value.value] = str(path.relative_to(root))
+
+    assert raised, "the scan found no translated exceptions, so it proves nothing"
+    missing = {key: where for key, where in raised.items() if key not in declared}
+    assert not missing, f"translation keys raised but not declared: {missing}"
