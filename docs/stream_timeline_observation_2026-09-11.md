@@ -179,6 +179,11 @@ interval below five minutes was invisible to recovery by construction, and the
 two longer ones would additionally have needed the settings stream stale for
 the full five minutes, not the heartbeat alone.
 
+> **Read too broadly.** True of this stall and of every short interval, but the
+> long outages do satisfy both conditions and account for 96% of the unknown
+> time; recovery was eligible in all of them. See
+> [the third reading](#a-correction-to-this-mornings-reading-of-the-recovery-policy).
+
 This is not an argument for lowering the threshold. The stream recovered
 unaided, so a reconnect would have rebuilt a working session for nothing. It is
 a statement of what the policy can and cannot see, which the issue asks for.
@@ -238,7 +243,11 @@ Jitter across the run was ±0.3 s. A 3.6-second shift after an interruption is a
 plausible restart of the cadence; a 33.6-second one is not a cadence at all.
 
 **30.040 s is the working value**, and it should carry that qualification until
-the wrap measures it. A 30-second cadence is also what a 90-second freshness
+the wrap measures it.
+
+> **Corrected on the same day.** The period is 60.048 s, measured directly. The
+> argument in this paragraph is unsound; see
+> [the third reading](#correction-and-third-reading-2026-09-11-1154-utc-the-period-is-60-seconds). A 30-second cadence is also what a 90-second freshness
 threshold implies, which is corroboration and not evidence.
 
 Neither gap is a whole multiple of either candidate — 86.53 s is 2.88 periods
@@ -262,6 +271,10 @@ One diagnostics read after `11:52 UTC` settles `P` outright, at the cost of not
 reloading before then. A reload discards the ring and the wrap is then another
 run away.
 
+> **Not needed after all.** The recorder holds the heartbeat arrival times
+> directly, going back about ten days and across restarts. See
+> [the third reading](#how-it-was-measured-and-why-no-waiting-was-needed).
+
 ### Corrections to the first reading
 
 - "a quiet window in which the charger stream never faltered" holds for
@@ -273,3 +286,141 @@ run away.
 The observer-freshness gap described above is unchanged. The PowerOcean
 observer is still never sampled for report age, so the stall recorded here is
 known only for the charger.
+
+## Correction and third reading, 2026-09-11 11:54 UTC: the period is 60 seconds
+
+Added under [D-02](decisions.md#d-02--evidence-archives-are-preserved-not-rewritten).
+
+**The heartbeat period is 60.048 s. The working value of 30.040 s given in the
+section above is wrong, and the reasoning that produced it was unsound.**
+
+### How it was measured, and why no waiting was needed
+
+The in-memory ring was never the only record. `heartbeat_stream_diagnostics`
+exposes `last_heartbeat_report` as an attribute of the charger's heartbeat
+binary sensor, and that attribute is rewritten on every heartbeat, so the Home
+Assistant recorder has been storing the arrival series all along — for about ten
+days, and across restarts, which the ring is not.
+
+Fifteen consecutive intervals, `11:39:03.969` to `11:54:04.686` UTC:
+
+```
+59.995  60.422  60.009  60.010  60.022  60.388  59.805  59.974
+59.954  60.016  60.011  60.073  60.428  59.693  59.918
+```
+
+Span 900.718 s over 15 intervals: **mean 60.048 s**, minimum 59.693, maximum
+60.428. That is `k = 5` against the drift constraint of `k × P = 300.40 s`,
+which predicted 60.081 s — agreement to 0.03 s, and the drift figure is the
+more precise of the two.
+
+### Why the earlier argument was wrong
+
+The section above used two facts to choose between 30.040 s and 60.081 s:
+
+1. Exactly 60.00 s of heartbeat went missing at the stall. This admits one lost
+   beat at 60.081 s and two at 30.040 s, equally. It was not the deciding fact,
+   and it was correct.
+2. The heartbeat resumed at `09:56:54.35`, which continuing the pre-stall grid
+   makes 3.6 s early under 30.040 s and 33.6 s early under 60.081 s.
+
+The second argument is invalid, and the same section says why three paragraphs
+later: it observes that neither gap is a whole multiple of either candidate and
+concludes the sender resumed **on a new phase**. A sender that resets its phase
+cannot then be located on the old grid. Having established that the phase does
+not carry across the interruption, the resume time says nothing about the
+period, and the honest position after the second reading was two candidates and
+no discriminator — which is what the wrap was going to settle.
+
+The lesson is not that the arithmetic slipped. It is that two conclusions in
+one section contradicted each other and the contradiction was not noticed,
+because each read well on its own.
+
+### What the correct period changes
+
+Everything, as it turns out. The freshness limit that gates the qualified
+PowerOcean charging power is 90 s, so:
+
+```
+90 s / 60.048 s = 1.50 heartbeat periods
+```
+
+**One missed heartbeat is enough.** The age reaches 120.1 s, the sensor goes
+`unknown`, and it clears when the next beat lands — an interval of
+`2P − 90 = 30.1 s`. Under the wrong 30.040 s value a single miss would have
+reached only 60 s and shown nothing at all, and two misses would have produced
+an `unknown` lasting a tenth of a second. That prediction is not merely
+different from what the recorder holds; it is excluded by it.
+
+The margin is 29.95 s. Any hiccup that delays a heartbeat by more than about
+thirty seconds past its due time produces a visible gap.
+
+### The three-day record, in two populations
+
+Qualified-power history for 2026-09-08 through 2026-09-10, twenty-two intervals,
+139.3 minutes of `unknown` in total. They fall into two groups that do not
+overlap:
+
+**Twelve short ones, 6.7 s to 39.8 s, mean 28.0 s, totalling 5.6 minutes.**
+Against a prediction of 30.1 s for a single missed beat, with five of them
+between 29.3 and 30.6 s. The direct settings stream was unaffected or dipped
+for a few seconds. This is the partial case in the issue title, and automatic
+recovery is structurally unable to act on it: the heartbeat reaches 120 s
+against a 300 s threshold, and the settings stream is not stale at all.
+
+**Ten long ones, 4.0 to 35.4 minutes, totalling 133.7 minutes — 96% of all
+`unknown` time.** Every one of them is a **total** silence. The direct stream
+binary sensor goes `off` within a minute either side of each, and returns with
+it:
+
+| Unknown from | Length | Direct stream off | Length |
+| --- | --- | --- | --- |
+| 09-08 06:59 | 4.0 min | 06:58:02 – 07:03:10 | 5.1 min |
+| 09-08 20:51 | 4.4 min | 20:50:14 – 20:55:02 | 4.8 min |
+| 09-09 01:48 | 14.5 min | 01:47:51 – 02:02:49 | 15.0 min |
+| 09-09 02:04 | 18.4 min | 02:03:49 – 02:22:33 | 18.7 min |
+| 09-09 06:09 | 5.3 min | 06:08:37 – 06:13:35 | 5.0 min |
+| 09-09 13:57 | 35.4 min | 13:57:18 – 14:32:52 | 35.6 min |
+| 09-09 18:05 | 4.0 min | 18:04:34 – 18:09:11 | 4.6 min |
+| 09-10 01:36 | 34.4 min | 01:35:41 – 02:10:28 | 34.8 min |
+| 09-10 07:15 | 4.2 min | 07:14:39 – 07:19:10 | 4.5 min |
+| 09-10 07:40 | 9.2 min | 07:39:42 – 07:49:13 | 9.5 min |
+
+Times are local. The offset between the two columns is the two thresholds, 10 s
+for the settings stream and 90 s for the heartbeat, not a difference in when
+the streams stopped.
+
+### A correction to this morning's reading of the recovery policy
+
+The second reading said automatic recovery "cannot reach this failure mode".
+That is true of the 86.5-second stall it was describing, and of every short
+interval above. It is **not** true of the phenomenon as a whole, and the
+sentence invited the wrong conclusion.
+
+All ten long outages exceeded 300 s of silence on **both** streams. Every one
+of them was therefore eligible under `recovery_reason`, and the coordinator's
+poll deadline expires 30 s after the last frame, so the checks were running.
+Recovery was not shut out of 96% of the unknown time; it had the opportunity
+and the outages lasted up to thirty-five minutes anyway.
+
+Which raises the question this evidence cannot answer.
+`_async_maybe_recover_direct_stream` returns early with `disconnected` when the
+client reports no session, leaving the matter to the separate reconnect loop.
+So either the MQTT session dropped and recovery never ran, or the session held
+and recovery ran without effect. Those call for opposite fixes, and nothing in
+the recorder distinguishes them.
+
+The stream timeline does: it records `mqtt_connection` events, `recovery_check`
+reasons and `recovery_attempt` outcomes. **The next evidence wanted is one long
+outage caught in the ring.** The short ones are frequent enough to be easy; the
+long ones happen a few times a day and fell at 01:36, 02:04, 06:09, 07:15,
+07:40, 13:57, 18:05 and 20:51 across these three days, so they are not confined
+to the night.
+
+### What this section does not establish
+
+No cause for either failure mode. Nothing about whether the two are related.
+Nothing about the PowerOcean observer, whose report ages are still never
+sampled. And the 2026-09-09 and 2026-09-10 figures come from recorder history
+rather than the instrumented timeline, so they show when streams were absent,
+not why.

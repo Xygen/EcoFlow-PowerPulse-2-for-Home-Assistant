@@ -122,8 +122,11 @@ the qualified PowerOcean charging power, so it came within eleven seconds of
 the reported symptom and the recorder confirms no unknown interval occurred.
 Automatic recovery needs both streams stale for 300 s and could not have fired;
 the single recovery check in the window ran exactly 30 s after the last frame,
-which is the push-reset deadline, not a schedule. The cadence is now down to
-30.04 s or 60.08 s with the former strongly favoured. See
+which is the push-reset deadline, not a schedule. The heartbeat period was then measured at
+60.048 s from recorder history, correcting the working value given earlier that
+day, and the three-day record separates twelve short single-miss gaps from ten
+total outages that account for 96% of the unknown time and were all eligible
+for automatic recovery. See
 [the observation](stream_timeline_observation_2026-09-11.md#later-finding-second-reading-at-1112-utc-the-fault-reproduced).
 
 Observation on 2026-09-11: the bounded timeline was read for the first time on
