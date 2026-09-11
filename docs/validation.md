@@ -167,7 +167,7 @@ running in `ecoflow-energy-ha`.
 | Item | Test without a vehicle | Passing result |
 | --- | --- | --- |
 | `V2-AUTH-01` certificate refresh | Observe a run long enough for the certificate to reach the replacement age, or for the broker to refuse one. | The log records a certificate refresh, and the stream continues or resumes without the config entry being reloaded and without a dialog. |
-| `V2-AUTH-01` broker address | Check the debug log at setup for the broker address in use. | Either the built-in host, or the host the credential response named, and the stream connects either way. |
+| `V2-AUTH-01` broker address, differing host | Only reachable with an account EcoFlow serves from another region. | The named host is dialled and the stream connects. Confirmed on 2026-09-11 that the built-in host is dialled and connects; a differing host remains unobserved. |
 
 This is the item most likely to expose a wrong assumption in the field,
 because it changes which host the integration connects to. The fallback path
@@ -187,6 +187,34 @@ direction: that an unreachable endpoint is *not* reported as a credential
 problem is a separate observation, and both are needed before the no-false-prompt
 claim is established.
 
+### Confirmed on 2026-09-11 on `1.0.5-beta.6`
+
+Observed in the live instance, with the integration state read back through the
+Home Assistant API rather than from the dialog alone.
+
+| Item | Test | Result |
+| --- | --- | --- |
+| `V2-AUTH-01` account guard | Reconfigure with a different EcoFlow address. | Confirmed. Aborted with the wrong-account reason before any sign-in was attempted. The entry was untouched: unique id unchanged, state `loaded`, and `modified_at` still equal to `created_at`, so no write occurred at all. Both languages were seen: the English string with the instance in English, the German string after switching it back. |
+| `V2-AUTH-01` entry update | Reconfigure with the current credentials. | Confirmed. Reported credentials updated and reloaded the entry. The Smart draft (ready-by `2026-09-01T11:00`, energy target `30.0`, distance target `200.0`, target type `distance`), the voice-assistant exposure set on the battery-discharge switch, the totals `1494.843` and `2.465`, and the operating mode `solar` all came back unchanged, with no new entity IDs. Recorded history spans the reload under the same entity ID. |
+| `V2-AUTH-01` broker address | Debug log after a reload. | Confirmed. Two clients, the charger and the PowerOcean observer, both logged `Connecting to mqtt-e.ecoflow.com:8084 (WSS)`. Both stream sensors reported `on`, data arrived, and the system log recorded no warning or error from the component. |
+
+Three limits of what these observations establish:
+
+- The reconfigure used the **same** credentials, so the entry needed no change
+  and `modified_at` did not move. This exercised the reload-and-preserve path,
+  not the write of *different* credentials. The repair-trigger step below covers
+  that.
+- EcoFlow named the **same** broker as the built-in constant for this account,
+  so there was nothing to adopt. The address in use is right and the stream
+  connects, but dialling an address that differs from the constant stayed
+  unexercised, and cannot be forced from here. It concerns accounts served from
+  another region.
+- Data was `unknown` or `unavailable` for about 58 seconds after the reload
+  (`00:06:27` to `00:07:26`) before every value returned. That is the update
+  cycle plus the MQTT reconnect, not a fault, but a repair through the dialog
+  carries the same gap and automations reading these entities have to tolerate
+  `unknown`.
+
 ### Open, and how to reach each one
 
 The reconfigure dialog is reachable at any time from the integration menu and
@@ -198,8 +226,6 @@ observed without invalidating any credential.
 
 | Item | Test without a vehicle | Passing result |
 | --- | --- | --- |
-| `V2-AUTH-01` account guard | Reconfigure, entering a different EcoFlow account. | Aborts with the wrong-account reason and leaves the entry untouched. Same code path as the repair dialog, so this settles the guard for both. |
-| `V2-AUTH-01` entry update | Reconfigure, re-entering the current credentials. | Reports credentials updated, the entry reloads, and every entity ID, recorded history, user activation and local Smart draft is unchanged. Covers everything the repair dialog does except the trigger. |
 | `V2-AUTH-01` outage | Add the integration while the host cannot reach EcoFlow, for example with the internet uplink briefly disconnected. | The form reports a connection problem and never asks whether the password is correct. |
 | `V2-AUTH-01` renewal | Let the integration run until EcoFlow refuses the token, without changing the account password. | The log records a renewed session and data returns on a later cycle. No dialog appears, because the stored credentials still work. Cannot be forced; it waits for a real expiry. |
 | `V2-AUTH-01` repair trigger | Change the EcoFlow account password so the stored one is refused. | Home Assistant offers the repair dialog instead of retrying. This is the one step that needs an invalidated credential, and after the two reconfigure observations above it is the only untested part of the repair path. |
