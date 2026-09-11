@@ -100,6 +100,16 @@ in that session. Issue #11 follows on its own; #25 is deferred. Keep #12's
 accepted deadlines unless a newly captured delayed action justifies revisiting
 them.
 
+Work on 2026-09-11: Issue #11, owned by Claude. Both charging buttons go
+unavailable while a Start or Stop awaits confirmation, and a second action is
+refused rather than queued behind the control lock, which serialises without
+refusing. The marker is set before the lock and cleared in a `finally` on every
+exit path. Confirmation windows, error reporting and the reported charging
+state are unchanged; no optimistic mutation was introduced. Eleven tests
+against three mutations. The live check of the visible button state needs a
+vehicle and stays open. See
+[the validation record](validation.md#unreleased-pending-charging-action).
+
 Work on 2026-09-11: Issue #25. The charger heartbeat's field 21 is published as
 `direct_active_phase_raw`, a disabled-by-default diagnostic carrying the raw
 number. The field was confirmed present in all eleven captured frames before

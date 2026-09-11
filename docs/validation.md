@@ -562,6 +562,54 @@ unrelated EcoFlow integration whose own effective-phase entity reads
 selection stays `auto` corroborates the direction without establishing the
 mapping.
 
+## Unreleased pending charging action
+
+A Start or Stop waits up to thirty or fifteen seconds for the charger to
+confirm. Until now `charge_action_available` answered from the last known
+charging state for that whole window, so both buttons stayed pressable while
+the first command was still being judged.
+
+The control lock did not prevent a second command. It **serialises**; it does
+not refuse. A contradictory Stop pressed during a pending Start would wait on
+the lock, pass its own state checks against a state the Start was in the middle
+of changing, and publish.
+
+So the marker is set **before** the lock, not before the publish, and a second
+action entering while it is set is refused outright. Both actions go
+unavailable, not only the one pressed, because the queued-contradiction case is
+the one the lock leaves open.
+
+| Rule | Covered by |
+| --- | --- |
+| Both buttons go unavailable while either action is pending | observed from a concurrent task while the call is still running |
+| A second action is refused rather than queued | asserts the refusal message and that only one command was published |
+| A duplicate press publishes nothing extra | same, for the same action |
+| The marker clears on every exit | six tests: confirmed, publish rejection, SET-reply timeout, readback timeout, publish exception, cancellation |
+| Availability is recalculated from real device data | after a confirmed Start the charger reports `charging`, so Start is unavailable and Stop is available |
+| No optimistic state mutation | the reported status stays `plugged_in` throughout a pending action that never confirms |
+| The marker is per serial | a pending action on one charger leaves another usable |
+
+Eleven tests, checked against three mutations: removing the availability gate
+fails one, removing the entry refusal fails one, and removing the `finally`
+cleanup fails six.
+
+**A behaviour change worth stating.** While a Start is heading for a timeout,
+both buttons are unavailable for up to thirty seconds. That is the intended
+trade — the alternative is letting the user queue a command that cannot help —
+but someone watching the dashboard will see a longer dead interval than before.
+
+**Deliberately unchanged.** The thirty- and fifteen-second confirmation windows,
+the five-second SET-reply window, and the error raised when readback does not
+confirm. The false-negative timeout in the Issue #11 evidence table is
+[Issue #12](https://github.com/Xygen/EcoFlow-PowerPulse-2-for-Home-Assistant/issues/12),
+and the fail-closed rule stands: an acknowledgement is not proof of a physical
+state.
+
+**Not covered: the visible button state on the device.** The last acceptance
+criterion asks for a live check during both a success and a timeout. Start is
+refused outright while the charger reports `unplugged`, so this needs a vehicle
+and belongs with the vehicle-backed session.
+
 ## Automated repository checks
 
 ### Issue #16 functional authentication acceptance

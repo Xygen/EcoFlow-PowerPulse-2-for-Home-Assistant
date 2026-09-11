@@ -6,6 +6,11 @@ Current outstanding work is maintained only in
 
 ## Unreleased
 
+- Make both charging buttons unavailable while a Start or Stop is waiting for
+  its confirmation, and refuse a second charging action outright rather than
+  queueing it behind the first. The confirmation windows, the error reporting
+  and the reported charging state are unchanged: nothing is assumed to have
+  happened because a command was acknowledged.
 - Publish the charger heartbeat's field 21, reported in Issue #25 as the
   active phase mode, as a disabled-by-default diagnostic raw value. It is
   carried as the number it is: no value has been observed yet, so calling one
