@@ -153,5 +153,13 @@
     "datetime": {
       "smart_ready_by_control": {"name": "Smart-Konfiguration – Bereit vor"}
     }
+  },
+  "exceptions": {
+    "smart_ready_by_expired": {
+      "message": "Die gespeicherte Smart-Zielzeit ({ready_by}) liegt in der Vergangenheit. Lege eine neue Zielzeit fest und wechsle danach erneut in den Smart-Modus. Der gespeicherte Entwurf bleibt erhalten und wird nicht eigenmächtig auf einen anderen Tag verschoben."
+    },
+    "smart_ready_by_too_far_ahead": {
+      "message": "Die Smart-Zielzeit ({ready_by}) liegt mehr als ein Jahr in der Zukunft. Wähle eine Zielzeit innerhalb des nächsten Jahres."
+    }
   }
 }

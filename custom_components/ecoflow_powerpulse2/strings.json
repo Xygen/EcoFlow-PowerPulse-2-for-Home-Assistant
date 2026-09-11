@@ -167,5 +167,13 @@
     "datetime": {
       "smart_ready_by_control": {"name": "Smart configuration – Ready by"}
     }
+  },
+  "exceptions": {
+    "smart_ready_by_expired": {
+      "message": "The stored Smart ready-by time ({ready_by}) has already passed. Set a new ready-by time, then switch to Smart mode again. The stored plan is kept and is not moved to another day for you."
+    },
+    "smart_ready_by_too_far_ahead": {
+      "message": "The Smart ready-by time ({ready_by}) is more than a year from now. Choose a ready-by time within the next year."
+    }
   }
 }

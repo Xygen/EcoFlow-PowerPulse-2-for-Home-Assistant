@@ -93,12 +93,20 @@ were verified after restart on 2026-09-11. Retain the explicitly unobserved
 provider-expiry, repaired-password recovery and differing-broker cases as open live evidence. Do not repeat
 A1–A3 or start another issue while completing this acceptance.
 
-Only Issue #16 is actively developed after documentation/diagnostic consolidation.
-Finish its authentication acceptance against explicit evidence before starting
-another issue. Issues #14/#15 and PR #22/#23 form the next joint control review
-and vehicle-acceptance block; include relevant #13 power tests in that session.
-Issues #11/#18 follow one at a time; #25 is deferred. Keep #12's accepted
-deadlines unless a newly captured delayed action justifies revisiting them.
+Issue #16 was closed on 2026-09-11; V2-SMART-01 / Issue #18 is the item in
+progress, owned by Claude. Issues #14/#15 and PR #22/#23 form the next joint
+control review and vehicle-acceptance block; include relevant #13 power tests
+in that session. Issue #11 follows on its own; #25 is deferred. Keep #12's
+accepted deadlines unless a newly captured delayed action justifies revisiting
+them.
+
+Work on 2026-09-11: V2-SMART-01 / Issue #18 refuses to activate a Smart plan
+whose ready-by time has passed, or is more than 366 days ahead. The draft is
+kept and never rolled forward, the message names the refused time, and the
+check sits on the publish path so a plan waiting on the control lock is
+re-checked when it reaches dispatch. Nineteen tests, ten of them verified
+against a mutation that disables the rule. The real-device activation criterion
+stays open. See [the validation record](validation.md#unreleased-smart-deadline-handling).
 
 Issue #19 is observation-only for 24–48 hours on the installed beta.5. Evaluate
 one bounded export, then decide whether a demonstrated failure warrants a fix

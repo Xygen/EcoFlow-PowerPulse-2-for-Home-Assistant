@@ -278,6 +278,55 @@ None of the three is recorded as passed. A step whose condition was not
 produced is not testing evidence, and closing the item does not convert it
 into any.
 
+## Unreleased Smart deadline handling
+
+Publishing a Smart plan and storing one are separated. `validate_smart_bundle`
+still accepts a complete bundle whose deadline has passed, so a draft survives
+editing and reload; `validate_smart_activation` adds the deadline rule and runs
+only where a bundle becomes a frame, in `_smart_settings_payload`.
+
+That function is the single choke point. Both publish paths reach it —
+`_async_set_work_mode_locked` when Smart is selected, and
+`_async_write_smart_setting` for edits made while Smart is already active — and
+both build the payload after acquiring `_control_lock`, with no await between
+the check and the write. The re-validation at dispatch is therefore the same
+call, not a second one.
+
+| Rule | Covered by |
+| --- | --- |
+| A deadline at or before now is refused | `tests/test_smart_staging.py`, both the past and the exact-now boundary |
+| A deadline one second ahead is published | `tests/test_coordinator_transactions.py`, asserting field 1 of the sent block |
+| A deadline beyond 366 days is refused | both files, with the last accepted value tested too |
+| A queued activation is re-checked when it reaches dispatch | `test_a_queued_smart_activation_is_rechecked_when_it_reaches_dispatch`, which advances the clock while the operation waits on the lock |
+| The draft survives the refusal | asserted after the refusal, since usually only the hour is wrong |
+| The draft is never reported as device state | `test_an_expired_draft_is_never_reported_as_device_state` |
+| An out-of-range timestamp is reported rather than crashing the message | `test_an_unformattable_timestamp_is_reported_rather_than_raising` |
+| Local time, and both daylight-saving transitions | three tests on absolute seconds: the same instant written two ways, the night that is nine hours long, and the wall-clock hour that happens twice |
+
+The ten tests that carry the rule were checked against a mutation that disables
+both deadline comparisons. All ten fail under it. The tests that still pass
+under the mutation are the ones asserting acceptance, which is correct.
+
+Two limits, and one choice worth naming.
+
+The 366-day horizon is a **chosen guard, not an observed device limit**. The
+protocol carries the deadline as a varint and no upper bound has been read off
+the charger. It is deliberately generous: refusing a deadline a user meant
+costs more than accepting an odd one.
+
+Editing only the energy or distance target while Smart is already active
+republishes the whole bundle, so that edit now fails as well when the deadline
+in effect has passed. This is wider than the activation case the issue names,
+and it is intended — the publish would otherwise re-activate an expired plan —
+but it is a behaviour change and is recorded as one.
+
+**Not covered: a valid Smart activation on the real charger.** That is the
+issue's last acceptance criterion, needs the maintainer and a separately
+authorized test, and no fixture substitutes for it. The daylight-saving tests
+use explicit `+01:00` and `+02:00` offsets rather than a named zone, so they
+state what a local time resolves to instead of depending on the IANA database
+and on the EU keeping its current rules.
+
 ## Automated repository checks
 
 ### Issue #16 functional authentication acceptance

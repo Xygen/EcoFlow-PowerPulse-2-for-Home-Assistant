@@ -4,6 +4,15 @@ This file records delivered changes and the state of each historical build.
 Current outstanding work is maintained only in
 [the project backlog](docs/backlog.md).
 
+## Unreleased
+
+- Refuse to activate a Smart charging plan whose ready-by time has already
+  passed, or lies more than a year ahead, instead of publishing it to the
+  charger. The stored draft is kept and the deadline is never moved forward on
+  the user's behalf; the message names the refused time and says what to do.
+  The check runs at dispatch, inside the control lock, so a plan waiting on the
+  lock cannot expire its way past it.
+
 ## 1.0.5-beta.7 - 2026-09-11
 
 Authentication correction test build based on merged PR #36. Automated coverage
