@@ -671,6 +671,13 @@ prereleases; a tag run additionally requires `v` plus the manifest version.
 Historical version mentions are not treated as current declarations. External URLs
 are not fetched. Fenced code and inline code examples are not treated as links.
 
+Translated exception calls must pass `translation_key` as an inline string
+literal. The only supported dynamic form is `exc.translation_key` inside an
+`except SmartDeadlineError as exc` handler: that forwards one of the literal
+keys declared by `SmartDeadlineError` at its construction sites. Names, calls,
+formatted strings and other attributes fail the repository test so an
+undeclared runtime key cannot hide from the scan.
+
 Before merge/release, require green `quality`, `validate-hacs` and
 `validate-hassfest` checks for the exact intended revision. Each quality run records
 the checked Git SHA in its summary. Pull-request runs check GitHub's merge revision;

@@ -886,6 +886,30 @@ async def test_the_marker_clears_after_a_publish_exception(harness):
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize("failing_notification", [1, 2])
+async def test_listener_failure_cannot_strand_the_pending_marker(
+    harness, failing_notification
+):
+    """Availability callbacks are best effort at both action boundaries."""
+    c = _ready_to_charge(harness)
+    notifications = 0
+
+    def notify():
+        nonlocal notifications
+        notifications += 1
+        if notifications == failing_notification:
+            raise RuntimeError("listener failed")
+
+    c.async_update_listeners = notify
+
+    await c.async_start_charging(SERIAL)
+
+    assert notifications == 2
+    assert harness.sent == [{"action": 100}]
+    assert not c.charge_action_pending(SERIAL)
+
+
+@pytest.mark.asyncio
 async def test_the_marker_clears_after_cancellation(harness, monkeypatch):
     c = _ready_to_charge(harness)
     harness.reply = False
@@ -928,3 +952,48 @@ async def test_a_pending_action_on_one_device_does_not_block_another(harness):
 
     assert c.charge_action_available(SERIAL, "start")
     assert c.charge_action_pending("C376-other")
+
+
+def test_new_heartbeat_clears_an_omitted_active_phase(harness, monkeypatch):
+    """A parsed 2/33 report replaces the optional raw phase observation."""
+    c = harness.coordinator
+    c.async_set_updated_data = lambda data: setattr(c, "data", data)
+    c._redact = lambda payload: payload
+    reports = iter(
+        (
+            {"direct_charging_status": "plugged_in", "direct_active_phase_raw": 3},
+            {"work_mode": "solar"},
+            {"direct_charging_status": "plugged_in"},
+        )
+    )
+    headers = iter(
+        (
+            [{"cmd_func": 2, "cmd_id": 33}],
+            [{"cmd_func": 2, "cmd_id": 34}],
+            [{"cmd_func": 2, "cmd_id": 33}],
+        )
+    )
+    c.mqtt_clients[SERIAL] = SimpleNamespace(
+        is_connected=lambda: True, diagnostic_topic=lambda topic: "property"
+    )
+    monkeypatch.setattr(harness.module, "classify_mqtt_topic", lambda topic: "property")
+    monkeypatch.setattr(harness.module, "channel_carries_telemetry", lambda channel: True)
+    monkeypatch.setattr(
+        harness.module,
+        "inspect_envelope_headers",
+        lambda payload: next(headers),
+    )
+    monkeypatch.setattr(harness.module, "parse_powerpulse2_payload", lambda payload: next(reports))
+    monkeypatch.setattr(
+        harness.module, "extract_powerpulse_accessory_descriptor", lambda payload: None
+    )
+    monkeypatch.setattr(c._frame_capture, "record", lambda frame, payload: None)
+
+    c._record_mqtt_frame(SERIAL, "topic", b"first")
+    assert c.data[SERIAL]["direct_active_phase_raw"] == 3
+
+    c._record_mqtt_frame(SERIAL, "topic", b"unrelated partial report")
+    assert c.data[SERIAL]["direct_active_phase_raw"] == 3
+
+    c._record_mqtt_frame(SERIAL, "topic", b"second")
+    assert "direct_active_phase_raw" not in c.data[SERIAL]
