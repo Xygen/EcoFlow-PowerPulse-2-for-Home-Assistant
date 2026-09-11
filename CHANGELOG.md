@@ -6,6 +6,13 @@ Current outstanding work is maintained only in
 
 ## Unreleased
 
+- Verify authentication with real Home Assistant flow/config-entry fixtures and
+  mocked EcoFlow responses. Prevent false reauthentication after a successful
+  login followed by another certificate-endpoint refusal. Reconnect when the
+  certificate password changes even if its account and broker are unchanged.
+  Coalesce slow credential refreshes beyond the retry interval, allow the first
+  refresh immediately after startup, and reject late results after shutdown.
+
 ## 1.0.5-beta.6 - 2026-09-10
 
 First test build cut directly from `main`, and the first to contain every

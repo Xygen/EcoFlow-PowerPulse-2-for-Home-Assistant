@@ -6,9 +6,10 @@ and raw chronology remain in the evidence archives linked from the
 
 ## Current baseline
 
-As verified on 2026-09-10, the installed test build is `1.0.5-beta.5`.
-It preserves PR #22 safety and PR #29/#30 authentication changes and includes
-PR #28 diagnostics plus independent sampling. PR #23 remains excluded.
+As verified on 2026-09-11, the installed test build is `1.0.5-beta.6`.
+It includes the consolidated safety, field-qualified readback, authentication
+and independent diagnostic sampling changes. Earlier beta.5 observations below
+predate that consolidation.
 Stable documentation remains at 1.0.4. Earlier installation records below
 are historical observations, not the current installed version.
 
@@ -51,7 +52,7 @@ The ZIP's 45 files matched the source tree; SHA256:
 Vehicle-backed acceptance remains open in the [central backlog](backlog.md#roadmap-bis-version-20):
 the charger reported `unplugged`, so rejection of a queued sensitive write after
 actual charging starts has not been live-tested. Local concurrency tests do not
-replace that evidence. PR #22 and Issue #14 remain open.
+replace that evidence. PR #22 has merged; Issue #14 remains open for acceptance.
 General readback source atomicity and provider no-op qualification remain the
 separate scope of [Issue #15](https://github.com/Xygen/EcoFlow-PowerPulse-2-for-Home-Assistant/issues/15).
 
@@ -79,9 +80,10 @@ not be reported as success based only on the provider target. Retry delays are u
 Bounded diagnostics identify the exact field sources and whether their observations
 are post-command and matching, without exporting their raw values.
 
-These tests run the real coordinator with HA/network boundary doubles. Issue #15
-has not been installed or live-tested; `1.0.5-beta.1` remains the installed #14 test
-build. Live acceptance remains tracked in the [central backlog](backlog.md).
+These tests run the real coordinator with HA/network boundary doubles. The
+implementation has since merged and is included in the installed `1.0.5-beta.6`.
+Installation does not establish its remaining live acceptance, which stays
+tracked in the [central backlog](backlog.md).
 
 ### Released baseline evidence
 
@@ -234,6 +236,36 @@ Changing the account password invalidates the EcoFlow app and any other
 integration using it until each is signed in again.
 
 ## Automated repository checks
+
+### Issue #16 functional authentication acceptance
+
+The isolated `auth-ha` CI job uses Python 3.14 and
+`pytest-homeassistant-custom-component==0.13.364` / HA Core 2026.9.1.
+It runs `ha_tests` against the real flow manager, config entries and entity
+registry. EcoFlow requests are mocked; no real account or internet outage is
+required. This is separate from the portable unit suite.
+
+The first recovery counterexamples reproduced three failures: a successful
+login followed by another certificate refusal started reauthentication; a new
+certificate password at the same account/broker did not rebuild the session;
+and a request exceeding the retry interval allowed an overlapping refresh.
+CI run `34567772496` recorded 3 failures and 13 passes. After the focused fixes,
+run `34567907053` passed all 16 HA cases and the normal validation jobs.
+The final expanded suite passed 18 HA cases and 420 portable tests in
+[run `34568064061`](https://github.com/Xygen/EcoFlow-PowerPulse-2-for-Home-Assistant/actions/runs/34568064061),
+along with Ruff, documentation consistency, HACS and Hassfest.
+
+Cases cover rejected credentials versus network failure in all three forms,
+wrong-account rejection before sign-in, changing stored credentials while keeping
+the config entry/entity registry/Smart storage, real HA reauth creation on refused
+sign-in, expired-session renewal, cooldown and slow concurrent requests.
+The reload call is mocked in the form tests; actual device reconnection, recorder
+continuity and real provider expiry are not established by those cases.
+Startup-at-zero and shutdown-during-fetch cases additionally guard timer and
+late-result boundaries. These source changes are not yet deployed; the installed
+beta.6 and the existing live results must not be labelled as testing them.
+
+### Portable and repository checks
 
 The `Validate` workflow runs on pushes, pull requests, the daily schedule and
 manual dispatch. `quality` uses Python 3.12 and runs pytest, Ruff over

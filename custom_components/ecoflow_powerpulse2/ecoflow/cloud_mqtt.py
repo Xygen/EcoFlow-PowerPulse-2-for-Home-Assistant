@@ -142,13 +142,14 @@ class EcoFlowMQTTClient:
         """Return whether this client uses WSS (True) or TCP (False)."""
         return self._wss_mode
 
-    def update_credentials(self, account: str, password: str) -> None:
+    def update_credentials(self, account: str, password: str) -> bool:
         """Update stored credentials for next reconnect (e.g. after rc=5).
 
         Also updates the live Paho client so its internal auto-reconnect
         uses the fresh credentials instead of retrying stale ones until
         the next force_reconnect.
         """
+        changed = self._cert_account != account or self._cert_password != password
         self._cert_account = account
         self._cert_password = password
         if self.client is not None:
@@ -156,6 +157,7 @@ class EcoFlowMQTTClient:
                 self.client.username_pw_set(account, password)
             except Exception as exc:
                 _LOGGER.debug("MQTT: live credential update failed: %s", exc)
+        return changed
 
     def update_broker(self, broker: BrokerAddress) -> bool:
         """Adopt the broker a credential response named; report any change.

@@ -10,6 +10,22 @@ on:
 permissions: {}
 
 jobs:
+  auth-ha:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+          cache: pip
+          cache-dependency-path: requirements_ha_test.txt
+      - run: python -m pip install -r requirements_ha_test.txt
+      - name: Real HA authentication flows (mocked EcoFlow)
+        run: python -m pytest -q ha_tests -o asyncio_mode=auto --timeout=30
+
   quality:
     runs-on: ubuntu-latest
     permissions:
@@ -26,7 +42,7 @@ jobs:
         run: python -m pytest -q
       - name: Python lint
         if: always()
-        run: python -m ruff check custom_components tests scripts
+        run: python -m ruff check custom_components tests scripts ha_tests
       - name: Documentation consistency
         if: always()
         run: python scripts/check_consistency.py

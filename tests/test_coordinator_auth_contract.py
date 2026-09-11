@@ -213,5 +213,4 @@ def test_an_unchanged_certificate_keeps_the_session() -> None:
     # Both halves matter: a new address needs a rebuild even with the same
     # certificate, and a new certificate needs one even at the same address.
     assert "moved" in tested
-    assert "previous_account" in tested
-    assert "account" in tested
+    assert "changed" in tested

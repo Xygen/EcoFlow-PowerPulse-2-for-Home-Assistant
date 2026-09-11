@@ -224,8 +224,9 @@ class PowerPulse2Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
         self._smart_staging_tasks: set[asyncio.Task[None]] = set()
         self._shutting_down = False
         self._initialized = False
-        self._last_session_renewal = 0.0
-        self._last_credential_refresh = 0.0
+        self._last_session_renewal = -SESSION_RENEWAL_INTERVAL_SECONDS
+        self._last_credential_refresh = -CREDENTIAL_REFRESH_INTERVAL_SECONDS
+        self._credential_refresh_in_progress = False
         self._credentials_obtained_at = 0.0
 
     async def async_load_smart_staging(self) -> None:
@@ -642,13 +643,21 @@ class PowerPulse2Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
         repair dialog directly because there is no update cycle here to carry
         a ConfigEntryAuthFailed.
         """
-        if self._shutting_down:
+        if self._shutting_down or self._credential_refresh_in_progress:
             return
         now = time.monotonic()
         if now - self._last_credential_refresh < CREDENTIAL_REFRESH_INTERVAL_SECONDS:
             return
         self._last_credential_refresh = now
         _LOGGER.debug("Refreshing the MQTT certificate (%s)", reason)
+        self._credential_refresh_in_progress = True
+        try:
+            await self._async_refresh_mqtt_credentials_once()
+        finally:
+            self._credential_refresh_in_progress = False
+
+    async def _async_refresh_mqtt_credentials_once(self) -> None:
+        """Perform one refresh; only a refused sign-in requests reauth."""
         try:
             credentials = await self._async_fetch_credentials_with_retry()
         except PowerPulse2AuthError as exc:
@@ -657,12 +666,13 @@ class PowerPulse2Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
                 "MQTT certificate; asking for new ones"
             )
             _LOGGER.debug("Certificate refresh refused: %s", exc)
-            self.config_entry.async_start_reauth(self.hass)
+            if not self._shutting_down:
+                self.config_entry.async_start_reauth(self.hass)
             return
         except PowerPulse2ConnectionError as exc:
             _LOGGER.debug("Certificate refresh could not reach EcoFlow: %s", exc)
             return
-        if credentials is None:
+        if credentials is None or self._shutting_down:
             return
         await self._async_apply_mqtt_credentials(credentials)
 
@@ -675,7 +685,14 @@ class PowerPulse2Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
             # in again; only a refused sign-in propagates from here.
             if not await self._async_sign_in_again():
                 return None
-        return await self.api.async_get_mqtt_credentials()
+        try:
+            return await self.api.async_get_mqtt_credentials()
+        except PowerPulse2AuthError as exc:
+            # A successful login already validated the stored password. A
+            # second endpoint refusal is not evidence that it is wrong.
+            raise PowerPulse2ConnectionError(
+                "Certificate endpoint refused the renewed session"
+            ) from exc
 
     async def _async_apply_mqtt_credentials(self, credentials: dict[str, Any]) -> None:
         """Hand a fresh certificate and its broker to every live client."""
@@ -686,12 +703,11 @@ class PowerPulse2Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
             return
         self._credentials_obtained_at = time.monotonic()
         for serial, client in list(self.mqtt_clients.items()):
-            previous_account = client.cert_account
-            client.update_credentials(account, password)
+            changed = client.update_credentials(account, password)
             moved = client.update_broker(
                 broker_from_credentials(credentials, wss_mode=client.wss_mode)
             )
-            if not moved and previous_account == account:
+            if not moved and not changed:
                 # Same certificate at the same address. The live client has
                 # it now, and tearing down a healthy session would cost a
                 # data gap for nothing.
