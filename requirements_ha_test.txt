@@ -1,0 +1,3 @@
+# Match the installed HA Core generation; run this isolated suite on Linux/Python 3.14.
+pytest-homeassistant-custom-component==0.13.364
+paho-mqtt==2.1.0
