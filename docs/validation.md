@@ -222,8 +222,12 @@ Three limits of what these observations establish:
 
 - The reconfigure used the **same** credentials, so the entry needed no change
   and `modified_at` did not move. This exercised the reload-and-preserve path,
-  not the write of *different* credentials. The repair-trigger step below covers
-  that.
+  not the write of *different* credentials. That gap is closed by fixtures
+  rather than live: `ha_tests/test_auth_flows.py` writes a different password
+  through both the reauth and the reconfigure source and asserts the entry is
+  updated rather than replaced, the unique id is unchanged, a user-disabled
+  entity keeps its `disabled_by`, and the Smart staging store is byte-identical
+  afterwards.
 - EcoFlow named the **same** broker as the built-in constant for this account,
   so there was nothing to adopt. The address in use is right and the stream
   connects, but dialling an address that differs from the constant stayed
@@ -235,22 +239,44 @@ Three limits of what these observations establish:
   carries the same gap and automations reading these entities have to tolerate
   `unknown`.
 
-### Open, and how to reach each one
+### Closed on 2026-09-11 with three steps accepted as unobserved
 
-The reconfigure dialog is reachable at any time from the integration menu and
-runs the same sequence as the repair dialog: `async_set_unique_id`,
-`_abort_if_unique_id_mismatch`, the credential check, then
-`async_update_reload_and_abort` with the same data. Only the entry lookup, the
-step id and the abort reason differ. Two of the open items can therefore be
-observed without invalidating any credential.
+Five of the eight steps were observed live and are recorded above. The
+maintainer closed the item on 2026-09-11 rather than hold it open for the
+remaining three. What each of those does and does not leave unproven:
 
-| Item | Test without a vehicle | Passing result |
-| --- | --- | --- |
-| `V2-AUTH-01` renewal | Let the integration run until EcoFlow refuses the token, without changing the account password. | The log records a renewed session and data returns on a later cycle. No dialog appears, because the stored credentials still work. Cannot be forced; it waits for a real expiry. |
-| `V2-AUTH-01` repair trigger | Change the EcoFlow account password so the stored one is refused. | Home Assistant offers the repair dialog instead of retrying. This is the one step that needs an invalidated credential, and after the two reconfigure observations above it is the only untested part of the repair path. |
+**Repair trigger — deliberately skipped, not tested.** It would have changed the
+EcoFlow account password so the stored one is refused. That invalidates the
+EcoFlow app and the four other integrations on this account until each is
+signed in again, and the maintainer judged the cost higher than the remaining
+evidence is worth.
 
-Changing the account password invalidates the EcoFlow app and any other
-integration using it until each is signed in again.
+The mechanism it would have exercised is covered by fixtures against real Home
+Assistant objects. `ha_tests/test_auth_recovery.py` drives a refused stored
+password and asserts a genuine reauth flow appears in
+`hass.config_entries.flow.async_progress()` for that entry, and
+`ha_tests/test_auth_flows.py` writes a changed password through both the reauth
+and the reconfigure source with the preservation assertions named above. Live
+evidence separately shows that EcoFlow's real refusal classifies as a
+credential rejection rather than an outage, from the wrong-password step on
+`1.0.5-beta.3`.
+
+What stays unproven is the join: a stored credential going stale against the
+real service and the dialog appearing on the device. Both halves are evidenced,
+the seam between them is not.
+
+**Renewal — not tested, cannot be forced.** It waits for EcoFlow to refuse a
+token that was valid. Neither agent can hold an observation across sessions, so
+this is recorded if it is ever seen, not scheduled.
+
+**Broker address, differing host — not tested, not reachable here.** EcoFlow
+names the built-in host for this account. Only an account served from another
+region would exercise the adoption of a different address; the fallback to the
+constant is the previous behaviour and is observed.
+
+None of the three is recorded as passed. A step whose condition was not
+produced is not testing evidence, and closing the item does not convert it
+into any.
 
 ## Automated repository checks
 
