@@ -120,6 +120,7 @@
       "solar_current_min_raw": {"name": "Solar minimum current raw"},
       "solar_minimum_current": {"name": "Solar minimum charging current"},
       "switch_bits_raw": {"name": "Setting flags raw"},
+      "direct_active_phase_raw": {"name": "PowerPulse 2 Active phase raw value"},
       "phase_specified_raw": {"name": "Selected phase raw"},
       "phase_mode": {
         "name": "Phase setting",

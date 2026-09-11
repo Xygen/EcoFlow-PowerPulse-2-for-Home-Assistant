@@ -4,6 +4,15 @@ This file records delivered changes and the state of each historical build.
 Current outstanding work is maintained only in
 [the project backlog](docs/backlog.md).
 
+## Unreleased
+
+- Publish the charger heartbeat's field 21, reported in Issue #25 as the
+  active phase mode, as a disabled-by-default diagnostic raw value. It is
+  carried as the number it is: no value has been observed yet, so calling one
+  single-phase or three-phase would be a guess. A value outside 0 to 15 is
+  withheld, because that would mean the field is something else on that
+  firmware.
+
 ## 1.0.5-beta.9 - 2026-09-11
 
 Device-report test build from merged PR #55, carrying the fault the beta.8

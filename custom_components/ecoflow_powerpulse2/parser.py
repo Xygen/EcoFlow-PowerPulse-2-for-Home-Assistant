@@ -524,6 +524,11 @@ def _parse_cp307_heartbeat(payload: bytes) -> dict[str, Any]:
                 9: "total_energy_raw",
                 17: "charge_current_set_raw",
                 18: "current_limit_raw",
+                # Reported as the active phase mode in Issue #25. Carried as a
+                # raw value on purpose: the meaning of each number has not been
+                # observed, and naming it single- or three-phase before then
+                # would put a guess where a reading belongs.
+                21: "direct_active_phase_raw",
                 41: "session_duration_s",
                 42: "session_energy_raw",
                 102: "suspend_reason_raw",
@@ -557,6 +562,12 @@ def _parse_cp307_heartbeat(payload: bytes) -> dict[str, Any]:
     state = result.get("system_state_raw")
     if not isinstance(state, int) or state > 255:
         return {}
+    # A phase indicator is a small enumeration whatever its exact meaning. A
+    # large value here means field 21 is something else on this firmware, and
+    # publishing it would invite the wrong reading.
+    active_phase = result.get("direct_active_phase_raw")
+    if not isinstance(active_phase, int) or not 0 <= active_phase <= 15:
+        result.pop("direct_active_phase_raw", None)
     if phase_voltages:
         result["phase_voltage_v"] = round(max(phase_voltages), 1)
     if phase_currents:

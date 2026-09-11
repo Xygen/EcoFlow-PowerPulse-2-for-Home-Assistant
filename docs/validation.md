@@ -515,6 +515,53 @@ payload even carries a target-type field is unknown, and no evidence for it was
 collected, so nothing in the parser was changed on speculation. This fix is a
 backstop at the staging boundary and holds whichever path reports.
 
+## Unreleased active phase reading
+
+Issue #25 asks for the effective phase mode to be exposed separately from the
+configured selection, and reports it at `2/33` field 21.
+
+Half of that request was already met and the issue's premise did not hold for
+this integration. `phase_mode` here has never been the effective mode: it comes
+from the settings reports, `2/34` field 11 and `241/44` field 7, and carries
+what the user asked for — `auto`, `one_phase` or `three_phase`. The separate
+configured sensor the issue asks for is the one already shipping. What was
+missing is the effective reading.
+
+Field 21 was checked against the live instance before any code was written.
+`mqtt_capture.unmapped_fields` shows it present in all eleven captured `2/33`
+frames, wire type 0. **Its value could not be read**: the capture policy
+redacts direct payloads length-preservingly, and a one-byte varint carries no
+information once its bytes are replaced. So the field exists and its meaning is
+still the reporter's claim rather than an observation.
+
+It is therefore published as `direct_active_phase_raw`, a diagnostic sensor
+disabled by default, carrying the number itself. Naming a value single- or
+three-phase before seeing one would put a guess where a reading belongs, which
+is the same rule that keeps a missing reading `unknown` rather than zero.
+
+| Rule | Covered by |
+| --- | --- |
+| Field 21 reaches the entity as its raw value | `tests/test_parser.py`, for two different values |
+| A heartbeat without field 21 publishes nothing | so older firmware leaves the sensor unknown rather than at zero |
+| A value above 15 is withheld | a large number means the field is something else on that firmware |
+| The rest of the heartbeat is undisturbed | asserted alongside |
+| The heartbeat never writes `phase_mode` or `phase_specified_raw` | the configured selection must not be overwritten by what the charger is doing at that moment; `auto` would be the first casualty |
+
+Both halves of the change were checked against mutations — unmapping field 21,
+and disabling the range guard — and the matching tests fail under each.
+
+**What remains.** Interpreting the number needs two observations: one while the
+charger runs single-phase and one while it runs three-phase. The second needs a
+vehicle drawing three-phase, so it belongs with the vehicle-backed session in
+Issue #13 rather than to a separate test. Until then the raw sensor is the
+honest form, and the reporter's mapping is recorded as a claim.
+
+A useful cross-check is available meanwhile: the instance runs a second,
+unrelated EcoFlow integration whose own effective-phase entity reads
+`single_phase`. Comparing that against the raw number while the configured
+selection stays `auto` corroborates the direction without establishing the
+mapping.
+
 ## Automated repository checks
 
 ### Issue #16 functional authentication acceptance

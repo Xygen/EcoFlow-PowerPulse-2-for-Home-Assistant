@@ -324,6 +324,13 @@ SENSORS = (
         entity_registry_enabled_default=False,
     ),
     PowerPulse2SensorDescription(
+        key="direct_active_phase_raw",
+        translation_key="direct_active_phase_raw",
+        required_source="direct",
+        diagnostic=True,
+        entity_registry_enabled_default=False,
+    ),
+    PowerPulse2SensorDescription(
         key="phase_mode",
         setting_observation_key="phase_mode",
         translation_key="phase_mode",

@@ -474,3 +474,70 @@ def test_powerpulse_provider_report_distance_target() -> None:
 
 def test_unrelated_protobuf_is_not_a_heartbeat() -> None:
     assert parse_powerpulse2_payload(encode_field_varint(1, 999)) == {}
+
+
+def _heartbeat_with_active_phase(value: int) -> bytes:
+    """A heartbeat carrying field 21, the value Issue #25 asks about."""
+    return _heartbeat() + encode_field_varint(21, value)
+
+
+def _parse_heartbeat(payload: bytes) -> dict:
+    header = b"".join(
+        (
+            encode_field_bytes(1, payload),
+            encode_field_varint(8, 2),
+            encode_field_varint(9, 33),
+        )
+    )
+    return parse_powerpulse2_payload(encode_field_bytes(1, header))
+
+
+def test_the_heartbeat_active_phase_field_is_surfaced_raw() -> None:
+    """Raw on purpose: no number in field 21 has been observed yet.
+
+    Issue #25 reports it as the active phase mode. Naming a value
+    single- or three-phase before seeing one would put a guess where a
+    reading belongs, so the number is published as itself.
+    """
+    assert _parse_heartbeat(_heartbeat_with_active_phase(1))[
+        "direct_active_phase_raw"
+    ] == 1
+    assert _parse_heartbeat(_heartbeat_with_active_phase(3))[
+        "direct_active_phase_raw"
+    ] == 3
+
+
+def test_a_heartbeat_without_field_21_reports_no_active_phase() -> None:
+    """Older firmware must leave the sensor unknown rather than at zero."""
+    assert "direct_active_phase_raw" not in _parse_heartbeat(_heartbeat())
+
+
+def test_an_out_of_range_active_phase_is_withheld() -> None:
+    """A large value means field 21 is something else on this firmware."""
+    assert "direct_active_phase_raw" not in _parse_heartbeat(
+        _heartbeat_with_active_phase(4242)
+    )
+    assert "direct_active_phase_raw" in _parse_heartbeat(
+        _heartbeat_with_active_phase(15)
+    )
+
+
+def test_the_active_phase_does_not_disturb_the_rest_of_the_heartbeat() -> None:
+    result = _parse_heartbeat(_heartbeat_with_active_phase(1))
+
+    assert result["charging_status"] == "charging"
+    assert result["direct_charging_power_w"] == 3929.0
+    assert result["direct_total_energy_raw"] == 94708
+
+
+def test_the_active_phase_is_not_the_configured_selection() -> None:
+    """The two are different facts and must not share a key.
+
+    `phase_mode` carries what the user asked for and comes from the settings
+    reports. A heartbeat must not write it, or `auto` would be overwritten by
+    whatever the charger happens to be doing at that moment.
+    """
+    result = _parse_heartbeat(_heartbeat_with_active_phase(1))
+
+    assert "phase_mode" not in result
+    assert "phase_specified_raw" not in result

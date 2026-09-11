@@ -100,6 +100,17 @@ in that session. Issue #11 follows on its own; #25 is deferred. Keep #12's
 accepted deadlines unless a newly captured delayed action justifies revisiting
 them.
 
+Work on 2026-09-11: Issue #25. The charger heartbeat's field 21 is published as
+`direct_active_phase_raw`, a disabled-by-default diagnostic carrying the raw
+number. The field was confirmed present in all eleven captured frames before
+any code was written, but its value cannot be read from the capture, which
+redacts direct payloads; the reporter's single/three-phase mapping is therefore
+recorded as a claim rather than implemented. The configured-selection sensor
+the issue also asks for already exists as `phase_mode`, so the issue's premise
+did not hold here. Interpreting the number needs a three-phase observation and
+belongs with the vehicle session in #13. See
+[the validation record](validation.md#unreleased-active-phase-reading).
+
 Accepted live on 2026-09-11 on `1.0.5-beta.9`: a Smart activation and return
 under explicit authorization produced two unusable reported fields,
 `smart_charge_target_wh` and `ready_by_timestamp`, both counted in diagnostics,
