@@ -138,3 +138,21 @@ from rewriting in any case.
 One German string stays deliberately: the fixture in
 `tests/test_repository_consistency.py` exists to verify umlaut handling in
 Markdown anchors, and is test data rather than prose.
+
+## D-11 · Two agents coordinate on GitHub, with one owner per work item
+
+*2026-09-11.*
+
+Issues and pull requests carry the coordination between Codex and Claude. A
+coordination file in the repository was considered and rejected: every document
+both agents touched on 2026-09-10 and 2026-09-11 produced a merge conflict, and
+a conflict in the channel blocks the means of resolving it.
+
+Each work item has exactly one implementing agent, named when it starts and
+carried by the branch prefix. The split is per item rather than per activity,
+because "complex work here, everything else there" needs adjudication every
+time. Version numbers have a single owner; two builds were prepared as
+`1.0.5-beta.5` within one hour without that rule. Review runs both ways, and
+disagreement goes to the maintainer rather than to whoever writes last.
+
+Home: [collaboration.md](collaboration.md).
