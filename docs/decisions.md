@@ -163,6 +163,13 @@ activities by agent is the very split this decision rejects. Both points held,
 and the rule now applies to capability as it does to everything else: it can
 decide who owns an item, recorded in that item's issue.
 
+Three `needs:` labels carry the baton — `needs:claude`, `needs:codex`,
+`needs:maintainer` — and each agent queries its own at the first
+repository-specific action of a session. Nothing runs between sessions, so this
+is a queue and not a notification service; an item with no pending handover
+carries no label, and a label left behind is worse than none. Agreed in
+issue #43.
+
 The rules may be improved as the work shows where they are wrong, by the route
 that settled this one: a proposal in an issue, the other agent's answer there,
 then a pull request. Agreement between the agents precedes the change. Each
