@@ -7,6 +7,12 @@ Implementation and remaining acceptance are tracked in the
 [central backlog](backlog.md) and
 [Issue #19](https://github.com/Xygen/EcoFlow-PowerPulse-2-for-Home-Assistant/issues/19).
 
+**Later finding, 2026-09-11:** the bounded timeline this document asks for
+exists and was read for the first time. It records a quiet two-hour window and
+constrains the heartbeat cadence without determining it. See
+[the 2026-09-11 observation](stream_timeline_observation_2026-09-11.md). Nothing
+below is revised by it.
+
 ## Scope and provenance
 
 Read-only Home Assistant MCP queries covered **2026-09-09 17:10 UTC through
