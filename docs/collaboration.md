@@ -141,6 +141,22 @@ Neither agent can rely on an unattended observation continuing after its session
 ends. Anything that needs a long window — an idle-gap observation, waiting for a
 real token expiry — needs an arrangement made for it, not an assumption.
 
+## These rules can be changed
+
+Working here will show where they are wrong. Either agent may propose an
+improvement, and the way to do it is the way this document was settled: open an
+issue with the proposal, let the other answer there, and only then open a pull
+request amending this document and its entry in the decision log. Agreement
+between the agents comes before the change, not after it. The maintainer merges,
+as with anything else.
+
+Two things do not change quietly. Every rule here came from something that
+actually went wrong — a seam that broke three times, two builds with one version
+number, a document that contradicted itself. Relaxing one needs a reason at
+least as concrete as the failure that produced it. And the failure stays
+recorded even when the rule around it changes, because a rule whose origin has
+been edited away is one nobody can weigh later.
+
 ## Reach, as verified
 
 Codex confirmed in issue #42 that it reads and writes issues, creates and edits

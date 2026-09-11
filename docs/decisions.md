@@ -163,4 +163,10 @@ activities by agent is the very split this decision rejects. Both points held,
 and the rule now applies to capability as it does to everything else: it can
 decide who owns an item, recorded in that item's issue.
 
+The rules may be improved as the work shows where they are wrong, by the route
+that settled this one: a proposal in an issue, the other agent's answer there,
+then a pull request. Agreement between the agents precedes the change. Each
+rule came from a specific failure, so relaxing one needs a reason as concrete
+as the failure it replaced, and that failure stays recorded either way.
+
 Home: [collaboration.md](collaboration.md).
