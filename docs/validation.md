@@ -307,6 +307,48 @@ The ten tests that carry the rule were checked against a mutation that disables
 both deadline comparisons. All ten fail under it. The tests that still pass
 under the mutation are the ones asserting acceptance, which is correct.
 
+### Confirmed live on 2026-09-11 on `1.0.5-beta.8`
+
+The refusal was observed on the maintainer's instance. The runtime manifest
+reported `1.0.5-beta.8`. No draft was prepared for the test: the entry already
+held the expired plan this item was raised for.
+
+Starting state, read before the attempt: mode `solar`, ready-by
+`2026-09-01T11:00:00+00:00`, target type `distance`, distance 200.0 km, energy
+30.0 kWh. The bundle was complete, which matters — `validate_smart_bundle` runs
+first, so an incomplete draft would have reported a missing target instead and
+the deadline rule would never have been reached.
+
+`select.powerpulse_2_betriebsmodus` was set to `smart`. Home Assistant reported,
+in German:
+
+> Die gespeicherte Smart-Zielzeit (2026-09-01 11:00 UTC) liegt in der
+> Vergangenheit. Lege eine neue Zielzeit fest und wechsle danach erneut in den
+> Smart-Modus. Der gespeicherte Entwurf bleibt erhalten und wird nicht
+> eigenmächtig auf einen anderen Tag verschoben.
+
+| Read back after the attempt | Result |
+| --- | --- |
+| The refused time in the message | `2026-09-01 11:00 UTC`, matching the stored draft exactly |
+| Translation | Resolved to German. The raw key `smart_ready_by_expired` did not reach the user, which is the failure the HA fixture test was written for |
+| `select.powerpulse_2_betriebsmodus` history | `solar` → `unavailable` at the restart → `solar`. **Never `smart`**, so the refusal preceded any state change |
+| `sensor.powerpulse_2_betriebsmodus` | `solar`, one row, unchanged across the whole window |
+| The four draft values | All unchanged, including the deadline. Nothing was rolled forward |
+| Config entry `modified_at` | Unchanged from `created_at`, so no entry write |
+| Component entries in the system log | None, neither warning nor error |
+| `control_readback_counts` | `{"direct": 0, "provider": 0, "noop": 0}` |
+
+That last row is the evidence that nothing reached the charger, and it is worth
+saying why rather than leaving it as a number. Every settings write goes through
+`_async_write_settings_locked`, which always waits for a readback and increments
+one of those three counters. All three standing at zero for the whole runtime
+means no settings write was published at all — a stronger statement than the
+mode merely having stayed `solar`, which a failed write would also produce.
+
+This accepts the refusal, the message, the preserved draft and the
+draft/observation separation. It does **not** accept a valid Smart activation,
+which commands the charger and needs separate authorization.
+
 Two limits, and one choice worth naming.
 
 The 366-day horizon is a **chosen guard, not an observed device limit**. The
