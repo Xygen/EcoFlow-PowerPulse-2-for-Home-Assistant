@@ -8,7 +8,6 @@ import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.ecoflow_powerpulse2 import coordinator as coordinator_module
-
 from custom_components.ecoflow_powerpulse2.auth_classification import (
     PowerPulse2AuthError,
     PowerPulse2ConnectionError,
@@ -101,7 +100,9 @@ async def test_refresh_still_coalesces_when_first_request_outlives_cooldown(coor
 
 async def test_initial_refresh_is_allowed_at_zero_monotonic_time(coordinator):
     with patch.object(coordinator_module, "time", SimpleNamespace(monotonic=lambda: 0)):
-        with patch.object(coordinator, "_async_fetch_credentials_with_retry", new=AsyncMock(return_value=None)) as fetch:
+        with patch.object(
+            coordinator, "_async_fetch_credentials_with_retry", new=AsyncMock(return_value=None)
+        ) as fetch:
             await coordinator._async_refresh_mqtt_credentials("first attempt")
     fetch.assert_awaited_once()
 

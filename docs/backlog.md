@@ -83,6 +83,15 @@ and the release contains no unverified new controls or guessed field mappings.
 
 ### Completion phase (2026-09-10)
 
+Update 2026-09-11: documentation/diagnostic consolidation is merged, including
+PR #27/#28 and the A1–A3 evidence from PR #35. Only Issue #16 remains active.
+Real HA functional tests reproduced three credential-renewal defects; focused
+fixes now pass those counterexamples. See
+[functional acceptance](validation.md#issue-16-functional-authentication-acceptance).
+Next gate: review and deploy these fixes, then retain the explicitly unobserved
+provider-expiry and differing-broker cases as open live evidence. Do not repeat
+A1–A3 or start another issue while completing this acceptance.
+
 Only Issue #16 is actively developed after documentation/diagnostic consolidation.
 Finish its authentication acceptance against explicit evidence before starting
 another issue. Issues #14/#15 and PR #22/#23 form the next joint control review

@@ -6,9 +6,10 @@ and raw chronology remain in the evidence archives linked from the
 
 ## Current baseline
 
-As verified on 2026-09-10, the installed test build is `1.0.5-beta.5`.
-It preserves PR #22 safety and PR #29/#30 authentication changes and includes
-PR #28 diagnostics plus independent sampling. PR #23 remains excluded.
+As verified on 2026-09-11, the installed test build is `1.0.5-beta.6`.
+It includes the consolidated safety, field-qualified readback, authentication
+and independent diagnostic sampling changes. Earlier beta.5 observations below
+predate that consolidation.
 Stable documentation remains at 1.0.4. Earlier installation records below
 are historical observations, not the current installed version.
 
@@ -234,6 +235,33 @@ Changing the account password invalidates the EcoFlow app and any other
 integration using it until each is signed in again.
 
 ## Automated repository checks
+
+### Issue #16 functional authentication acceptance
+
+The isolated `auth-ha` CI job uses Python 3.14 and
+`pytest-homeassistant-custom-component==0.13.364` / HA Core 2026.9.1.
+It runs `ha_tests` against the real flow manager, config entries and entity
+registry. EcoFlow requests are mocked; no real account or internet outage is
+required. This is separate from the portable unit suite.
+
+The first recovery counterexamples reproduced three failures: a successful
+login followed by another certificate refusal started reauthentication; a new
+certificate password at the same account/broker did not rebuild the session;
+and a request exceeding the retry interval allowed an overlapping refresh.
+CI run `34567772496` recorded 3 failures and 13 passes. After the focused fixes,
+run `34567907053` passed all 16 HA cases and the normal validation jobs.
+
+Cases cover rejected credentials versus network failure in all three forms,
+wrong-account rejection before sign-in, changing stored credentials while keeping
+the config entry/entity registry/Smart storage, real HA reauth creation on refused
+sign-in, expired-session renewal, cooldown and slow concurrent requests.
+The reload call is mocked in the form tests; actual device reconnection, recorder
+continuity and real provider expiry are not established by those cases.
+Startup-at-zero and shutdown-during-fetch cases additionally guard timer and
+late-result boundaries. These source changes are not yet deployed; the installed
+beta.6 and the existing live results must not be labelled as testing them.
+
+### Portable and repository checks
 
 The `Validate` workflow runs on pushes, pull requests, the daily schedule and
 manual dispatch. `quality` uses Python 3.12 and runs pytest, Ruff over
