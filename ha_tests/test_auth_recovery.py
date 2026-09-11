@@ -1,10 +1,13 @@
 """Real coordinator and HA runtime, with only the EcoFlow boundary replaced."""
 
 import asyncio
+from types import SimpleNamespace
 from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
+
+from custom_components.ecoflow_powerpulse2 import coordinator as coordinator_module
 
 from custom_components.ecoflow_powerpulse2.auth_classification import (
     PowerPulse2AuthError,
@@ -94,3 +97,27 @@ async def test_refresh_still_coalesces_when_first_request_outlives_cooldown(coor
         release.set()
         await asyncio.gather(first, second)
     assert fetch_mock.await_count == 1
+
+
+async def test_initial_refresh_is_allowed_at_zero_monotonic_time(coordinator):
+    with patch.object(coordinator_module, "time", SimpleNamespace(monotonic=lambda: 0)):
+        with patch.object(coordinator, "_async_fetch_credentials_with_retry", new=AsyncMock(return_value=None)) as fetch:
+            await coordinator._async_refresh_mqtt_credentials("first attempt")
+    fetch.assert_awaited_once()
+
+
+async def test_shutdown_during_fetch_never_applies_credentials(coordinator):
+    entered, release = asyncio.Event(), asyncio.Event()
+    async def fetch():
+        entered.set()
+        await release.wait()
+        return {"certificateAccount": "test", "certificatePassword": "test"}
+    with patch.object(coordinator, "_async_fetch_credentials_with_retry", side_effect=fetch):
+        with patch.object(coordinator, "_async_apply_mqtt_credentials", new=AsyncMock()) as apply:
+            task = asyncio.create_task(coordinator._async_refresh_mqtt_credentials("test"))
+            await asyncio.wait_for(entered.wait(), timeout=3)
+            await coordinator.async_shutdown()
+            release.set()
+            await task
+    apply.assert_not_awaited()
+    assert not coordinator._credential_refresh_in_progress

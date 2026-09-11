@@ -12,6 +12,7 @@ permissions: {}
 jobs:
   auth-ha:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     permissions:
       contents: read
     steps:
@@ -41,7 +42,7 @@ jobs:
         run: python -m pytest -q
       - name: Python lint
         if: always()
-        run: python -m ruff check custom_components tests scripts
+        run: python -m ruff check custom_components tests scripts ha_tests
       - name: Documentation consistency
         if: always()
         run: python scripts/check_consistency.py

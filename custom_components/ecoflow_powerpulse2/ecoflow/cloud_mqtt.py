@@ -156,7 +156,7 @@ class EcoFlowMQTTClient:
             try:
                 self.client.username_pw_set(account, password)
             except Exception as exc:
-                  _LOGGER.debug("MQTT: live credential update failed: %s", exc)
+                _LOGGER.debug("MQTT: live credential update failed: %s", exc)
         return changed
 
     def update_broker(self, broker: BrokerAddress) -> bool:
