@@ -130,34 +130,34 @@ startup and five-minute observations were live-verified. A new idle-gap
 observation remains pending. Main does not yet include the separate safety/readback
 changes in PR #22/#23; the installed beta preserves PR #22 and excludes PR #23.
 Persistence across reload/restart is not implemented; export before restarting.
-Stand 2026-09-10: [V2-AUTH-01 / Issue #16](https://github.com/Xygen/EcoFlow-PowerPulse-2-for-Home-Assistant/issues/16)
-ist in Stufe 1 auf einem unabhängigen Branch von `main` umgesetzt: abgelehnte
-Zugangsdaten sind von einem nicht erreichbaren Endpunkt unterscheidbar, und Home
-Assistant bietet Neuanmeldung und Rekonfiguration an, ohne den Config-Eintrag zu
-ersetzen. Ein abgelaufener Token schaltet den PowerOcean-Fallback nicht mehr
-lautlos ab, sondern führt zu einem begrenzten erneuten Login: höchstens alle
-fünf Minuten, und nur abgelehnte Zugangsdaten erreichen den Nutzer als Dialog.
-Stufe 2 ist auf einem Folgebranch umgesetzt: die Erkennung abgelaufener
-Zertifikate in der MQTT-Schicht wird verarbeitet, ein abgelehntes oder
-gealtertes Zertifikat wird begrenzt ersetzt und an die laufenden Clients
-übergeben, und die Broker-Adresse stammt aus der Credential-Antwort statt aus
-einer Konstante. Lokal bestehen 286 Tests. Befunde,
-Klassifikationsregel, der Vergleich mit `ecoflow-energy-ha` und die
-Aussagegrenzen stehen in [der Analyse](issue_16_auth_analysis.md); die
-fahrzeugunabhängigen Abnahmeschritte in der
-[Validierung](validation.md#unreleased-authentication-failure-handling).
-Acceptance status 2026-09-11: the wrong-password sign-in, the account guard,
-the entry update and the broker address were confirmed on `1.0.5-beta.6`, and
-the outage report on `1.0.5-beta.7`, each with the integration state read back
-through the Home Assistant API. Both directions of the no-false-report claim
-are therefore observed. The renewal and the repair trigger remain open. The
-outage step also found that the `cannot_connect` text still blended connection
-and sign-in, which is corrected. Drei
-Aussagegrenzen sind festgehalten: gleiche Zugangsdaten bei der
-Rekonfiguration, gleicher Broker-Host wie die Konstante, und rund 58 Sekunden
-`unknown` nach dem Reload.
-Einzelheiten: [Validierung](validation.md#open-and-how-to-reach-each-one).
-Das Issue bleibt offen.
+Closed 2026-09-11: [V2-AUTH-01 / Issue #16](https://github.com/Xygen/EcoFlow-PowerPulse-2-for-Home-Assistant/issues/16)
+is delivered in both stages and released in `1.0.5-beta.7`. A refused
+credential is distinguishable from an unreachable endpoint, Home Assistant
+offers re-authentication and reconfiguration without replacing the config
+entry, an expired session is renewed once before the user is asked, the MQTT
+layer's expired-certificate detection is consumed, and the broker address comes
+from the credential response. PR #36 added Home Assistant fixture tests that
+found three renewal defects, all fixed.
+
+Five acceptance steps were observed live: the wrong-password sign-in on
+`1.0.5-beta.3`, the account guard, the entry update and the broker address on
+`1.0.5-beta.6`, and the outage report on `1.0.5-beta.7`. Both directions of the
+no-false-report claim are therefore evidenced. The outage step also found that
+the `cannot_connect` text still blended connection and sign-in, corrected in
+PR #45.
+
+Three steps are accepted as **not tested**, not as passed. The repair trigger
+was deliberately skipped because invalidating the account password would
+invalidate the EcoFlow app and four other integrations on this account; its
+mechanism is covered by fixtures and EcoFlow's real refusal is evidenced
+separately, so only the seam between them is unproven. The renewal cannot be
+forced and waits on a real expiry. A differing broker host is not reachable
+from an account EcoFlow serves from this region.
+
+Findings, the classification rule, the comparison with `ecoflow-energy-ha` and
+the limits are in [the analysis](issue_16_auth_analysis.md); the observations
+and what each does not establish are in
+[the validation status](validation.md#closed-on-2026-09-11-with-three-steps-accepted-as-unobserved).
 
 Planungsstand: 2026-09-09. Vollständige Befunde und Validierungsgrenzen:
 Implementierungsstand: 2026-09-09.
