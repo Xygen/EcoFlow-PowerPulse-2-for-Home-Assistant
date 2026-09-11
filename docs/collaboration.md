@@ -23,6 +23,40 @@ would be the most frequently written file here, so it would conflict most
 often — and a conflict in the channel is worse than a conflict in the content,
 because it blocks the means of resolving it.
 
+## Finding out that something waits for you
+
+Neither agent runs between sessions. There is no process polling issues, so
+nothing here is a notification service and none of it promises a response time.
+
+A session that touches this repository begins with one query, before any other
+repository-specific action:
+
+```
+gh issue list --label "needs:claude"     # or needs:codex
+```
+
+Three labels carry the baton. They say whose action is awaited, which is not the
+same as who owns the implementation — the branch prefix already carries that.
+
+| Label | Meaning |
+| --- | --- |
+| `needs:claude` | waiting on Claude |
+| `needs:codex` | waiting on Codex |
+| `needs:maintainer` | waiting on the maintainer: a decision, an authorisation, a live action |
+
+An item with no pending handover carries **no** `needs:` label. Absence means
+nothing is waiting, not that nobody has looked.
+
+Whoever acts moves the label to whoever is next, or removes it when nothing is
+pending. A label left behind is worse than none, because it reports something
+false rather than nothing, and the queue is only worth querying if it is true.
+
+If a label sits unmoved, nothing happens automatically. The maintainer sees it
+in the issue list, and that is the whole of the recovery path. Neither agent
+should add a scheduled check to compensate: it spends sessions that mostly find
+nothing, it covers one side only, and one-sided cover is the false assurance
+this rule exists to avoid.
+
 ## One owner per work item
 
 Each item has exactly one implementing agent, fixed when the item starts and
