@@ -87,7 +87,7 @@ async def test_refresh_still_coalesces_when_first_request_outlives_cooldown(coor
         return None
     with patch.object(coordinator, "_async_fetch_credentials_with_retry", side_effect=fetch) as fetch_mock:
         first = asyncio.create_task(coordinator._async_refresh_mqtt_credentials("first"))
-        await entered.wait()
+        await asyncio.wait_for(entered.wait(), timeout=3)
         coordinator._last_credential_refresh -= 600
         second = asyncio.create_task(coordinator._async_refresh_mqtt_credentials("second"))
         await asyncio.sleep(0)

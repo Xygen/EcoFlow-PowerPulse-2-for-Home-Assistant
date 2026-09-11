@@ -23,7 +23,7 @@ jobs:
           cache-dependency-path: requirements_ha_test.txt
       - run: python -m pip install -r requirements_ha_test.txt
       - name: Real HA authentication flows (mocked EcoFlow)
-        run: python -m pytest -q ha_tests -o asyncio_mode=auto
+        run: python -m pytest -q ha_tests -o asyncio_mode=auto --timeout=30
 
   quality:
     runs-on: ubuntu-latest
