@@ -4,7 +4,13 @@ This file records delivered changes and the state of each historical build.
 Current outstanding work is maintained only in
 [the project backlog](docs/backlog.md).
 
-## Unreleased
+## 1.0.5-beta.9 - 2026-09-11
+
+Device-report test build from merged PR #55, carrying the fault the beta.8
+Smart acceptance exposed. Automated coverage passes 449 portable tests, three
+Home Assistant fixture tests, Ruff and the documentation checks; seven of the
+ten new tests were verified against a mutation. Issue #53 has had no live
+observation and this prerelease declares it accepted in no respect.
 
 - Keep the fields a charger report does carry when one of them cannot be used.
   With a distance target the charger reports its energy target as zero, which
