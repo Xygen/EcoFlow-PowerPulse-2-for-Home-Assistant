@@ -124,11 +124,12 @@ its step, error and abort keys all exist in `strings.json`, both repair paths
 update the config entry rather than replacing it, and both refuse credentials
 belonging to a different EcoFlow account.
 
-What it does not cover: the flow's Home Assistant runtime behaviour. Home
-Assistant is not a test dependency in this repository, so the dialog itself,
-the reload after a repair and the survival of entity IDs are established by the
-live test below, not by unit tests. Closing that gap is roadmap item
-`V2-QA-02`.
+What it does not cover: the flow's Home Assistant runtime behaviour. This
+suite runs without Home Assistant installed. PR #36 added a separate one in
+`ha_tests/` that does run against real flow and config-entry fixtures, on its
+own CI job, and it covers the authentication paths; the breadth `V2-QA-02`
+asks for is still open. The dialog itself, the reload after a repair and the
+survival of entity IDs remain established by the live steps below.
 
 A refused request is not shown to the user directly. The stored credentials
 are tried once first, at most every five minutes, because the token is obtained

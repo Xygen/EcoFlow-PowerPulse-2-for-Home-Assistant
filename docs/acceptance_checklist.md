@@ -5,10 +5,15 @@ für jedes Item einzeln getestet werden muss. Sie ist eine Arbeitsanleitung.
 Maßgeblich für den Stand bleiben der [Backlog](backlog.md) und die
 [Validierung](validation.md); Ergebnisse werden dorthin zurückgeschrieben.
 
-**Prüfstand:** `1.0.5-beta.6`, Commit `dbb3be6`,
-[Release](https://github.com/Xygen/EcoFlow-PowerPulse-2-for-Home-Assistant/releases/tag/v1.0.5-beta.6).
-Erster Testbuild, der Issue #14, #15, #16 und #19 gleichzeitig enthält. Vor der
-Abnahme per HACS installieren und Home Assistant neu starten.
+**Prüfstand:** `1.0.5-beta.7`, Commit `9ae7051`,
+[Release](https://github.com/Xygen/EcoFlow-PowerPulse-2-for-Home-Assistant/releases/tag/v1.0.5-beta.7).
+Enthält Issue #14, #15, #16 und #19 zugleich, dazu die Korrekturen aus PR #36 an
+der Zertifikatserneuerung. Am 2026-09-11 auf der Instanz installiert und nach
+Neustart mit laufenden Streams bestätigt.
+
+**Reihenfolge:** Der [Backlog](backlog.md) gibt vor, die Abnahme von Issue #16
+zuerst abzuschließen und dafür kein weiteres Issue zu beginnen. Damit sind A4
+und D1 die nächsten Schritte; A5 und A6 gehören zu Issue #15 und #19 und warten.
 
 ## Was als Nachweis zählt
 
@@ -25,42 +30,8 @@ Bei Bedarf vor jedem Block einen Diagnose-Export ziehen. Die Stream-Timeline
 
 ## A — Ohne Fahrzeug, jetzt durchführbar
 
-Etwa 20 Minuten zusammen. Kein Ladevorgang, kein Passwortwechsel nötig.
-
-### A1 · Kontoschutz beim Rekonfigurieren
-
-Integration → Menü → **Neu konfigurieren**. Eine **andere** EcoFlow-Adresse
-eintragen und bestätigen.
-
-*Bestanden:* Der Dialog bricht mit dem Hinweis auf ein anderes Konto ab, und
-der bestehende Eintrag bleibt unverändert. Da Reparatur- und
-Rekonfigurationsdialog dieselbe Prüfung durchlaufen, gilt das Ergebnis für
-beide. Deckt `V2-AUTH-01` Kontoschutz ab.
-
-### A2 · Eintragsaktualisierung
-
-Erneut **Neu konfigurieren**, diesmal mit den **aktuellen, gültigen**
-Zugangsdaten.
-
-*Bestanden:* Meldung über aktualisierte Zugangsdaten, der Eintrag lädt neu,
-und danach sind unverändert: alle Entitäts-IDs, die aufgezeichnete Historie,
-selbst aktivierte Entitäten und die lokalen Smart-Entwürfe. Deckt alles ab,
-was der Reparaturdialog tut, außer seinem Auslöser.
-
-> Stichprobe genügt nicht: mindestens einen Smart-Entwurf und eine bewusst
-> aktivierte Entität vorher notieren und danach vergleichen.
-
-### A3 · Broker-Adresse
-
-Debug-Logging für `custom_components.ecoflow_powerpulse2` einschalten,
-Integration neu laden, im Log nach der verwendeten Broker-Adresse sehen.
-
-*Bestanden:* Entweder der eingebaute Host oder der von EcoFlow genannte, und
-der Direct-Stream verbindet in beiden Fällen. Das ist der Punkt mit dem
-größten Feldrisiko in diesem Build, weil er bestimmt, wohin verbunden wird.
-
-*Bei Fehlschlag:* Rückweg ist `1.0.5-beta.3` — die letzte Version ohne
-Broker-Übernahme.
+Kein Ladevorgang, kein Passwortwechsel nötig. A1 bis A3 sind am 2026-09-11
+bestanden und stehen unten in Block E; sie werden nicht wiederholt.
 
 ### A4 · Ausfallmeldung bei der Einrichtung
 
@@ -166,6 +137,9 @@ Reparaturpfads.
 | Punkt | Nachweis |
 | --- | --- |
 | `V2-AUTH-01` Anmeldung | Falsches Passwort meldet abgelehnte Zugangsdaten, `1.0.5-beta.3`, 2026-09-10 |
+| `V2-AUTH-01` Kontoschutz (A1) | Abbruch vor jedem Anmeldeversuch; `modified_at` blieb gleich `created_at`, also kein Schreibvorgang. Beide Sprachen gesehen. `1.0.5-beta.6`, 2026-09-11 |
+| `V2-AUTH-01` Eintragsaktualisierung (A2) | Smart-Entwürfe, Sprachassistent-Freigabe, Zählerstände und Betriebsmodus unverändert; Historie über den Reload unter derselben ID. `1.0.5-beta.6`, 2026-09-11 |
+| `V2-AUTH-01` Broker-Adresse (A3) | Beide Clients auf `mqtt-e.ecoflow.com:8084`, Streams `on`, kein Fehler im Systemlog. `1.0.5-beta.6`, 2026-09-11 |
 | `V2-SAFE-01` Anzeigepfad | Helligkeit 100 → 75 → 100 %, zweimal per Direct-Readback, `1.0.5-beta.1`, 2026-09-09 |
 | Start/Stop | Stop-Persistenz und ein Start bei geschlossener App nach 22,8 s |
 | Phasensteuerung | `auto → one_phase → auto` mit Readback, stale-Direct-Fallback als Einschränkung akzeptiert |
