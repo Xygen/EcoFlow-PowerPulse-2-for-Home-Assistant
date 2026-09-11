@@ -6,7 +6,7 @@ and raw chronology remain in the evidence archives linked from the
 
 ## Current baseline
 
-As verified on 2026-09-11, the installed test build is `1.0.5-beta.6`.
+As verified on 2026-09-11, the installed test build is `1.0.5-beta.7`.
 It includes the consolidated safety, field-qualified readback, authentication
 and independent diagnostic sampling changes. Earlier beta.5 observations below
 predate that consolidation.
@@ -262,8 +262,17 @@ sign-in, expired-session renewal, cooldown and slow concurrent requests.
 The reload call is mocked in the form tests; actual device reconnection, recorder
 continuity and real provider expiry are not established by those cases.
 Startup-at-zero and shutdown-during-fetch cases additionally guard timer and
-late-result boundaries. These source changes are not yet deployed; the installed
-beta.6 and the existing live results must not be labelled as testing them.
+late-result boundaries.
+
+Deployment verified on 2026-09-11 at 08:12 Europe/Berlin: HACS installed
+`v1.0.5-beta.7`, and runtime diagnostics reported `1.0.5-beta.7` after a full
+Home Assistant restart. Direct and heartbeat stream entities both returned `on`
+with post-restart updates; charging status remained `unplugged`. The release ZIP
+contains 48 source-identical files, SHA256
+`f1d976f2cedd696866a4664168afd3a28415417f247c7ba57f176390f55ec13f`.
+This confirms installation and startup connectivity, not natural credential
+expiry, real repaired-password recovery or a differing-broker transition.
+Earlier beta.6 acceptance remains historical evidence.
 
 ### Portable and repository checks
 
