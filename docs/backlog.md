@@ -114,6 +114,16 @@ merge `7f09767`, including the version declarations and translation-key fix.
 Quality, HACS and Hassfest passed on both merge commits. See
 [automated checks](validation.md#automated-repository-checks).
 
+Observation on 2026-09-11: the bounded timeline was read for the first time on
+`1.0.5-beta.7`. Two hours and fifteen minutes without a gap, no missed
+heartbeat, no recovery decision. It constrains the heartbeat cadence to
+`k x P = 300.40 s` without determining `P`, and records that the observer's
+freshness is never sampled, so "connected without data" cannot be evidenced for
+it. A quiet window is not evidence that the fault is gone; the next requirement
+is a long window without a restart, because a reload discards the timeline and
+the long intervals fell overnight. See
+[the observation](stream_timeline_observation_2026-09-11.md).
+
 Investigation on 2026-09-10: V2-STREAM-01 / Issue #19 remains open.
 [A new 24-hour idle observation](stream_investigation_2026-09-10.md) correlates
 six qualified-power gaps with heartbeat freshness: three short gaps near
