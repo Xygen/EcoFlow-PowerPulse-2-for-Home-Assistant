@@ -346,8 +346,66 @@ means no settings write was published at all — a stronger statement than the
 mode merely having stayed `solar`, which a failed write would also produce.
 
 This accepts the refusal, the message, the preserved draft and the
-draft/observation separation. It does **not** accept a valid Smart activation,
-which commands the charger and needs separate authorization.
+draft/observation separation.
+
+### A valid Smart activation, accepted the same day
+
+Authorized separately and performed by the maintainer. Reconstructed from the
+recorder rather than reported, so the times are the instance's own.
+
+| Time (local) | What the entities show |
+| --- | --- |
+| `14:35:53` | Draft deadline set to `2026-09-12T11:00Z`, then |
+| `14:35:57` | corrected to `2026-09-12T06:00Z`. **No device observation moved**, so both edits stayed local: the staging path published nothing |
+| `14:36:26` | Mode set to `smart`. Four device observations changed in the same millisecond: mode `smart`, ready-by `2026-09-12T06:00Z` (from `unknown`), target type `distance`, distance `200` |
+| `14:37:26` | Back to `solar` |
+
+The four observations moving together is the acceptance: those entities read
+`setting_observation_value`, which carries only what the charger reported, so
+the device acknowledged the complete bundle it was sent. `control_readback_counts`
+ended at `{"direct": 2, "provider": 0, "noop": 0}` — the activation and the
+return to `solar`, both confirmed on the direct stream with no provider
+fallback and no no-op.
+
+The two draft edits producing no device observation, and the activation
+producing four, is the draft/observation separation demonstrated in one
+sequence rather than argued.
+
+**Every acceptance criterion for this item is now met.**
+
+### What the same sequence exposed
+
+The activation logged one warning:
+
+```
+Smart device configuration was not persisted:
+Smart energy target must be 1 to 100 whole kWh
+```
+
+The charger reported `smart_charge_target_wh` as `0`, which the recorder
+confirms: the device-observation energy sensor read `0` while the calculated
+energy read `30000`. That is the documented protocol behaviour for a distance
+target, already noted in `_smart_settings_payload` — the app sends field 3 as
+zero and the device reports its own calculated energy instead.
+
+`_async_update_smart_staging_from_device` passes that report through
+`SmartStaging.update`, which validates every key with `_validated_value`, the
+rule written for **user input**. A zero energy target is invalid input and a
+perfectly ordinary device report, so the update raises and the whole batch is
+discarded — including the ready-by, target type and distance in the same
+report, which were all valid.
+
+`SmartStaging.load` already gets this right: it validates per key and skips the
+bad ones, isolating a malformed value instead of losing the record. The
+asymmetry is the defect, and it is the same shape as the authentication
+classification fault found in stage 1 of V2-AUTH-01: one validator serving two
+different provenances.
+
+Nothing broke here, because the draft already matched what the device reported.
+The consequence when it does not is reasoned rather than observed: a plan
+changed in the EcoFlow app would not refresh the local draft, and the two would
+diverge silently apart from that warning. Tracked separately in Issue #53; this
+build is not affected in a way that changes its acceptance.
 
 Two limits, and one choice worth naming.
 
