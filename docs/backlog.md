@@ -102,6 +102,17 @@ progress-qualified extension from the normal 30-second deadline to an absolute
 50-second ceiling. Live acceptance of that implementation remains a release
 gate.
 
+Work on 2026-09-12: Issue #13, owned by Claude. The PowerOcean charging-power
+reading now has an age of its own, tracked per charger and per reporting
+observer, so a relay that goes quiet during genuine charging reads unknown
+rather than holding the last watts. Fresh Direct idle still reports zero without
+any relay report. `_POWEROCEAN_POWER_FRESH_SECONDS` is 120, measured against a
+24.5-second largest gap between value changes during the 2026-09-12 session, and
+is deliberately separate from the ninety-second control gate. Ten tests against
+two mutations. The vehicle-backed validation of charging followed by
+cable-connected idle stays open. See
+[the validation record](validation.md#unreleased-relay-power-age).
+
 Work on 2026-09-12: Issue #19 closed as explained rather than fixed. An overnight
 capture on `1.0.5-beta.9` caught both `unknown` intervals with `connected: true`
 on every sample, refuting the reconnection hypothesis. Cadence is about sixty

@@ -83,6 +83,9 @@ async def async_get_config_entry_diagnostics(
                     if serial in coordinator.mqtt_clients
                     else {}
                 ),
+                "powerocean_power_qualification": (
+                    coordinator.powerocean_power_qualification(serial)
+                ),
             }
             for serial, device in coordinator.devices.items()
         ],
