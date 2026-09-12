@@ -719,10 +719,13 @@ cable-connected Direct idle, with the active update cadence preserved, still
 needs a real session. The 2026-09-12 session produced the cadence measurement
 above but predates this change.
 
-## Confirmed live on 2026-09-12 on `1.0.5-beta.12`
+## Live session on 2026-09-12 on `1.0.5-beta.12`
 
 Performed on the maintainer's instance under explicit authorization, with a
-vehicle connected throughout. Both items were accepted from one session.
+vehicle connected throughout. **Issue #13 was accepted from this session.
+Issue #12 was not**: it gained evidence and remains open for the one
+observation it still needs, stated at the end of its part below. The heading
+covers the session, not a verdict on both items.
 
 ### Issue #13: the defect was caught in the act, twice
 

@@ -50,7 +50,18 @@ lesender MCP-Prüfung der verbundenen Home-Assistant-Instanz.
 
 | ID | Priority | Open work | Completion evidence |
 | --- | --- | --- | --- |
-| [`ISSUE-13`](https://github.com/Xygen/EcoFlow-PowerPulse-2-for-Home-Assistant/issues/13) | High | Qualify fast PowerOcean charging power/status against fresh Direct idle evidence without removing raw source-qualified diagnostics. Determine why the PowerOcean relay reports non-zero `1352`/`4380 W` and `charging` while Direct and `allocatedPower` stay at zero. | A cable-connected Direct-idle window cannot expose non-zero automation-safe charging power; real charging retains the PowerOcean update cadence; raw PowerOcean observations remain inspectable; no control behavior changes. |
+_No open items. `ISSUE-13` was delivered and accepted live on 2026-09-12 and
+its row is removed from this table; see
+[the validation record](validation.md#live-session-on-2026-09-12-on-105-beta12)._
+
+**One loose end is deliberately untracked.** Why the PowerOcean relay reports
+non-zero values such as `1352` or `4380 W` while Direct and `allocatedPower`
+stay at zero is still unexplained. The 2026-09-12 session caught it twice, at
+707 W and 3664 W, so the behaviour is real and reproducible. Nothing
+user-facing depends on it any more: the qualified sensor refuses those values
+and the raw entities remain available to anyone who wants to investigate. It
+carries no issue, on purpose — raising one would imply work is planned. If that
+changes, this paragraph is where the decision was recorded.
 
 ## Deferred and release work
 
@@ -111,7 +122,7 @@ charging kept a largest update gap of about eleven seconds. Issue #12 recorded
 three confirmed actions with the progress extension granted on real hardware;
 the extension was not needed on that Start, so the rescue case rests on the
 45.686-second Start observed the same day on beta.10. See
-[the validation record](validation.md#confirmed-live-on-2026-09-12-on-105-beta12).
+[the validation record](validation.md#live-session-on-2026-09-12-on-105-beta12).
 
 Work on 2026-09-12: Issue #13, owned by Claude. The PowerOcean charging-power
 reading now has an age of its own, tracked per charger and per reporting
