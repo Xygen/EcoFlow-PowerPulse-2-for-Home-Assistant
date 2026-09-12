@@ -2,8 +2,10 @@ from custom_components.ecoflow_powerpulse2.charge_control import (
     charge_action_allowed,
     charge_action_confirm_seconds,
     charge_action_confirmed,
+    charge_action_progress_confirm_seconds,
     direct_charging_status,
     fresh_direct_charge_action_confirmed,
+    fresh_direct_start_progress_observed,
 )
 
 
@@ -34,6 +36,48 @@ def test_action_confirmation_uses_independent_heartbeat_states() -> None:
 def test_start_and_stop_use_independent_confirmation_windows() -> None:
     assert charge_action_confirm_seconds("start") == 30
     assert charge_action_confirm_seconds("stop") == 15
+    assert charge_action_progress_confirm_seconds("start") == 50
+    assert charge_action_progress_confirm_seconds("stop") == 15
+
+
+def test_start_progress_requires_a_new_direct_transition_to_plugged_in() -> None:
+    values = {"direct_charging_status": "plugged_in"}
+
+    assert fresh_direct_start_progress_observed(
+        "start",
+        values,
+        heartbeat_reported_at=11,
+        issued_at=10,
+        pre_direct_state="charge_complete",
+    )
+    assert not fresh_direct_start_progress_observed(
+        "start",
+        values,
+        heartbeat_reported_at=11,
+        issued_at=10,
+        pre_direct_state="plugged_in",
+    )
+    assert not fresh_direct_start_progress_observed(
+        "start",
+        values,
+        heartbeat_reported_at=10,
+        issued_at=10,
+        pre_direct_state="charge_complete",
+    )
+    assert not fresh_direct_start_progress_observed(
+        "stop",
+        values,
+        heartbeat_reported_at=11,
+        issued_at=10,
+        pre_direct_state="charging",
+    )
+    assert not fresh_direct_start_progress_observed(
+        "start",
+        {"direct_charging_status": "standby"},
+        heartbeat_reported_at=11,
+        issued_at=10,
+        pre_direct_state="charge_complete",
+    )
 
 
 def test_direct_status_never_falls_back_to_mergeable_canonical_state() -> None:

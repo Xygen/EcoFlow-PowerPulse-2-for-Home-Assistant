@@ -44,7 +44,7 @@ lesender MCP-Prüfung der verbundenen Home-Assistant-Instanz.
 
 | ID | Priority | Open work | Completion evidence |
 | --- | --- | --- | --- |
-| [`ISSUE-12`](https://github.com/Xygen/EcoFlow-PowerPulse-2-for-Home-Assistant/issues/12) | High | Source-atomic availability/confirmation and bounded timing diagnostics are released and live-validated. Keep the current deadlines until another delayed Start near the 30-second gate provides evidence for, or against, a bounded progress extension. PowerOcean remains diagnostic-only. | Two live Start/Stop pairs and exported bounded records confirm Direct-only outcomes; stale, ambiguous, or conflicting readback remains fail-closed. A delayed Start must be observed before changing deadline policy. |
+| [`ISSUE-12`](https://github.com/Xygen/EcoFlow-PowerPulse-2-for-Home-Assistant/issues/12) | High | A bounded Start progress extension is implemented and statically tested after two reproduced false negatives. Retain the 30-second normal deadline; extend once to an absolute 50 seconds only after a fresh Direct transition from a different pre-state to `plugged_in`. PowerOcean remains diagnostic-only. | On a beta build, live-confirm one normal Start, one delayed Start that uses the extension, and one Stop. Diagnostics must show the extension only for qualified progress; stale/same-state progress, SET-reply failure, ambiguous readback, and the 50-second ceiling remain fail-closed. |
 
 ## Telemetry and protocol research
 
@@ -96,9 +96,11 @@ A1–A3 or start another issue while completing this acceptance.
 Issue #16 was closed on 2026-09-11; V2-SMART-01 / Issue #18 is the item in
 progress, owned by Claude. Issues #14/#15 and PR #22/#23 form the next joint
 control review and vehicle-acceptance block; include relevant #13 power tests
-in that session. Issue #11 follows on its own; #25 is deferred. Keep #12's
-accepted deadlines unless a newly captured delayed action justifies revisiting
-them.
+in that session. Issue #11 follows on its own; #25 is deferred. Issue #12's
+2026-09-12 vehicle session captured two delayed Starts and supports one
+progress-qualified extension from the normal 30-second deadline to an absolute
+50-second ceiling. Live acceptance of that implementation remains a release
+gate.
 
 Work on 2026-09-12: Issue #19 closed as explained rather than fixed. An overnight
 capture on `1.0.5-beta.9` caught both `unknown` intervals with `connected: true`

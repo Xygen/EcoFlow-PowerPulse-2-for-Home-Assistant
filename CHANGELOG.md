@@ -6,6 +6,11 @@ Current outstanding work is maintained only in
 
 ## Unreleased
 
+- Retain the normal 30-second Start confirmation deadline but extend one
+  attempt to an absolute 50 seconds when a fresh Direct heartbeat transitions
+  from a different pre-command state to `plugged_in`. The progress state never
+  counts as success; stale/same-state evidence, SET-reply failure, Stop and
+  PowerOcean readback retain their existing fail-closed behavior.
 - Reopen the long-outage part of the stream investigation: two captured
   single-missed-heartbeat events explain the short `unknown` intervals, while
   ten separate 4.0-to-35.4-minute silences still require connection and

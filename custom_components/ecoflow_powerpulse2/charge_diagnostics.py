@@ -108,6 +108,12 @@ class ChargeActionDiagnostics:
             attempt.issued_monotonic, observed_monotonic
         )
 
+    def record_progress_extension(self, serial: str) -> None:
+        """Record that qualified Direct progress extended this attempt once."""
+        attempt = self._active.get(serial)
+        if attempt is not None:
+            attempt.record["progress_extension_granted"] = True
+
     def record_direct(
         self, serial: str, state: object, *, observed_monotonic: float
     ) -> None:

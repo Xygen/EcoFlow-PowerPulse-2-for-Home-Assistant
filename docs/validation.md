@@ -610,6 +610,49 @@ criterion asks for a live check during both a success and a timeout. Start is
 refused outright while the charger reports `unplugged`, so this needs a vehicle
 and belongs with the vehicle-backed session.
 
+## Unreleased bounded Start progress extension
+
+Issue #12 began with a real false negative: EcoFlow acknowledged Start, Direct
+reported progress, and the final `charging` heartbeat arrived only after Home
+Assistant's 30-second deadline. The first analysis deliberately kept the
+deadline unchanged until more than one delayed attempt could establish a safe
+bound.
+
+The 2026-09-12 vehicle session on `1.0.5-beta.10` supplied that evidence. Three
+Starts confirmed from Direct after 9.858, 13.437 and 23.083 seconds. Two more
+failed at 30.247 and 30.242 seconds even though Direct reached `charging`
+roughly 33 seconds and exactly 45.686 seconds after dispatch. Both delayed
+attempts first produced a fresh Direct transition from a different pre-command
+state to `plugged_in`. A separate attempt without a correlated SET reply stayed
+at the transport failure gate.
+
+The implementation therefore keeps 30 seconds as the normal Start deadline and
+grants one extension to an absolute 50 seconds only after the correlated SET
+reply and that fresh Direct transition. `plugged_in` proves progress but cannot
+confirm success. An already-present or stale `plugged_in`, Stop, and all
+PowerOcean states cannot extend the deadline. Stop remains at 15 seconds. The
+50-second ceiling covers the longest measured result; the earlier 45-second
+candidate would have failed about 0.7 seconds too soon.
+
+| Acceptance rule | Automated evidence |
+| --- | --- |
+| Normal Direct confirmation remains immediate | coordinator transaction test confirms at the existing deadline without requiring progress |
+| A fresh transition from another Direct state to `plugged_in` extends Start once | pure evidence test and coordinator timing test |
+| The progress state is not success | the coordinator waits for later Direct `charging` |
+| An already-present `plugged_in` does not extend | coordinator timeout test starts and remains in `plugged_in` |
+| The absolute ceiling remains fail-closed | coordinator test records the extension and still times out without a final state |
+| SET-reply failure cannot extend | the existing SET-reply timeout exits before the readback loop |
+| Stop keeps its independent deadline | timeout helper tests retain 15 seconds for normal and progress deadlines |
+| PowerOcean remains diagnostic-only | no PowerOcean state participates in the progress or confirmation helpers |
+| Diagnostics disclose policy use | completed attempts record `progress_extension_granted` |
+
+Portable validation passes 474 tests and Ruff. Live acceptance still requires a
+beta build with a vehicle: capture one normal Start, one naturally delayed Start
+that sets `progress_extension_granted: true`, and one Stop; confirm that the
+final result and elapsed time agree with fresh Direct readback and restore the
+original charging state. No stable release may claim Issue #12 complete before
+that evidence exists.
+
 ## Automated repository checks
 
 ### Issue #16 functional authentication acceptance
