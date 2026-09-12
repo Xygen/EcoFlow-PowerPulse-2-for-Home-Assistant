@@ -36,6 +36,17 @@ _PHASE_MODE_MAP = {
     3: "auto",
 }
 
+# The heartbeat's active-phase field does not share the encoding of the
+# configured-selection fields above, which is why it was published raw until a
+# reading settled it. Established on 2026-09-12 across four live transitions,
+# each agreeing with an independent second integration within seven
+# milliseconds, and corroborated by the power drawn: 9695 W against a 16 A
+# limit cannot be single phase.
+_ACTIVE_PHASE_MAP = {
+    0: "three_phase",
+    1: "single_phase",
+}
+
 # Live paired Solar-mode tests confirmed that provider switchBits changes
 # between 0 (disabled) and 16 (enabled) while the stored 6 A minimum remains
 # unchanged. Other bits may describe unrelated settings, so isolate bit 4.
@@ -568,6 +579,11 @@ def _parse_cp307_heartbeat(payload: bytes) -> dict[str, Any]:
     active_phase = result.get("direct_active_phase_raw")
     if not isinstance(active_phase, int) or not 0 <= active_phase <= 15:
         result.pop("direct_active_phase_raw", None)
+    elif active_phase in _ACTIVE_PHASE_MAP:
+        # A number inside the guard but outside the map leaves the named sensor
+        # absent rather than guessing: the raw value stays visible for whoever
+        # meets that firmware.
+        result["direct_active_phase"] = _ACTIVE_PHASE_MAP[active_phase]
     if phase_voltages:
         result["phase_voltage_v"] = round(max(phase_voltages), 1)
     if phase_currents:

@@ -541,3 +541,52 @@ def test_the_active_phase_is_not_the_configured_selection() -> None:
 
     assert "phase_mode" not in result
     assert "phase_specified_raw" not in result
+
+
+def test_the_active_phase_field_is_named_from_the_observed_mapping() -> None:
+    """Established live on 2026-09-12, not guessed from the settings encoding.
+
+    Four transitions each agreed with an independent second integration within
+    seven milliseconds, and 9695 W against a 16 A limit cannot be single phase.
+    """
+    assert _parse_heartbeat(_heartbeat_with_active_phase(0))[
+        "direct_active_phase"
+    ] == "three_phase"
+    assert _parse_heartbeat(_heartbeat_with_active_phase(1))[
+        "direct_active_phase"
+    ] == "single_phase"
+
+
+def test_the_active_phase_does_not_reuse_the_configured_encoding() -> None:
+    """The two encodings differ, and confusing them would invert the answer.
+
+    `_PHASE_MODE_MAP` reads 2 as three-phase; the heartbeat reads 0. A named
+    value must never be produced from the configured-selection table.
+    """
+    result = _parse_heartbeat(_heartbeat_with_active_phase(2))
+
+    assert result["direct_active_phase_raw"] == 2
+    assert "direct_active_phase" not in result
+
+
+def test_an_unmapped_but_plausible_value_keeps_only_the_raw_reading() -> None:
+    """Inside the range guard, outside the map: publish the number, not a guess."""
+    for value in (3, 15):
+        result = _parse_heartbeat(_heartbeat_with_active_phase(value))
+        assert result["direct_active_phase_raw"] == value
+        assert "direct_active_phase" not in result
+
+
+def test_an_out_of_range_value_publishes_neither_reading() -> None:
+    result = _parse_heartbeat(_heartbeat_with_active_phase(4242))
+
+    assert "direct_active_phase_raw" not in result
+    assert "direct_active_phase" not in result
+
+
+def test_the_active_phase_is_still_not_the_configured_selection() -> None:
+    """A heartbeat must not write what the user asked for."""
+    result = _parse_heartbeat(_heartbeat_with_active_phase(0))
+
+    assert "phase_mode" not in result
+    assert "phase_specified_raw" not in result
