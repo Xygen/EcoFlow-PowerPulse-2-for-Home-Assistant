@@ -4,7 +4,14 @@ This file records delivered changes and the state of each historical build.
 Current outstanding work is maintained only in
 [the project backlog](docs/backlog.md).
 
-## Unreleased
+## 1.0.5-beta.10 - 2026-09-12
+
+Test build for the next vehicle-backed session, carrying the three review
+findings from Issue #60 alongside the two changes they were found in. Automated
+coverage passes 469 portable tests, three Home Assistant fixture tests, Ruff and
+the documentation checks. Issues #11, #25, #61, #62 and #63 have had no live
+observation and this prerelease declares none of them accepted.
+
 
 - Treat charging-action availability notifications as best effort so a broken
   listener cannot leave the Start/Stop pending marker set or turn a confirmed
