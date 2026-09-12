@@ -1087,6 +1087,76 @@ The existing fail-closed `unknown`, raw diagnostics and 90-second control
 freshness gate remain unchanged. Vehicle-backed display behavior stays in
 Issue #13 and is not required to classify the idle long-outage path.
 
+## The long outage, classified on 2026-09-13 from a `1.0.5-beta.12` capture
+
+The scope reopened in the correction above is closed. One long outage was
+captured end to end on an instance that had run undisturbed since 18:22 local,
+with `dropped_events` at zero and the ring started at
+`2026-09-12T16:22:16.964Z`, so the whole event lies inside it.
+
+It is the opposite of the short population in every respect that matters.
+
+| Time (UTC) | Event |
+| --- | --- |
+| `20:28:03` | Last settings and heartbeat report, derived from the ages at `20:28:33` |
+| `20:28:33` | `recovery_check`, `settings_within_stale_limit`, still connected, heartbeat still fresh |
+| `20:29:28.478` | **source_1 (charger) disconnected, reason code 141** |
+| `20:30:04.065` | **source_2 (observer) disconnected, reason code 141** |
+| `20:34:37.150` | source_2 reconnected, after 4 min 33 s |
+| `20:35:31.136` | source_1 reconnected, after 6 min 03 s |
+| `20:35:54` | First heartbeat back |
+| `20:36:10` | Both streams fresh again |
+
+Reason code 141 is the MQTT 5 keep-alive timeout. Two independent sessions hit
+it thirty-six seconds apart, which points at the network path or the broker
+rather than at either client. The EcoFlow app was closed throughout, recorded as
+context: app activity is not the trigger, and the sessions died anyway.
+
+### The sensor tracked it in three stages, each to the second
+
+| Sensor transition | Cause |
+| --- | --- |
+| `unavailable` at `20:30:07.5` | 3.4 s after the observer dropped — the required source was gone |
+| `unknown` at `20:34:37.2` | the same second the observer returned: source back, heartbeat still stale, so no value |
+| `0.0` at `20:35:54.2` | the heartbeat returned, and fresh Direct idle proves zero |
+
+That is the qualification contract from Issue #13 exercised by a real transport
+failure rather than by a test, and it held at every stage, including the one
+where it had to decline to answer.
+
+### Classification: disconnected, recovered by the clients themselves
+
+The taxonomy the reopening set out asks for one of three readings. This is the
+first — disconnected — but with a distinction worth keeping rather than
+rounding off.
+
+**The integration's recovery path did not perform the recovery.** Both
+`recovery_check` entries during the outage gave `disconnected` as their reason,
+which is a decision not to act, and source_2 came back with no preceding check
+at all. For source_1 the check at `20:35:31.117` and the connection at
+`20:35:31.136` are nineteen milliseconds apart, far too close for one to have
+caused the other. The MQTT clients reconnected on their own backoff; the ring
+observed it.
+
+That is by design and not a fault. The recovery path exists for a stream that is
+connected and silent; over a dead transport a provider read has nothing to run
+on. The consequence is worth stating plainly all the same: **a disconnect is
+handled entirely by the client's backoff, which this integration neither bounds
+nor measures.** Here that took 4 min 33 s and 6 min 03 s.
+
+### No change is justified, and that is the decision
+
+Nothing behaved incorrectly. The sensor refused to answer while it could not
+know, recovered when it could, and never published a stale or guessed value.
+Shortening the reconnect would mean the integration forcing its own reconnect on
+a disconnect, which trades a known-conservative backoff for the risk of a
+reconnect storm against a broker that has just timed us out.
+
+One sample does not say whether five minutes is the usual backoff or a long
+draw. A second long outage would settle that, and the ring now survives long
+enough to catch one; the question is worth answering before anyone changes
+timing, not after.
+
 ## Test principles
 
 - A control is successful only after command acknowledgement **and** a newer
