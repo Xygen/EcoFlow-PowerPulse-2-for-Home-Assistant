@@ -564,8 +564,10 @@ mapping.
 
 ## Unreleased pending charging action
 
-A Start or Stop waits up to thirty or fifteen seconds for the charger to
-confirm. Until now `charge_action_available` answered from the last known
+A Start or Stop waits for the charger to confirm: fifteen seconds for a Stop,
+thirty for a Start, and up to fifty when the Start earns the progress extension
+described under the deadline evidence below. Until now `charge_action_available`
+answered from the last known
 charging state for that whole window, so both buttons stayed pressable while
 the first command was still being judged.
 
@@ -594,9 +596,18 @@ fails one, removing the entry refusal fails one, and removing the `finally`
 cleanup fails six.
 
 **A behaviour change worth stating.** While a Start is heading for a timeout,
-both buttons are unavailable for up to thirty seconds. That is the intended
-trade — the alternative is letting the user queue a command that cannot help —
-but someone watching the dashboard will see a longer dead interval than before.
+both buttons are unavailable for the whole confirmation window. That is the
+intended trade — the alternative is letting the user queue a command that cannot
+help — but someone watching the dashboard will see a longer dead interval than
+before.
+
+The window is no longer a fixed thirty seconds. A Start that earns the progress
+extension holds `_control_lock` and the pending marker to an absolute fifty
+seconds from dispatch, so the dead interval grows by twenty seconds in exactly
+the case the extension exists to rescue. Both effects follow from one decision:
+a Start that is visibly progressing is given longer to finish, and while it is
+given longer, nothing else may be pressed. Buying the user a correct result
+costs them a longer wait for it.
 
 **Deliberately unchanged.** The thirty- and fifteen-second confirmation windows,
 the five-second SET-reply window, and the error raised when readback does not
