@@ -100,6 +100,17 @@ in that session. Issue #11 follows on its own; #25 is deferred. Keep #12's
 accepted deadlines unless a newly captured delayed action justifies revisiting
 them.
 
+Work on 2026-09-12: Issue #19 closed as explained rather than fixed. An overnight
+capture on `1.0.5-beta.9` caught both `unknown` intervals with `connected: true`
+on every sample, refuting the reconnection hypothesis. Cadence is about sixty
+seconds and `_HEARTBEAT_STREAM_FRESH_SECONDS` is ninety, so one missed heartbeat
+puts the next at about a hundred and twenty and leaves thirty seconds of
+`unknown`. The budget tolerates no skip. No threshold was changed: the same
+constant gates charging-control freshness, and the observed cost is a gap at
+zero watts on an idle charger. Revisit if the gaps recur during an actual
+charging session. See
+[the validation record](validation.md#cause-established-on-2026-09-12-from-a-105-beta9-overnight-capture).
+
 Work on 2026-09-11: Issue #11, owned by Claude. Both charging buttons go
 unavailable while a Start or Stop awaits confirmation, and a second action is
 refused rather than queued behind the control lock, which serialises without
