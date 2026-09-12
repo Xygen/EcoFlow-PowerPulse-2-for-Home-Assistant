@@ -4,7 +4,14 @@ This file records delivered changes and the state of each historical build.
 Current outstanding work is maintained only in
 [the project backlog](docs/backlog.md).
 
-## Unreleased
+## 1.0.5-beta.13 - 2026-09-13
+
+Build carrying the active-phase name, whose mapping was established from live
+readings rather than guessed. Automated coverage passes 489 portable tests,
+three Home Assistant fixture tests, Ruff and the documentation checks. The
+named sensor has not yet run on an instance, so this prerelease declares it
+observed in no respect.
+
 
 - Name the charger's active phase. The heartbeat field published as a raw
   number in beta.10 now also drives a `single_phase` / `three_phase` sensor,
