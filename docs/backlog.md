@@ -111,6 +111,15 @@ zero watts on an idle charger. Revisit if the gaps recur during an actual
 charging session. See
 [the validation record](validation.md#cause-established-on-2026-09-12-from-a-105-beta9-overnight-capture).
 
+Scope correction on 2026-09-12: Issue #19 was reopened. The capture above
+explains the short, single-missed-heartbeat population only. The three-day
+record also contains ten total-silence outages lasting 4.0 to 35.4 minutes;
+they account for 133.7 of 139.3 minutes of `unknown` time and none was captured
+by the bounded timeline. At least one such outage must still be classified from
+complete connection and recovery events before the issue can close. The
+specific evidence requirements are recorded in
+[the validation correction](validation.md#scope-correction-the-long-outage-population-remains-open).
+
 Work on 2026-09-11: Issue #11, owned by Claude. Both charging buttons go
 unavailable while a Start or Stop awaits confirmation, and a second action is
 refused rather than queued behind the control lock, which serialises without
