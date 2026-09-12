@@ -810,6 +810,44 @@ zeros, and the display side then has a genuine claim the control side does not.
 That situation arises on its own at the next vehicle-backed session, so the
 question answers itself if it exists at all.
 
+### Scope correction: the long-outage population remains open
+
+Added on 2026-09-12 after review of the closure above, under
+[D-02](decisions.md#d-02--evidence-archives-are-preserved-not-rewritten). The
+capture and arithmetic remain valid for the two short events. The conclusion
+does not extend to the second population already established in the three-day
+record: ten total-silence outages lasting 4.0 to 35.4 minutes and accounting
+for 133.7 of 139.3 minutes of `unknown` time (96%).
+
+All ten long outages exceeded the 300-second eligibility threshold for both
+Direct report families. The recorder evidence cannot tell whether their MQTT
+session was disconnected, remained connected while recovery ran without
+effect, or remained connected while an eligible recovery did not run. Those
+cases need different decisions. Neither of the two 120-second captures
+classifies them, so Issue #19 is reopened.
+
+Closure now requires one long outage captured from before the last good report
+through the first recovered report, with all of the following evidence:
+
+- no dropped timeline events and a recorded integration start time;
+- last and next heartbeat and settings timestamps;
+- MQTT connection transitions throughout the interval;
+- every recovery decision and every recovery attempt and outcome;
+- the matching qualified-power `unknown` interval;
+- whether the EcoFlow app was closed, recorded as context rather than cause.
+
+The evidence must classify the event as disconnected with recovery owned by
+the reconnect path, connected with bounded recovery attempted, or connected
+without an eligible attempt. If it exposes a defect, the resulting fix must
+cover eligibility, cooldown, disconnect, attempt outcome and spontaneous
+recovery. If no change is justified, the observed behavior and that decision
+must be recorded. Another short outage, an incomplete current-state snapshot
+or passing automated tests cannot close the item.
+
+The existing fail-closed `unknown`, raw diagnostics and 90-second control
+freshness gate remain unchanged. Vehicle-backed display behavior stays in
+Issue #13 and is not required to classify the idle long-outage path.
+
 ## Test principles
 
 - A control is successful only after command acknowledgement **and** a newer

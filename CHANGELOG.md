@@ -4,6 +4,13 @@ This file records delivered changes and the state of each historical build.
 Current outstanding work is maintained only in
 [the project backlog](docs/backlog.md).
 
+## Unreleased
+
+- Reopen the long-outage part of the stream investigation: two captured
+  single-missed-heartbeat events explain the short `unknown` intervals, while
+  ten separate 4.0-to-35.4-minute silences still require connection and
+  recovery classification before Issue #19 can close.
+
 ## 1.0.5-beta.10 - 2026-09-12
 
 Test build for the next vehicle-backed session, carrying the three review
