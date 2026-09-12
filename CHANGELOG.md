@@ -4,6 +4,16 @@ This file records delivered changes and the state of each historical build.
 Current outstanding work is maintained only in
 [the project backlog](docs/backlog.md).
 
+## Unreleased
+
+- Give the PowerOcean charging-power reading an age of its own. While the
+  charger is genuinely charging, a relay value that has stopped arriving now
+  reads unknown instead of holding the last watts, which an automation cannot
+  tell apart from a live figure. The age is tracked per charger and per
+  reporting observer, and a report carrying only a status no longer vouches for
+  the age of a power value it does not contain. A fresh idle state still reports
+  zero without needing any relay report.
+
 ## 1.0.5-beta.11 - 2026-09-12
 
 Build for the Start deadline validation, raised while a vehicle is available.

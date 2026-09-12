@@ -1072,3 +1072,114 @@ def test_new_heartbeat_clears_an_omitted_active_phase(harness, monkeypatch):
 
     c._record_mqtt_frame(SERIAL, "topic", b"second")
     assert "direct_active_phase_raw" not in c.data[SERIAL]
+
+
+def _observer_frame(harness, monkeypatch, reports):
+    """Drive one observer telemetry frame carrying the given charging reports."""
+    c = harness.coordinator
+    c.async_set_updated_data = lambda data: setattr(c, "data", data)
+    c._redact = lambda payload: payload
+    c.mqtt_clients[PARENT] = SimpleNamespace(
+        is_connected=lambda: True, diagnostic_topic=lambda topic: "property"
+    )
+    monkeypatch.setattr(harness.module, "classify_mqtt_topic", lambda topic: "property")
+    monkeypatch.setattr(harness.module, "channel_carries_telemetry", lambda ch: True)
+    monkeypatch.setattr(harness.module, "inspect_envelope_headers", lambda p: [])
+    monkeypatch.setattr(harness.module, "parse_powerpulse2_payload", lambda p: {})
+    monkeypatch.setattr(
+        harness.module, "extract_powerpulse_accessory_descriptor", lambda p: None
+    )
+    monkeypatch.setattr(
+        harness.module, "inspect_powerpulse_accessory_reports", lambda p: []
+    )
+    monkeypatch.setattr(
+        harness.module, "parse_powerocean_charging_reports", lambda p: reports
+    )
+    monkeypatch.setattr(c._frame_capture, "record", lambda frame, payload: None)
+    c._record_mqtt_frame(PARENT, "topic", b"observer frame")
+
+
+def test_a_relay_power_report_is_timed_per_charger(harness, monkeypatch):
+    c = harness.coordinator
+    assert not c.powerocean_power_fresh(SERIAL)
+
+    _observer_frame(
+        harness,
+        monkeypatch,
+        [{"target_serial": SERIAL, "powerocean_charging_power_w": 6665}],
+    )
+
+    assert c.powerocean_power_fresh(SERIAL)
+    assert c.data[SERIAL]["powerocean_charging_power_w"] == 6665
+    qualification = c.powerocean_power_qualification(SERIAL)
+    assert qualification["power_fresh"] is True
+    assert qualification["power_source_prefix"] == PARENT[:4]
+    assert qualification["power_age_s"] < 1
+
+
+def test_a_status_only_report_does_not_refresh_the_power_age(harness, monkeypatch):
+    """A report that carries no power cannot vouch for the age of one."""
+    c = harness.coordinator
+
+    _observer_frame(
+        harness,
+        monkeypatch,
+        [{"target_serial": SERIAL, "powerocean_charging_status": "charging"}],
+    )
+
+    assert not c.powerocean_power_fresh(SERIAL)
+    assert c.powerocean_power_qualification(SERIAL)["power_age_s"] is None
+
+
+def test_a_report_for_another_charger_does_not_qualify_this_one(harness, monkeypatch):
+    """An unrelated target serial must not lend its freshness here."""
+    c = harness.coordinator
+
+    _observer_frame(
+        harness,
+        monkeypatch,
+        [{"target_serial": "C376-other", "powerocean_charging_power_w": 4380}],
+    )
+
+    assert not c.powerocean_power_fresh(SERIAL)
+    assert "powerocean_charging_power_w" not in c.data.get(SERIAL, {})
+
+
+def test_a_stale_relay_value_leaves_the_qualified_sensor_unknown(harness, monkeypatch):
+    c = harness.coordinator
+    harness.heartbeat("charging")
+    _observer_frame(
+        harness,
+        monkeypatch,
+        [{"target_serial": SERIAL, "powerocean_charging_power_w": 6665}],
+    )
+    assert c.qualified_powerocean_charging_power_value(SERIAL) == 6665
+
+    c._last_powerocean_power_at[SERIAL] -= (
+        harness.module._POWEROCEAN_POWER_FRESH_SECONDS + 1
+    )
+
+    assert c.qualified_powerocean_charging_power_value(SERIAL) is None
+    # The charging state itself is still known; only the number went unknown.
+    assert c.data[SERIAL]["direct_charging_status"] == "charging"
+
+
+def test_the_relay_budget_does_not_touch_the_control_gate(harness, monkeypatch):
+    """The display budget and the control gate are separate constants."""
+    c = harness.coordinator
+    harness.heartbeat("plugged_in")
+    _observer_frame(
+        harness,
+        monkeypatch,
+        [{"target_serial": SERIAL, "powerocean_charging_power_w": 4380}],
+    )
+
+    c._last_powerocean_power_at[SERIAL] -= (
+        harness.module._POWEROCEAN_POWER_FRESH_SECONDS + 1
+    )
+
+    assert not c.powerocean_power_fresh(SERIAL)
+    assert c.heartbeat_stream_active(SERIAL)
+    assert c.charge_action_available(SERIAL, "start")
+    # Fresh Direct idle still reports zero without any relay evidence.
+    assert c.qualified_powerocean_charging_power_value(SERIAL) == 0.0

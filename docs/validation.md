@@ -664,6 +664,61 @@ final result and elapsed time agree with fresh Direct readback and restore the
 original charging state. No stable release may claim Issue #12 complete before
 that evidence exists.
 
+## Unreleased relay power age
+
+`qualified_powerocean_charging_power` asked one question — is the Direct
+heartbeat fresh — and then published whatever `powerocean_charging_power_w`
+happened to be in the merged snapshot. That value had no age of its own. A
+charger genuinely charging while the relay went quiet kept showing its last
+watts, and a frozen number is indistinguishable from a live one to an
+automation reading the sensor.
+
+The two ages are now tracked separately and neither substitutes for the other.
+Direct says whether the wallbox is charging at all; the relay age says whether
+the number still describes now.
+
+**Idle is still decided by Direct alone, deliberately.** A fresh Direct idle
+state proves there is nothing to measure, so zero needs no relay report of any
+age. Making zero depend on the relay would turn a known-idle charger into an
+unknown reading for no gain.
+
+| Rule | Covered by |
+| --- | --- |
+| A stale relay value reads unknown while charging | `tests/test_telemetry_qualification.py` and the coordinator harness |
+| An absent relay value reads unknown while charging | the qualification unit tests |
+| Fresh Direct idle reports zero at any relay age | parametrised over both |
+| Neither age substitutes for the other | all three combinations asserted in one test |
+| The age is timed per charger and per reporting observer | a report for another `target_serial` leaves this charger untimed |
+| A status-only report does not refresh the power age | otherwise a status could vouch for a number it does not carry |
+| The control gate is untouched | a stale relay leaves `heartbeat_stream_active` and `charge_action_available` true |
+
+Ten tests, checked against two mutations: removing the staleness rejection fails
+three, and timing every report rather than only those carrying power fails one.
+
+**The threshold was measured, not chosen.** During genuine charging on
+2026-09-12 the raw relay value changed roughly every ten seconds, with the
+largest observed gap between changes at 24.5 seconds. `_POWEROCEAN_POWER_FRESH_SECONDS`
+is 120, about five times that, so it cannot flap during a real session while
+still refusing a value minutes old. Its limit is worth stating: the history
+records changes, not reports, so the true report cadence is at least this fast
+and the margin is a lower bound.
+
+It is deliberately its own constant rather than a reuse of the ninety-second
+heartbeat gate. That one decides whether a charging command may be published,
+and a display budget must never quietly widen a control gate. The argument is
+mandatory rather than defaulted for the same reason: a default of `True` would
+have been fail-open, and it would have existed only to spare the existing tests
+from stating what they assume.
+
+**Already satisfied, now covered rather than assumed.** Routing by
+`target_serial` already meant an unrelated observer could not qualify another
+charger's data. That is now held by a test instead of by reading the code.
+
+**Not covered: the vehicle-backed validation.** Genuine charging followed by
+cable-connected Direct idle, with the active update cadence preserved, still
+needs a real session. The 2026-09-12 session produced the cadence measurement
+above but predates this change.
+
 ## Automated repository checks
 
 ### Issue #16 functional authentication acceptance

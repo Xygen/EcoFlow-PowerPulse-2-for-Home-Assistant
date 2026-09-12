@@ -98,6 +98,13 @@ _CHARGE_ACTION_SET_REPLY_SECONDS = 5
 _DIRECT_STREAM_CONFIRM_SECONDS = 10
 _DIRECT_STREAM_DIAGNOSTIC_ATTEMPTS = 16
 _HEARTBEAT_STREAM_FRESH_SECONDS = 90
+# Telemetry qualification only. Deliberately its own constant rather than a
+# reuse of the heartbeat gate above: that one decides whether a charging
+# command may be published, and widening a display budget must never quietly
+# widen a control gate. During genuine charging on 2026-09-12 the relay value
+# changed every ten seconds or so, with the largest observed gap between
+# changes at 24.5 seconds, so this bound cannot flap during a real session.
+_POWEROCEAN_POWER_FRESH_SECONDS = 120
 _SMART_STAGING_STORE_VERSION = 1
 _AUTOMATIC_RECOVERY_STALE_SECONDS = 300
 _AUTOMATIC_RECOVERY_COOLDOWN_SECONDS = 1800
@@ -226,6 +233,8 @@ class PowerPulse2Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
         self._smart_staging_lock = asyncio.Lock()
         self._unusable_device_smart_fields: dict[str, int] = {}
         self._pending_charge_actions: set[str] = set()
+        self._last_powerocean_power_at: dict[str, float] = {}
+        self._last_powerocean_power_source: dict[str, str] = {}
         self._smart_staging_tasks: set[asyncio.Task[None]] = set()
         self._shutting_down = False
         self._initialized = False
@@ -990,6 +999,13 @@ class PowerPulse2Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
                 report.get("powerocean_charging_status"),
                 observed_monotonic=received_monotonic,
             )
+            if "powerocean_charging_power_w" in report:
+                # Timed per charger and per reporting observer, so a second
+                # observer cannot lend its freshness to a charger it does not
+                # report, and a report carrying only a status cannot refresh
+                # the age of a power value it does not contain.
+                self._last_powerocean_power_at[matched_serial] = received_monotonic
+                self._last_powerocean_power_source[matched_serial] = serial
             updated = dict(self.data or {})
             values = dict(updated.get(matched_serial, {}))
             values.update(
@@ -1388,11 +1404,35 @@ class PowerPulse2Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
             )
         return False
 
+    def powerocean_power_fresh(self, serial: str) -> bool:
+        """Return whether this charger's own relay power report is recent."""
+        reported_at = self._last_powerocean_power_at.get(serial)
+        return bool(
+            reported_at is not None
+            and time.monotonic() - reported_at <= _POWEROCEAN_POWER_FRESH_SECONDS
+        )
+
+    def powerocean_power_qualification(self, serial: str) -> dict[str, Any]:
+        """Return the two ages behind the qualified value, for inspection."""
+        reported_at = self._last_powerocean_power_at.get(serial)
+        source = self._last_powerocean_power_source.get(serial)
+        return {
+            "power_age_s": (
+                None if reported_at is None
+                else round(time.monotonic() - reported_at, 3)
+            ),
+            "power_fresh": self.powerocean_power_fresh(serial),
+            "power_fresh_seconds": _POWEROCEAN_POWER_FRESH_SECONDS,
+            "power_source_prefix": None if source is None else source[:4],
+            "direct_heartbeat_fresh": self.heartbeat_stream_active(serial),
+        }
+
     def qualified_powerocean_charging_power_value(self, serial: str) -> object:
         """Return PowerOcean power only when fresh Direct telemetry qualifies it."""
         return qualified_powerocean_charging_power(
             (self.data or {}).get(serial, {}),
             direct_heartbeat_fresh=self.heartbeat_stream_active(serial),
+            powerocean_power_fresh=self.powerocean_power_fresh(serial),
         )
 
     def direct_reconnect_available(self, serial: str) -> bool:
