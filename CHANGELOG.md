@@ -4,7 +4,15 @@ This file records delivered changes and the state of each historical build.
 Current outstanding work is maintained only in
 [the project backlog](docs/backlog.md).
 
-## Unreleased
+## 1.0.5-beta.12 - 2026-09-12
+
+Build that lets one vehicle session accept both open control and telemetry
+items. It carries the relay power age from Issue #13 on top of the Start
+progress extension already in beta.11, so a single charging session can produce
+the evidence both need. Automated coverage passes 484 portable tests, three Home
+Assistant fixture tests, Ruff and the documentation checks. Neither item has been
+observed on this build, and this prerelease declares nothing accepted.
+
 
 - Give the PowerOcean charging-power reading an age of its own. While the
   charger is genuinely charging, a relay value that has stopped arriving now
