@@ -791,6 +791,64 @@ The availability behaviour from Issue #11 was visible throughout. Start read
 `unavailable` while the charger was charging, and both buttons went unavailable
 for the duration of each pending action.
 
+## Unreleased active phase mapping
+
+beta.10 published heartbeat field 21 as a raw number because no value had been
+observed and naming one would have been a guess. On 2026-09-12 a vehicle session
+in `auto` mode supplied the readings, and the guess would have been wrong.
+
+| Time | Field 21 | Second integration | Gap |
+| --- | --- | --- | --- |
+| `13:50:00` | `1` | `single_phase` | — |
+| `13:56:47.635` | `0` | `three_phase` at `13:56:47.628` | 7 ms |
+| `14:00:32.302` | `1` | `single_phase` at `14:00:32.298` | 4 ms |
+| `14:09:48.541` | `0` | `three_phase` at `14:09:48.537` | 4 ms |
+
+Four transitions, each agreeing within seven milliseconds with an unrelated
+second EcoFlow integration reading the same charger through its own code path.
+
+A third line of evidence does not depend on that integration at all. The current
+limit was 16 A, so single-phase draw cannot exceed about 3.7 kW. While field 21
+read `0` the charger drew **9695 W** at 13.83 A per phase, which is three-phase
+(3 × 230 × 13.83 ≈ 9.5 kW) and impossible on one.
+
+So `0` is three-phase and `1` is single-phase.
+
+**The configured-selection encoding is different, and reusing it would have
+inverted the answer.** `_PHASE_MODE_MAP` reads `2` as three-phase and the fast
+settings read `0` as `auto`. Publishing the number raw and waiting for a reading
+is what kept that mistake out of the build; a test now holds the two encodings
+apart by asserting that a value of `2` produces no named reading at all.
+
+Throughout those four transitions the configured selection stayed `auto` and
+`phase_specified_raw` stayed `0`, which settles the premise of Issue #25: the
+effective phase and the configured selection are different facts, and this
+integration had only ever exposed the second one.
+
+| Rule | Covered by |
+| --- | --- |
+| `0` and `1` map to the observed names | `tests/test_parser.py` |
+| The configured encoding is not reused | a value of `2` yields the raw number and no name |
+| A plausible but unmapped value keeps only the raw reading | asserted for `3` and `15` |
+| An out-of-range value publishes neither | the range guard still applies first |
+| The heartbeat never writes the configured selection | unchanged from the raw-value change |
+
+Five tests, checked against two mutations: inverting the mapping fails one, and
+swapping in `_PHASE_MODE_MAP` fails three.
+
+**A naming defect is fixed alongside.** The raw diagnostic read "PowerPulse 2
+PowerPulse 2 Active phase raw value" because its translation repeated the prefix
+the device name already supplies. Note the consequence on an instance that
+already has the entity: its `entity_id` keeps the doubled form, since Home
+Assistant assigns that once. Only the displayed name changes, and a new install
+gets the clean id.
+
+**Not covered: the named sensor observed in place.** The mapping is accepted
+from live data, but `direct_active_phase` itself has not run on the instance.
+It is a lookup on the same raw value whose four transitions were observed, so
+this is a small gap; it should ride along with the next build rather than
+justify one.
+
 ## Automated repository checks
 
 ### Issue #16 functional authentication acceptance

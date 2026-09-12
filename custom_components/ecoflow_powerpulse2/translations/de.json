@@ -106,7 +106,8 @@
       "solar_current_min_raw": {"name": "Solar-Mindeststrom Rohwert"},
       "solar_minimum_current": {"name": "Solar-Mindestladestrom"},
       "switch_bits_raw": {"name": "Einstellungsflags Rohwert"},
-      "direct_active_phase_raw": {"name": "PowerPulse 2 Aktive Phase Rohwert"},
+      "direct_active_phase": {"name": "Aktive Phase"},
+      "direct_active_phase_raw": {"name": "Aktive Phase Rohwert"},
       "phase_specified_raw": {"name": "Ausgewählte Phase Rohwert"},
       "phase_mode": {
         "name": "Phaseneinstellung",

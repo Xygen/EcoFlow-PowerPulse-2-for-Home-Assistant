@@ -331,6 +331,13 @@ SENSORS = (
         entity_registry_enabled_default=False,
     ),
     PowerPulse2SensorDescription(
+        key="direct_active_phase",
+        translation_key="direct_active_phase",
+        required_source="direct",
+        device_class=SensorDeviceClass.ENUM,
+        options=["single_phase", "three_phase"],
+    ),
+    PowerPulse2SensorDescription(
         key="phase_mode",
         setting_observation_key="phase_mode",
         translation_key="phase_mode",

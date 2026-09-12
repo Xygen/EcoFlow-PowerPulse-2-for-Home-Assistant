@@ -113,6 +113,16 @@ progress-qualified extension from the normal 30-second deadline to an absolute
 50-second ceiling. Live acceptance of that implementation remains a release
 gate.
 
+Work on 2026-09-12: Issue #25. The active-phase mapping was established from a
+vehicle session in `auto` mode: four transitions of heartbeat field 21, each
+agreeing within seven milliseconds with an unrelated second integration, and
+corroborated by 9695 W drawn against a 16 A limit. `0` is three-phase and `1` is
+single-phase — the inverse of the configured-selection encoding, which would
+have produced the wrong answer had it been reused. `direct_active_phase` now
+carries the name, the raw diagnostic stays, and its doubled display name is
+fixed. The named sensor has not yet run on the instance. See
+[the validation record](validation.md#unreleased-active-phase-mapping).
+
 Accepted live on 2026-09-12 on `1.0.5-beta.12`, both from one authorized vehicle
 session. Issue #13 is complete: the relay was caught claiming 707 W and 3664 W
 while the charger reported idle, and the qualified sensor read zero through

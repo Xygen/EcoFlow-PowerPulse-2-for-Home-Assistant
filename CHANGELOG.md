@@ -4,6 +4,18 @@ This file records delivered changes and the state of each historical build.
 Current outstanding work is maintained only in
 [the project backlog](docs/backlog.md).
 
+## Unreleased
+
+- Name the charger's active phase. The heartbeat field published as a raw
+  number in beta.10 now also drives a `single_phase` / `three_phase` sensor,
+  from a mapping established by watching four live transitions rather than
+  guessed from the configured-selection encoding, which turns out to be
+  different. The raw diagnostic stays, and a value outside the mapping still
+  publishes only the number.
+- Fix the doubled name on that raw diagnostic, which read "PowerPulse 2
+  PowerPulse 2 Active phase raw value" because the translation repeated the
+  device prefix.
+
 ## 1.0.5-beta.12 - 2026-09-12
 
 Build that lets one vehicle session accept both open control and telemetry
