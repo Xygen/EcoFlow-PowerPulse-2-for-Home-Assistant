@@ -93,13 +93,52 @@ the missing entry instead of failing later with an unexplained `ImportError`.
 
 ## Worktrees belong to the agent that made them
 
-Three worktrees exist under `dist/`, on `codex/issue-19-*` branches. They are
-historical and currently clean. Do not commit into them, rebase, force-push,
-delete or move their branches, and do not repurpose one as scratch space: on
-2026-09-11 a push to `codex/issue-19-stream-timeline` left `timeline-merge`
-stale without anyone noticing. A new item gets a fresh branch and, if needed, a
-fresh worktree under its own owner. Only the owner removes an obsolete one, and
-only after confirming it is no longer needed.
+Several worktrees exist under `dist/`, on `codex/*` branches, left from earlier
+work; their tidying is issue #74 and belongs to their owner. A count is not
+recorded here because the last one was wrong within a day of being written. Do
+not commit into them, rebase, force-push, delete or move their branches, and do
+not repurpose one as scratch space: on 2026-09-11 a push to
+`codex/issue-19-stream-timeline` left `timeline-merge` stale without anyone
+noticing. Only the owner removes an obsolete one, and only after confirming it
+is no longer needed.
+
+New worktrees go under `/.worktrees/`, which is ignored like `dist/` but is not
+the directory `scripts/build_release.ps1` writes releases into. Coupling working
+copies to the release output was safe only because that script happens to touch
+a single file; a future change to it should not be able to cost anyone their
+work.
+
+## The primary checkout belongs to nobody
+
+Both agents work in their own worktrees. The primary checkout remains on `main`
+with a clean tree and is not used for feature work or branch reviews.
+
+```text
+.worktrees/
+  claude/
+    issue-XX/
+    review-YY/
+  codex/
+    issue-ZZ/
+    review-AA/
+```
+
+A review that needs to run another agent's branch takes a temporary worktree
+there and removes it when the review ends. On 2026-09-12 Claude twice checked
+out a `codex/*` branch at the repository root to run the suite and mutation
+checks against it, for pull requests #64 and #68. Nothing broke, only because
+Codex was in its own worktrees at the time; a checkout at the root changes
+`HEAD` for anyone standing in it.
+
+The rule is symmetric on purpose. An earlier draft protected the worktrees from
+checkouts made at the root and left the asymmetry that created the exposure.
+Codex objected in issue #77 that this makes the shared resource safer to use
+rather than unused, and that the asymmetry is itself the problem. The change
+falls mainly on Claude, which had been working at the root.
+
+A fresh worktree has no `.venv`, since that is ignored and lives in the primary
+checkout. Invoke that interpreter by absolute path with the worktree as the
+working directory rather than building a second environment per worktree.
 
 ## Releases have one owner
 

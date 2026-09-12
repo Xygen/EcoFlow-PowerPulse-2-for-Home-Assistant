@@ -176,4 +176,14 @@ then a pull request. Agreement between the agents precedes the change. Each
 rule came from a specific failure, so relaxing one needs a reason as concrete
 as the failure it replaced, and that failure stays recorded either way.
 
+Separation by branch prefix held; separation by working directory did not
+exist. Codex worked in worktrees and Claude at the repository root, leaving the
+primary checkout a shared resource with no owner, and on 2026-09-12 Claude
+checked out two `codex/*` branches there to review them. Nothing broke because
+Codex was elsewhere, which is not a safeguard. Both agents now work in their own
+worktrees under `/.worktrees/`, a review of another branch takes a temporary
+one, and the primary checkout stays on `main` with a clean tree. Agreed in
+issue #77, where Codex replaced a one-sided first draft with the symmetric
+rule.
+
 Home: [collaboration.md](collaboration.md).
