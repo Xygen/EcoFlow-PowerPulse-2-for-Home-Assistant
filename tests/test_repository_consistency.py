@@ -88,6 +88,79 @@ def test_quality_commands_reject_deliberate_failures(tmp_path):
     assert "F821" in result.stdout
 
 
+def _caught_exception_names(node: ast.expr | None) -> set[str]:
+    """Return the exception class names from one except clause."""
+    if isinstance(node, (ast.Name, ast.Attribute)):
+        return {node.id if isinstance(node, ast.Name) else node.attr}
+    if isinstance(node, ast.Tuple):
+        return set().union(*(_caught_exception_names(item) for item in node.elts))
+    return set()
+
+
+def _scan_raised_translation_keys(
+    tree: ast.AST, where: str
+) -> tuple[dict[str, str], list[str]]:
+    """Scan translated errors and reject unsupported key expressions.
+
+    A key must be an inline string literal. The sole dynamic form allowed is
+    ``exc.translation_key`` inside an ``except SmartDeadlineError as exc``
+    handler, because that forwards a key whose literal constructors are also
+    scanned. Names, calls, interpolations and all other attributes are errors.
+    """
+    forwarded_attributes: set[int] = set()
+    for handler in (node for node in ast.walk(tree) if isinstance(node, ast.ExceptHandler)):
+        if (
+            isinstance(handler.name, str)
+            and "SmartDeadlineError" in _caught_exception_names(handler.type)
+        ):
+            forwarded_attributes.update(
+                id(node)
+                for node in ast.walk(handler)
+                if isinstance(node, ast.Attribute)
+                and node.attr == "translation_key"
+                and isinstance(node.value, ast.Name)
+                and node.value.id == handler.name
+            )
+
+    raised: dict[str, str] = {}
+    unsupported: list[str] = []
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Call):
+            continue
+        name = (
+            node.func.attr
+            if isinstance(node.func, ast.Attribute)
+            else getattr(node.func, "id", "")
+        )
+        if not name.endswith("Error"):
+            continue
+        for keyword in node.keywords:
+            if keyword.arg != "translation_key":
+                continue
+            if isinstance(keyword.value, ast.Constant) and isinstance(
+                keyword.value.value, str
+            ):
+                raised[keyword.value.value] = where
+            elif id(keyword.value) not in forwarded_attributes:
+                unsupported.append(
+                    f"{where}:{keyword.value.lineno}: {ast.unparse(keyword.value)}"
+                )
+    return raised, unsupported
+
+
+def test_module_constant_translation_key_is_rejected() -> None:
+    """A missing key hidden behind a module constant must not pass the scan."""
+    tree = ast.parse(
+        'MISSING = "not_declared"\n'
+        "raise HomeAssistantError(translation_key=MISSING)\n"
+    )
+
+    raised, unsupported = _scan_raised_translation_keys(tree, "broken.py")
+
+    assert raised == {}
+    assert unsupported == ["broken.py:2: MISSING"]
+
+
 def test_every_raised_translation_key_exists_under_exceptions() -> None:
     """A translated error with no entry shows the user the key, not a message.
 
@@ -104,18 +177,16 @@ def test_every_raised_translation_key_exists_under_exceptions() -> None:
     )
 
     raised: dict[str, str] = {}
+    unsupported: list[str] = []
     for path in sorted(component.rglob("*.py")):
         tree = ast.parse(path.read_text(encoding="utf-8"))
-        for node in ast.walk(tree):
-            if not isinstance(node, ast.Call):
-                continue
-            name = node.func.attr if isinstance(node.func, ast.Attribute) else getattr(node.func, "id", "")
-            if not name.endswith("Error"):
-                continue
-            for keyword in node.keywords:
-                if keyword.arg == "translation_key" and isinstance(keyword.value, ast.Constant):
-                    raised[keyword.value.value] = str(path.relative_to(root))
+        found, invalid = _scan_raised_translation_keys(
+            tree, str(path.relative_to(root))
+        )
+        raised.update(found)
+        unsupported.extend(invalid)
 
     assert raised, "the scan found no translated exceptions, so it proves nothing"
+    assert not unsupported, f"unsupported translation_key expressions: {unsupported}"
     missing = {key: where for key, where in raised.items() if key not in declared}
     assert not missing, f"translation keys raised but not declared: {missing}"

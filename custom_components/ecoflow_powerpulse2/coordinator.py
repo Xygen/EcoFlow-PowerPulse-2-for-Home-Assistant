@@ -934,6 +934,11 @@ class PowerPulse2Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
             self._remember_smart_settings(serial, parsed)
             updated = dict(self.data or {})
             values = dict(updated.get(serial, {}))
+            if is_heartbeat and "direct_active_phase_raw" not in parsed:
+                # Heartbeat field 21 is optional. A newer heartbeat that omits
+                # it (or contains a rejected value) supersedes the old raw
+                # observation instead of leaving a stale phase visible.
+                values.pop("direct_active_phase_raw", None)
             if parsed.get("work_mode") != "smart":
                 for key in (
                     "ready_by_timestamp",
@@ -1194,12 +1199,22 @@ class PowerPulse2Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
         self._pending_charge_actions.add(serial)
         # The service call is still running, so nothing else refreshes entity
         # availability until it returns.
-        self.async_update_listeners()
+        self._notify_charge_action_listeners()
         try:
             await self._async_set_charging_locked(serial, action)
         finally:
             self._pending_charge_actions.discard(serial)
+            self._notify_charge_action_listeners()
+
+    def _notify_charge_action_listeners(self) -> None:
+        """Refresh action availability without changing control semantics."""
+        try:
             self.async_update_listeners()
+        except Exception:  # pragma: no cover - HA owns third-party listeners
+            # Listener notification is best effort. A broken entity callback
+            # must neither strand the pending marker nor turn a confirmed
+            # device action into a reported failure.
+            _LOGGER.exception("Failed to update charging action availability")
 
     async def _async_set_charging_locked(self, serial: str, action: str) -> None:
         """Publish the charge action once the shared control lock is held."""

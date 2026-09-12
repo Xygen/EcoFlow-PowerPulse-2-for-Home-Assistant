@@ -6,6 +6,15 @@ Current outstanding work is maintained only in
 
 ## Unreleased
 
+- Treat charging-action availability notifications as best effort so a broken
+  listener cannot leave the Start/Stop pending marker set or turn a confirmed
+  device action into a reported failure.
+- Clear the optional active-phase raw diagnostic when a newer charger
+  heartbeat omits field 21 or the parser rejects its value, instead of keeping
+  a stale observation from an older heartbeat.
+- Reject unsupported non-literal translated exception keys in the repository
+  consistency tests, closing a gap where an undeclared key hidden behind a
+  Python name could pass the check.
 - Make both charging buttons unavailable while a Start or Stop is waiting for
   its confirmation, and refuse a second charging action outright rather than
   queueing it behind the first. The confirmation windows, the error reporting
