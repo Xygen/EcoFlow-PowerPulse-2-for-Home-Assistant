@@ -748,6 +748,68 @@ previously observed streams stale for 300 seconds and a 1,800-second cooldown.
 Diagnostics are deployed in beta.5; remaining recovery and vehicle acceptance are
 tracked in the [central backlog](backlog.md).
 
+### Cause established on 2026-09-12 from a `1.0.5-beta.9` overnight capture
+
+Two `unknown` intervals on `sensor.powerpulse_2_qualifizierte_powerocean_ladeleistung`
+were caught by the ring while the integration ran unbroken from 2026-09-11
+15:08 local. Exported before installing beta.10, which cleared it.
+
+**The reconnection hypothesis is refuted for these events.** Every sample through
+both windows carries `connected: true`, and no `mqtt_connection` event appears
+anywhere near either one. The transport did not drop.
+
+| | First | Second |
+| --- | --- | --- |
+| Last heartbeat before | `2026-09-11T22:01:21.021Z` | `2026-09-12T02:40:46.562Z` |
+| Next heartbeat | `22:03:21.150Z` | `02:42:46.698Z` |
+| Interval | 120.13 s | 120.14 s |
+| Sensor `unknown` from | `22:02:51.451Z` | `02:42:18.055Z` |
+| Sensor recovered | `22:03:21.152Z` | `02:42:46.700Z` |
+
+Both recoveries land two milliseconds after the arriving heartbeat, and both
+`unknown` transitions within 1.5 seconds of the ninety-second mark past the
+previous one. The sensor tracks its evidence exactly.
+
+The mechanism is arithmetic, not a fault. The heartbeat cadence is about sixty
+seconds — the five samples after the second event read 2.255, 1.789, 1.587,
+1.356 and 0.930 seconds of age at three-hundred-second intervals, a slow drift
+that only fits a period just under sixty. `_HEARTBEAT_STREAM_FRESH_SECONDS` is
+ninety. One missed heartbeat therefore puts the next at about a hundred and
+twenty seconds, ninety is less than that, and the sensor reports `unknown` for
+the thirty seconds in between.
+
+**The freshness budget tolerates no missed heartbeat at all.** Both events are a
+single skip. Nothing else is involved: not the transport, not the parser, not
+the sensor.
+
+A secondary detail is kept because it constrains any future explanation:
+`settings_age_s` also spiked in both windows, to 30.0 and 33.4 seconds, and
+recovered by itself through `recovery_check: settings_within_stale_limit`. The
+charger appears to pause publishing briefly and resume settings sooner than
+heartbeats.
+
+#### Why the threshold was left alone
+
+Raising it would buy a cosmetic gap at zero watts and pay for it in control
+safety. `_HEARTBEAT_STREAM_FRESH_SECONDS` also gates `heartbeat_stream_active`,
+and so `charge_action_available`, the pre-lock check and the in-lock recheck in
+`_async_set_charging`. A larger budget lets a charging command act on older
+evidence. The observed cost is thirty seconds of `unknown` on an idle charger,
+twice overnight.
+
+Splitting the constant by purpose was considered and rejected, which is worth
+recording because the split is the reflex this project has learned elsewhere.
+It pays when the two purposes want different budgets. Here they do not: during
+an active session the heartbeat carries the charging power, so a charger that
+stops reporting should be noticed sooner rather than later. Both halves want the
+tighter number, and a split where both sides agree is complexity without return.
+
+**The condition under which this should be revisited.** If the same gaps appear
+during an actual charging session, real power readings are lost rather than
+zeros, and the display side then has a genuine claim the control side does not.
+That situation arises on its own at the next vehicle-backed session, so the
+question answers itself if it exists at all.
+
 ## Test principles
 
 - A control is successful only after command acknowledgement **and** a newer
