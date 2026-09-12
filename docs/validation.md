@@ -719,6 +719,75 @@ cable-connected Direct idle, with the active update cadence preserved, still
 needs a real session. The 2026-09-12 session produced the cadence measurement
 above but predates this change.
 
+## Confirmed live on 2026-09-12 on `1.0.5-beta.12`
+
+Performed on the maintainer's instance under explicit authorization, with a
+vehicle connected throughout. Both items were accepted from one session.
+
+### Issue #13: the defect was caught in the act, twice
+
+The cable stayed connected for the whole window. Times are local.
+
+| | |
+| --- | --- |
+| `14:04:36.212` | Stop confirmed, status `charging` to `charge_complete` |
+| `14:04:36.215` | Qualified power reaches `0.0` — **three milliseconds later** |
+| `14:04:36.399` | Raw relay still reports **707 W** |
+| `14:04:38.028` | Raw relay finally reaches `0` |
+
+For 1.8 seconds the relay claimed 707 W while the charger reported itself
+finished. The qualified sensor read zero throughout. It happened again on the
+next transition: at `14:09:41.902` the status became `paused`, the qualified
+value reached `0.0` one millisecond later, and the raw relay went on reporting
+**3664 W** until `14:09:44.143`, another 2.24 seconds.
+
+Those two windows are the fault this issue was opened about — a relay value that
+claims charging power while the charger is idle — observed live and suppressed
+both times. The acceptance criterion asked only for the absence of the symptom;
+this is the mechanism refusing the actual false value.
+
+The rest of the criterion also holds. Between `14:04:36` and `14:07:54`, three
+minutes and eighteen seconds of cable-connected idle produced no oscillation at
+all: the qualified value stayed `0.0` and the raw relay stayed `0`. During
+genuine charging from `14:08:16` the qualified sensor published nine values in
+forty-six seconds with a largest gap of about eleven seconds, so the fast
+cadence survives the qualification.
+
+One detail worth keeping because it shows the contract rather than the outcome:
+between `14:07:54` and `14:08:16` the charger reported `plugged_in`, not
+`charging`, and the qualified value stayed at zero although the relay was
+already reporting. Direct decides whether there is anything to measure.
+
+### Issue #12: three actions, and an honest limit
+
+| Action | Pre-state | SET reply | Outcome | Elapsed |
+| --- | --- | --- | --- | --- |
+| Stop | `charging` | 0.092 s | confirmed, source `direct` | 2.598 s |
+| Start | `charge_complete` | 0.130 s | confirmed, source `direct` | 3.171 s |
+| Stop | `charging` | 0.130 s | confirmed, source `direct` | 2.141 s |
+
+The Start is the interesting one. Its first post-command Direct observation was
+`plugged_in` after 1.474 seconds, the transition the extension keys on, and the
+diagnostics record `progress_extension_granted: true`. **The extension fired on
+real hardware and is recorded as such.**
+
+It was not needed. Confirmation arrived at 3.171 seconds, far inside the normal
+thirty-second window, so this run proves the trigger works and does **not**
+prove that the extension rescues a Start that would otherwise fail. That case
+was observed earlier the same day on `1.0.5-beta.10`, where a Start reached
+`charging` after 45.686 seconds and was reported as a failure at the thirty-second
+gate. The two halves are established on different builds and were not captured
+in one run; forcing a slow Start is not something the charger offers on request.
+
+The measured SET-reply latencies of 0.092 to 0.130 seconds also settle a
+question raised when reviewing the extension: moving the deadline origin from
+after the reply to the moment of dispatch costs about a tenth of a second, not
+the several seconds that would have mattered at this boundary.
+
+The availability behaviour from Issue #11 was visible throughout. Start read
+`unavailable` while the charger was charging, and both buttons went unavailable
+for the duration of each pending action.
+
 ## Automated repository checks
 
 ### Issue #16 functional authentication acceptance

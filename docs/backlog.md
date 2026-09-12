@@ -102,6 +102,17 @@ progress-qualified extension from the normal 30-second deadline to an absolute
 50-second ceiling. Live acceptance of that implementation remains a release
 gate.
 
+Accepted live on 2026-09-12 on `1.0.5-beta.12`, both from one authorized vehicle
+session. Issue #13 is complete: the relay was caught claiming 707 W and 3664 W
+while the charger reported idle, and the qualified sensor read zero through
+both, reaching zero within three and one milliseconds of the status change. Over
+three minutes of cable-connected idle produced no oscillation, and genuine
+charging kept a largest update gap of about eleven seconds. Issue #12 recorded
+three confirmed actions with the progress extension granted on real hardware;
+the extension was not needed on that Start, so the rescue case rests on the
+45.686-second Start observed the same day on beta.10. See
+[the validation record](validation.md#confirmed-live-on-2026-09-12-on-105-beta12).
+
 Work on 2026-09-12: Issue #13, owned by Claude. The PowerOcean charging-power
 reading now has an age of its own, tracked per charger and per reporting
 observer, so a relay that goes quiet during genuine charging reads unknown
