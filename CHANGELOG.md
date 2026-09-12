@@ -4,7 +4,16 @@ This file records delivered changes and the state of each historical build.
 Current outstanding work is maintained only in
 [the project backlog](docs/backlog.md).
 
-## Unreleased
+## 1.0.5-beta.11 - 2026-09-12
+
+Build for the Start deadline validation, raised while a vehicle is available.
+The progress extension needs a deployed build before Issue #12 can be accepted
+at all. Automated coverage passes 474 portable tests, three Home Assistant
+fixture tests, Ruff and the documentation checks. Issue #12 requires a normal
+Start, a delayed Start that uses the extension, and a Stop with a connected
+vehicle; none of that has been observed on this build, and this prerelease
+declares nothing accepted.
+
 
 - Retain the normal 30-second Start confirmation deadline but extend one
   attempt to an absolute 50 seconds when a fresh Direct heartbeat transitions
