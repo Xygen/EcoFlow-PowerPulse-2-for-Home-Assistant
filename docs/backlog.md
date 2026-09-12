@@ -145,6 +145,18 @@ two mutations. The vehicle-backed validation of charging followed by
 cable-connected idle stays open. See
 [the validation record](validation.md#unreleased-relay-power-age).
 
+Work on 2026-09-13: Issue #19 closed. The long-outage scope reopened on
+2026-09-12 is resolved by one event captured end to end on beta.12, with zero
+dropped events. Both MQTT sessions died on keep-alive timeout, reason code 141,
+thirty-six seconds apart, and reconnected on their own backoff after 4 min 33 s
+and 6 min 03 s; the integration's recovery path declined to act while
+disconnected, which is its design. The qualified sensor tracked the event in
+three stages to the second. The EcoFlow app was closed throughout, so app
+activity is not the trigger. No change was made: nothing behaved incorrectly,
+and shortening the reconnect would trade a conservative backoff for a reconnect
+storm against a broker that had just timed us out. See
+[the validation record](validation.md#the-long-outage-classified-on-2026-09-13-from-a-105-beta12-capture).
+
 Work on 2026-09-12: Issue #19 closed as explained rather than fixed. An overnight
 capture on `1.0.5-beta.9` caught both `unknown` intervals with `connected: true`
 on every sample, refuting the reconnection hypothesis. Cadence is about sixty
