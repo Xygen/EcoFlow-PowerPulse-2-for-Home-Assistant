@@ -90,3 +90,14 @@ def test_unknown_states_and_inactive_observations_are_not_retained() -> None:
     assert tracker.snapshot()["active_attempts"][0][
         "first_post_command_powerocean_state"
     ] is None
+
+
+def test_progress_extension_is_recorded_for_the_active_attempt() -> None:
+    tracker = ChargeActionDiagnostics(1)
+    _begin(tracker)
+
+    tracker.record_progress_extension("C376SECRET")
+
+    assert tracker.snapshot()["active_attempts"][0][
+        "progress_extension_granted"
+    ] is True

@@ -871,6 +871,81 @@ async def test_the_marker_clears_after_a_readback_timeout(harness, monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_direct_start_progress_extends_once_to_the_absolute_deadline(
+    harness, monkeypatch
+):
+    c = _ready_to_charge(harness)
+    harness.heartbeat("charge_complete")
+    harness.readback = False
+    monkeypatch.setattr(
+        harness.module, "charge_action_confirm_seconds", lambda action: 0.3
+    )
+    monkeypatch.setattr(
+        harness.module, "charge_action_progress_confirm_seconds", lambda action: 0.8
+    )
+    loop = asyncio.get_running_loop()
+    loop.call_later(0.05, harness.heartbeat, "plugged_in")
+    loop.call_later(0.55, harness.heartbeat, "charging")
+
+    await c.async_start_charging(SERIAL)
+
+    attempt = c.charge_action_readback["recent_attempts"][-1]
+    assert attempt["outcome"] == "confirmed"
+    assert attempt["confirmation_source"] == "direct"
+    assert attempt["progress_extension_granted"] is True
+
+
+@pytest.mark.asyncio
+async def test_repeated_pre_command_plugged_in_does_not_extend(
+    harness, monkeypatch
+):
+    c = _ready_to_charge(harness)
+    harness.readback = False
+    monkeypatch.setattr(
+        harness.module, "charge_action_confirm_seconds", lambda action: 0.3
+    )
+    monkeypatch.setattr(
+        harness.module, "charge_action_progress_confirm_seconds", lambda action: 0.8
+    )
+    asyncio.get_running_loop().call_later(
+        0.05, harness.heartbeat, "plugged_in"
+    )
+
+    with pytest.raises(HAError, match="did not confirm the charging state"):
+        await c.async_start_charging(SERIAL)
+
+    attempt = c.charge_action_readback["recent_attempts"][-1]
+    assert attempt["outcome"] == "readback_timeout"
+    assert attempt["progress_extension_granted"] is False
+
+
+@pytest.mark.asyncio
+async def test_direct_start_progress_still_fails_at_the_absolute_deadline(
+    harness, monkeypatch
+):
+    c = _ready_to_charge(harness)
+    harness.heartbeat("charge_complete")
+    harness.readback = False
+    monkeypatch.setattr(
+        harness.module, "charge_action_confirm_seconds", lambda action: 0.3
+    )
+    monkeypatch.setattr(
+        harness.module, "charge_action_progress_confirm_seconds", lambda action: 0.6
+    )
+    asyncio.get_running_loop().call_later(
+        0.05, harness.heartbeat, "plugged_in"
+    )
+
+    with pytest.raises(HAError, match="did not confirm the charging state"):
+        await c.async_start_charging(SERIAL)
+
+    attempt = c.charge_action_readback["recent_attempts"][-1]
+    assert attempt["outcome"] == "readback_timeout"
+    assert attempt["progress_extension_granted"] is True
+    assert 0.6 <= attempt["elapsed_seconds"] < 1
+
+
+@pytest.mark.asyncio
 async def test_the_marker_clears_after_a_publish_exception(harness):
     c = _ready_to_charge(harness)
 

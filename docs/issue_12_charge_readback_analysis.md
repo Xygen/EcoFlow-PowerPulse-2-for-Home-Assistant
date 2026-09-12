@@ -1,10 +1,10 @@
 # Issue #12 charge-action readback analysis
 
 Status: implementation step 1 (source correctness and diagnostics) is
-released, statically tested, and live-validated with two reversible Start/Stop
-pairs. The diagnostic export contains completed records for both actions. The
-only remaining evidence gap is another delayed Start near the 30-second gate
-before any deadline-policy change is considered.
+released, statically tested, and live-validated. Five Start attempts captured
+on 2026-09-12 include two false negatives at the 30-second gate and support the
+bounded progress policy implemented in step 2. Live validation of that new
+policy on a beta build remains pending.
 
 Issue: [#12 Avoid false-negative Start/Stop failures when direct readback arrives late](https://github.com/Xygen/EcoFlow-PowerPulse-2-for-Home-Assistant/issues/12)
 
@@ -17,6 +17,13 @@ status is a useful success fallback. In every comparable transition recorded
 that day, the source-qualified PowerOcean MQTT status followed the Direct
 status by roughly 0.6 to 1.7 seconds.
 
+The 2026-09-12 vehicle session reproduced the delayed path twice. One Start
+reached `charging` roughly 33 seconds after dispatch, and another reached it
+after 45.686 seconds. Both first produced a fresh Direct transition to
+`plugged_in`. Three other Starts confirmed within 23.083 seconds. This evidence
+supports retaining 30 seconds as the normal deadline and granting one extension
+to an absolute 50 seconds only after that qualified Direct progress signal.
+
 The analysis also found a more important source-consistency defect. Charge
 availability and confirmation combine `_last_heartbeat_at`, which belongs to
 Direct CP307 heartbeat `2/33`, with the canonical `charging_status`. That
@@ -28,8 +35,8 @@ Recommended order:
 
 1. make Direct charge evidence source-atomic and use it for availability;
 2. add privacy-safe per-action timing diagnostics;
-3. use post-command transitional evidence only to grant a bounded Start
-   extension, not as success;
+3. use a fresh post-command Direct transition to `plugged_in` only to grant a
+   bounded Start extension, not as success;
 4. evaluate PowerOcean as an independent success source only if a future
    capture shows that it can lead or replace missing Direct evidence safely.
 
@@ -70,8 +77,8 @@ Implemented locally:
 - expose the records in the Home Assistant diagnostic download under
   `charge_action_readback`.
 
-`progress_extension_granted` is present but remains `false` until a later
-implementation slice explicitly adds and validates that policy.
+`progress_extension_granted` records whether the step 2 policy extended the
+attempt. It remains `false` for attempts made by releases before step 2.
 
 Validated on 2026-09-06 after a clean integration lifetime:
 
@@ -83,9 +90,28 @@ Validated on 2026-09-06 after a clean integration lifetime:
   observations, outcome, and elapsed time without treating PowerOcean as
   confirmation.
 
-The normal-latency samples do not justify a deadline-policy change. A new
-delayed Start near the existing 30-second gate is still required to assess a
-bounded progress extension.
+Those first normal-latency samples did not justify a deadline-policy change.
+The later 2026-09-12 session supplied the required delayed samples described
+below.
+
+### 2026-09-12 deadline evidence
+
+Five Start attempts on `v1.0.5-beta.10` produced these Direct confirmation
+timings:
+
+| Attempt | Result at the 30 s gate | Final Direct result | Assessment |
+| --- | --- | --- | --- |
+| 1 | Confirmed | `charging` after 9.858 s | Normal path |
+| 2 | Confirmed | `charging` after 13.437 s | Normal path |
+| 3 | Confirmed | `charging` after 23.083 s | Normal path |
+| 4 | Readback timeout after 30.247 s | `charging` roughly 3 s later | False negative covered by the extension |
+| 5 | Readback timeout after 30.242 s | `charging` after 45.686 s | False negative; demonstrates that 45 s is insufficient |
+
+Both delayed attempts had a fresh post-command Direct transition from a
+different pre-command state to `plugged_in`. That transition is useful as
+progress evidence but is not a successful Start outcome. A separate attempt
+without a correlated SET reply timed out at the transport gate and did not
+qualify for an extension.
 
 ### Live validation correction: button-state semantics
 
@@ -258,22 +284,19 @@ until their per-key source and post-command freshness can be demonstrated.
 
 ### 3. Bounded progress extension for Start
 
-Retain 30 seconds as the normal Start window. If a source-qualified,
-post-command transition proves progress but not final success, allow one bounded
-extension to an absolute deadline such as 45 seconds.
+Retain 30 seconds as the normal Start window. Grant one extension to an
+absolute deadline of 50 seconds only when a fresh, source-qualified Direct
+heartbeat transitions from a different pre-command state to `plugged_in`.
 
-Candidate progress states:
+`plugged_in` remains a progress state and cannot itself return success. Without
+that transition, the operation still fails at the normal 30-second boundary.
+Stop retains its independent 15-second deadline. A missing correlated SET reply
+also fails before readback and can never receive the extension.
 
-- Direct `plugged_in` only when it is a post-command transition from a different
-  pre-command state;
-- PowerOcean `preparing` only as post-command, exact-serial progress evidence.
-
-Neither state may itself return success. With no post-command progress, the
-operation still fails at the normal 30-second boundary. This would have covered
-Start B without delaying the earlier no-new-heartbeat failure case.
-
-The exact 45-second ceiling is a design candidate, not yet a validated constant.
-It should be confirmed with several bounded Start samples.
+The 50-second ceiling covers the longest observed confirmation at 45.686
+seconds with a bounded margin. The earlier 45-second candidate is too short for
+that measured attempt. PowerOcean `preparing` remains diagnostic evidence and
+does not grant the extension.
 
 ### 4. PowerOcean success fallback remains conditional
 
@@ -319,7 +342,7 @@ Required unit cases:
 - a new Direct accepted state confirms immediately;
 - a repeated same-state heartbeat is still a new observation where that state
   is an accepted outcome;
-- PowerOcean `preparing` can extend Start but cannot confirm it;
+- PowerOcean `preparing` cannot extend or confirm Start;
 - Direct `plugged_in` only extends when it is a real post-command transition;
 - an extension is granted at most once and respects an absolute deadline;
 - stale or wrong-serial PowerOcean data is rejected;
@@ -338,13 +361,15 @@ Required bounded live validation:
 
 ## Proposed implementation slices
 
-1. **Source correctness and diagnostics** — implemented locally: Direct-based
+1. **Source correctness and diagnostics** — released and live-validated:
+   Direct-based
    availability, source-coupled confirmation, pure helper tests, and bounded
-   attempt records. No timeout or success-policy change. Live validation is
+   attempt records. No success-source policy change.
+2. **Start progress extension** — implemented with a 30-second normal deadline,
+   a single qualified Direct progress trigger, and an absolute 50-second
+   ceiling. Static tests cover success, ineligible progress, and timeout at the
+   extended deadline. Beta deployment and live vehicle validation remain
    pending.
-2. **Start progress extension** — implement only after the new diagnostics
-   confirm the transition timing; retain the absolute ceiling and fail-closed
-   result.
 3. **Optional PowerOcean success fallback** — defer until a live case shows an
    actual benefit and validates conflict handling.
 

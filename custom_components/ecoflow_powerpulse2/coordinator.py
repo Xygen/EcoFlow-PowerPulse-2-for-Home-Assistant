@@ -26,8 +26,10 @@ from .auth_classification import (
 from .charge_control import (
     charge_action_allowed,
     charge_action_confirm_seconds,
+    charge_action_progress_confirm_seconds,
     direct_charging_status,
     fresh_direct_charge_action_confirmed,
+    fresh_direct_start_progress_observed,
 )
 from .charge_diagnostics import ChargeActionDiagnostics
 from .const import (
@@ -440,6 +442,9 @@ class PowerPulse2Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
         return {
             "set_reply_timeout_seconds": _CHARGE_ACTION_SET_REPLY_SECONDS,
             "start_confirmation_timeout_seconds": charge_action_confirm_seconds(
+                "start"
+            ),
+            "start_progress_timeout_seconds": charge_action_progress_confirm_seconds(
                 "start"
             ),
             "stop_confirmation_timeout_seconds": charge_action_confirm_seconds("stop"),
@@ -1292,7 +1297,11 @@ class PowerPulse2Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
                     observed_monotonic=time.monotonic(),
                 )
 
-                deadline = time.monotonic() + charge_action_confirm_seconds(action)
+                deadline = issued_at + charge_action_confirm_seconds(action)
+                progress_deadline = (
+                    issued_at + charge_action_progress_confirm_seconds(action)
+                )
+                progress_extension_granted = False
                 while time.monotonic() < deadline:
                     reported_at = self._last_heartbeat_at.get(serial, 0)
                     if fresh_direct_charge_action_confirmed(
@@ -1308,6 +1317,21 @@ class PowerPulse2Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
                             completed_monotonic=time.monotonic(),
                         )
                         return
+                    if (
+                        not progress_extension_granted
+                        and fresh_direct_start_progress_observed(
+                            action,
+                            (self.data or {}).get(serial, {}),
+                            heartbeat_reported_at=reported_at,
+                            issued_at=issued_at,
+                            pre_direct_state=status,
+                        )
+                    ):
+                        deadline = progress_deadline
+                        progress_extension_granted = True
+                        self._charge_action_diagnostics.record_progress_extension(
+                            serial
+                        )
                     await asyncio.sleep(0.25)
                 self._charge_action_diagnostics.finish(
                     serial,
