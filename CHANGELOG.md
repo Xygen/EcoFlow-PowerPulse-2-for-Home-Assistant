@@ -4,7 +4,7 @@ This file records delivered changes and the state of each historical build.
 Current outstanding work is maintained only in
 [the project backlog](docs/backlog.md).
 
-## Unreleased
+## 1.0.5 - 2026-09-14
 
 `1.0.5` collects fourteen test builds made since `1.0.4`. It is a large release,
 and it is recommended for everyone on `1.0.4`, chiefly for its charging-control
