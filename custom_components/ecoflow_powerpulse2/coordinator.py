@@ -1325,6 +1325,7 @@ class PowerPulse2Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
                         (self.data or {}).get(serial, {}),
                         heartbeat_reported_at=reported_at,
                         issued_at=issued_at,
+                        pre_direct_state=status,
                     ):
                         self._charge_action_diagnostics.finish(
                             serial,

@@ -46,10 +46,27 @@ def fresh_direct_charge_action_confirmed(
     *,
     heartbeat_reported_at: float,
     issued_at: float,
+    pre_direct_state: object,
 ) -> bool:
-    """Return whether one newer Direct heartbeat confirms the requested action."""
-    return heartbeat_reported_at > issued_at and charge_action_confirmed(
-        action, direct_charging_status(values)
+    """Return whether a newer Direct heartbeat shows the action took effect.
+
+    A confirmation state is only evidence when the charger reached it. `paused`
+    is both a state a Start may be issued from and a state that confirms one,
+    so a Start sent while paused and ignored by the charger would otherwise read
+    back `paused` and pass — decided by whether a periodic heartbeat happened to
+    land in the window, not by whether the command did anything. Requiring the
+    state to have changed closes that without touching any real transition:
+    `paused` to `charging` still confirms a resume.
+
+    The same-state case is reachable only where an action's allowed pre-states
+    meet its confirmation states. For Start that is `paused` alone; for Stop the
+    two sets are disjoint and the extra condition never rejects anything.
+    """
+    current = direct_charging_status(values)
+    return (
+        heartbeat_reported_at > issued_at
+        and charge_action_confirmed(action, current)
+        and current != pre_direct_state
     )
 
 
