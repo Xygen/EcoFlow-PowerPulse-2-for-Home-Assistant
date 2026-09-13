@@ -4,6 +4,76 @@ This file records delivered changes and the state of each historical build.
 Current outstanding work is maintained only in
 [the project backlog](docs/backlog.md).
 
+## Unreleased
+
+`1.0.5` collects fourteen test builds made since `1.0.4`. It is a large release,
+and it is recommended for everyone on `1.0.4`, chiefly for its charging-control
+and sign-in fixes. **If you have automations that watch the charging buttons or
+the qualified charging-power sensor, read the next section before updating.**
+
+### Changes you will notice
+
+- **The Start and Stop buttons become unavailable while an action is waiting for
+  the charger to confirm it** — up to 30 seconds for a Start, up to 50 when the
+  charger is visibly progressing, and up to 15 for a Stop. A second press during
+  that time is refused rather than queued behind the first. Automations that watch
+  button availability will see these intervals.
+- **A Start is reported successful only when the charger's state actually
+  changes.** A Start sent while the charger is already paused, which leaves it
+  paused — typical in Solar mode without surplus — now fails with a message saying
+  the charger was already paused and showed no change. `1.0.4` could report such a
+  Start as successful when a routine status message happened to arrive in time.
+- **The qualified PowerOcean charging-power sensor reads `unknown` when its value
+  stops arriving during charging**, instead of holding the last figure. An idle
+  charger still reads 0 W.
+- **A Smart plan whose ready-by time has already passed, or lies more than a year
+  ahead, is refused** instead of being sent to the charger. The saved draft is kept
+  and its deadline is never moved forward for you.
+- **A refused EcoFlow sign-in now opens Home Assistant's re-authentication
+  dialog** instead of retrying indefinitely. Repairing it keeps your entity IDs,
+  history, enabled controls and saved Smart drafts. A temporary outage still retries
+  on its own.
+
+### New
+
+- **Active phase** sensor, reporting whether the charger is currently charging on a
+  single phase or on three. It is separate from the configured phase selection,
+  which can stay `auto` while the charger switches underneath it. A raw diagnostic
+  of the underlying value is available, disabled by default.
+- **Stream timeline** in the integration diagnostics, recording MQTT connection
+  changes, recovery decisions and report ages, for investigating dropouts.
+
+### Fixed
+
+- **Charging control.** A Start that the charger confirms late — up to 50 seconds
+  when it is visibly progressing — is no longer reported as a failure. Charging
+  state, freshness, mode and connection are rechecked after the command lock is
+  acquired, so a queued command cannot act on a state that has changed. A setting
+  is confirmed only by a report that actually contains that setting, from the
+  expected source, after the command. A failing Home Assistant listener can no
+  longer leave the charging buttons stuck unavailable.
+- **Sign-in and certificates.** An expired MQTT certificate is replaced and handed
+  to the running connections. The broker address is taken from EcoFlow's response
+  rather than a fixed value, since a renewed certificate can name a different
+  server. A successful sign-in followed by a refused certificate request no longer
+  triggers a false re-authentication.
+- **Smart plans.** A charger report with one unusable field — such as the zero
+  energy target reported alongside a distance target — no longer discards the rest
+  of the report, so the saved draft keeps tracking the charger.
+
+### Known limits
+
+- Two cases have not been observed on a real charger, though both are covered by
+  tests: a Start from `paused` that resumes to `charging`, and the Active phase
+  sensor reporting three-phase. The underlying three-phase value itself was observed.
+- Why the PowerOcean relay reports false non-zero values while the charger is idle
+  is still unexplained. The qualified sensor refuses them; the raw PowerOcean sensor
+  still shows them.
+- A long MQTT disconnect is recovered by the connection's own reconnect backoff,
+  observed at four to six minutes; the integration does not force a faster reconnect.
+
+Detailed notes for each test build follow below.
+
 ## 1.0.5-beta.14 - 2026-09-13
 
 Build for validating Issue #81. It tightens charge confirmation so an unchanged
