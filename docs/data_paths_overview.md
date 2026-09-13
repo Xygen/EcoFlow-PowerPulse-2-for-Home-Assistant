@@ -45,6 +45,7 @@ mapping yet.
 | Solar minimum current | — | — | `1.4.8.6`; `70` = 7 A and `60` = 6 A | `paramSet.solarCurrentMin` |
 | Custom/user current | — | — | `1.4.8.8`; `60` = 6 A and `110` = 11 A | `paramSet.userCurrentSet` |
 | Phase selection | — | Field `11`: `1` one phase, `2` three phase, `3` auto; separately diagnosed, not yet a write-confirmation source | `1.4.8.7`: `0` auto, `1` one phase, `2` three phase; authoritative while fresh | `paramSet.phaseSpecified`: `0` auto, `1` one phase, `2` three phase; source-qualified fallback with exact raw validation and transition-based post-write confirmation |
+| Active phase | Field `21`: `0` three phase, `1` single phase; what the charger is doing now, independent of the selection | — | — | — |
 | Plug-and-Play | — | Field `2`: `0`/`1` | Bit `0x02` in `1.4.8.1`; confirmed by `16 -> 18 -> 16` | Bit `0x02` in `paramSet.switchBits` |
 | LED enabled | — | Field `13`: `0`/`1` | `1.4.8.21`, byte 1: `0`/`1` | — |
 | LED brightness | — | Field `14`, percent | `1.4.8.21`, byte 3: `25`/`50`/`75`/`100` | — |
@@ -133,12 +134,23 @@ genuine charging. On 2026-09-05/06, however, a plugged-in, Direct-idle window
 held Direct status at `charge_complete`, Direct power at `0 W`, and
 `allocatedPower` at `0 W`, while the raw relay reports alternated between
 `0`, `1352`, and `4380 W` alongside `finishing`/`charging` labels. The exact
-relay-field semantics remain under investigation in
-[`ISSUE-13`](https://github.com/Xygen/EcoFlow-PowerPulse-2-for-Home-Assistant/issues/13).
+relay-field semantics are still unexplained; the question is deliberately
+untracked, as recorded in the [backlog](backlog.md).
 
 `Qualified PowerOcean – Charging power` preserves the fast raw value only when
-a fresh Direct heartbeat reports `charging`; it yields `0 W` for a fresh Direct
-idle state and `unknown` when Direct qualification is unavailable. The existing
+a fresh Direct heartbeat reports `charging` **and** the relay power value is itself
+recent; it yields `0 W` for a fresh Direct idle state and `unknown` when either
+qualification is unavailable.
+
+Since `1.0.5` the two ages are tracked independently. The relay value is timed
+when a report actually carries it, per charger and per reporting observer, so a
+status-only report cannot refresh it and one observer cannot qualify another
+charger's data. During charging a relay value older than 120 seconds reads
+`unknown`. Idle is still decided by Direct alone: a fresh Direct idle state needs
+no relay report of any age to yield `0 W`. Accepted live on 2026-09-12 on
+`1.0.5-beta.12`, where the relay reported 707 W and 3664 W while Direct reported
+idle and the qualified value stayed at `0 W`; see
+[validation](validation.md#live-session-on-2026-09-12-on-105-beta12). The existing
 PowerOcean power/status entities remain raw source-qualified observations for
 diagnostics and comparison.
 
