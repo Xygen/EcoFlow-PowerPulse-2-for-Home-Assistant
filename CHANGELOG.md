@@ -4,7 +4,14 @@ This file records delivered changes and the state of each historical build.
 Current outstanding work is maintained only in
 [the project backlog](docs/backlog.md).
 
-## Unreleased
+## 1.0.5-beta.14 - 2026-09-13
+
+Build for validating Issue #81. It tightens charge confirmation so an unchanged
+state no longer passes as a confirmed action, and makes the one case that still
+cannot be confirmed say why. Automated coverage passes 503 portable tests, three
+Home Assistant fixture tests, Ruff and the documentation checks. Neither change
+has run on an instance, and this prerelease declares nothing observed.
+
 
 - Confirm a Start or Stop only when the charger's state actually changed. A
   Start sent while the charger was already paused, and ignored by it, would
