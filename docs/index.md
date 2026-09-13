@@ -39,6 +39,7 @@ must not be read as the current product contract.
 | Start/Stop readback and timeout analysis | [Issue #12 analysis](issue_12_charge_readback_analysis.md) |
 | Bounded stream timeline: first readings, and the captured stall | [2026-09-11 observation](stream_timeline_observation_2026-09-11.md) |
 | Authentication failure and re-authentication analysis | [Issue #16 analysis](issue_16_auth_analysis.md) |
+| Dated backlog entries from the 2026-09-10 to 2026-09-13 completion phase | [Completion log](backlog_completion_log_2026-09.md) |
 
 ## Documentation status and resolved contradictions
 
