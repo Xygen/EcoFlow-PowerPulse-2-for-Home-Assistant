@@ -1299,6 +1299,45 @@ fails the two resume tests — and the coordinator test takes thirty-eight secon
 to do it, because the resume times out instead of confirming, which is exactly
 what a user would have seen.
 
+### Step 2: the remaining failure names what happened
+
+After step 1, a Start from `paused` that stays `paused` fails consistently rather
+than by chance. Direct genuinely has no evidence either way, so failing closed is
+right — but the message it raised, "fresh device readback did not confirm the
+charging state", described a malfunction. The charger ended where it began, in a
+state that would have confirmed the action had it been reached.
+
+At the deadline the coordinator now compares the final Direct state with the
+pre-command state. When they match and that state is one of the action's own
+confirmation states, it raises "The charger was already paused and showed no
+change after the command, so the start could not be confirmed", and records the
+attempt as `unchanged_state` rather than `readback_timeout`. The distinct outcome
+matters for acceptance: a live capture can now tell this case from a genuine
+timeout without cross-referencing the recorder.
+
+The condition is the same intersection as step 1, so it is reachable only for a
+Start from `paused` and never for a Stop.
+
+| Rule | Covered by |
+| --- | --- |
+| The unchanged case raises the honest message and records `unchanged_state` | the coordinator transaction |
+| A genuine Start timeout keeps the original message and `readback_timeout` | a Start from `plugged_in` that stays `plugged_in` |
+
+Checked against two mutations. With the new branch never taken, the
+unchanged-state test fails. With it always taken, four tests fail — the new
+genuine-timeout guard and two existing progress-extension tests among them — so
+the honest message cannot silently swallow real timeouts, and that is guarded by
+more than the test written alongside it.
+
+**A timing fragility seen during this work, not caused by it.** One full run
+failed `test_direct_start_progress_extends_once_to_the_absolute_deadline`. Ten
+further full runs, five with this change and five without it on `origin/main`,
+all passed, and the change touches only the branch after the confirmation loop.
+The test grants its extension from a heartbeat at 0.05 s that a 0.25 s poll must
+observe before a 0.3 s deadline, which leaves roughly thirty milliseconds of
+margin under load. It is recorded here as a pre-existing fragility rather than
+fixed in passing.
+
 **Deliberately conservative, and not yet observed live.** A Start from `paused`
 that passes through another state and returns to `paused` now times out, since
 its final state matches where it began. The intermediate transition is arguably

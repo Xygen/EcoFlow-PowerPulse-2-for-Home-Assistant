@@ -26,6 +26,7 @@ from .auth_classification import (
 from .charge_control import (
     charge_action_allowed,
     charge_action_confirm_seconds,
+    charge_action_confirmed,
     charge_action_progress_confirm_seconds,
     direct_charging_status,
     fresh_direct_charge_action_confirmed,
@@ -1350,11 +1351,28 @@ class PowerPulse2Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
                             serial
                         )
                     await asyncio.sleep(0.25)
+                final_state = direct_charging_status((self.data or {}).get(serial, {}))
+                # The charger ended where it began, in a state that would
+                # confirm this action had it been reached. There is no evidence
+                # the command did anything, and none that it failed: Direct
+                # simply cannot tell. Saying "readback did not confirm" there
+                # reads as a malfunction, so the message names what happened
+                # instead. It still fails closed. Reachable only where an
+                # action's allowed and confirming states meet — `paused` for
+                # Start, never for Stop.
+                unchanged = final_state == status and charge_action_confirmed(
+                    action, status
+                )
                 self._charge_action_diagnostics.finish(
                     serial,
-                    outcome="readback_timeout",
+                    outcome="unchanged_state" if unchanged else "readback_timeout",
                     completed_monotonic=time.monotonic(),
                 )
+                if unchanged:
+                    raise HomeAssistantError(
+                        f"The charger was already {status} and showed no change "
+                        f"after the command, so the {action} could not be confirmed"
+                    )
                 raise HomeAssistantError(
                     "EcoFlow acknowledged the command, but fresh device readback did "
                     "not confirm the charging state"
