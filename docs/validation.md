@@ -1345,6 +1345,52 @@ evidence the command had an effect; treating it as confirmation would be a
 further relaxation, and is left to the second step of Issue #81 rather than
 decided here. The change has not run on an instance.
 
+## The unfounded confirmation, observed and refused on `1.0.5-beta.14`
+
+Performed on 2026-09-13 under the maintainer's authorization, vehicle connected,
+Solar mode. Captured from `data.charge_action_readback`.
+
+| Action | Issued (UTC) | Pre-state | SET reply | First Direct | Outcome | Elapsed |
+| --- | --- | --- | --- | --- | --- | --- |
+| Stop, not issued by Claude | `14:54:25.408` | `charging` | 0.328 s | `charge_complete` 2.271 s | confirmed | 2.341 s |
+| Start | `14:57:44.809` | `charge_complete` | 0.096 s | `plugged_in` 0.692 s | confirmed | 13.171 s |
+| Start, first try | `14:58:24.024` | `paused` | timeout | — | `set_reply_timeout` | 5.005 s |
+| **Start, retry** | `15:00:57.559` | `paused` | 0.060 s | **`paused` 0.336 s** | **`unchanged_state`** | 30.175 s |
+
+The Home Assistant error log carries the new message verbatim.
+
+**The retry is the case Issue #81 was about.** A fresh Direct heartbeat showing
+`paused` arrived 0.336 seconds after dispatch — newer than the command, and a
+state in `_START_CONFIRMED_STATUSES`. Under the rule before PR #83 it confirms the
+Start then. The charger stayed paused and charged nothing. What #81 had described
+as a latent false positive, returnable by the function but never seen, occurred:
+a periodic heartbeat landed inside the window. beta.14 refused it because the
+state had not changed, waited out the window, and raised the message naming what
+happened.
+
+Both halves of the change are therefore observed rather than only tested. Step 1
+refused an unfounded confirmation that would otherwise have fired; step 2
+produced the honest message and the `unchanged_state` outcome, which is what let
+this row be identified from diagnostics alone. The two real transitions in the
+same capture — a Start ending in `paused` and a Stop from `charging` — still
+confirmed.
+
+**Not observed: a Start from `paused` that resumes to `charging`.** It needs solar
+surplus or a mode change that would actually charge, and was not performed. The
+maintainer closed #81 without it, on the grounds that this is the transition whose
+behaviour the change did not alter — it confirmed before PR #83 and confirms
+after — and that the mutation substituting the rule first proposed for #81 fails
+exactly those resume tests. Recorded as the maintainer's decision, so a later
+reader does not take the resume case as live-accepted.
+
+**Recorded separately.** The first `paused` Start was never acknowledged and
+failed closed at the reply gate after five seconds, before confirmation could
+begin. It was sent 26 seconds after the previous Start completed, while the
+recorder shows a brief `unknown` as the charger settled; the retry two and a half
+minutes later was acknowledged in 60 milliseconds, and a Solar-paused Start
+earlier the same day in 93. One occurrence with no evidence of a pattern, so it
+is noted rather than raised.
+
 ## Test principles
 
 - A control is successful only after command acknowledgement **and** a newer
