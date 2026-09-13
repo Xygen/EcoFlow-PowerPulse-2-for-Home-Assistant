@@ -15,7 +15,7 @@ Any upstream proposal must follow the upstream maintainer's chosen architecture.
 This integration's direct C376 MQTT path with bounded PowerOcean HTTP fallback
 is project evidence, not a prescription for another repository.
 
-Current implementation baseline: `1.0.4`.
+Current implementation baseline: `1.0.5`.
 
 ## Merge and release gates
 
@@ -44,7 +44,7 @@ lesender MCP-Prüfung der verbundenen Home-Assistant-Instanz.
 
 | ID | Priority | Open work | Completion evidence |
 | --- | --- | --- | --- |
-| [`ISSUE-12`](https://github.com/Xygen/EcoFlow-PowerPulse-2-for-Home-Assistant/issues/12) | High | A bounded Start progress extension is implemented and statically tested after two reproduced false negatives. Retain the 30-second normal deadline; extend once to an absolute 50 seconds only after a fresh Direct transition from a different pre-state to `plugged_in`. PowerOcean remains diagnostic-only. | On a beta build, live-confirm one normal Start, one delayed Start that uses the extension, and one Stop. Diagnostics must show the extension only for qualified progress; stale/same-state progress, SET-reply failure, ambiguous readback, and the 50-second ceiling remain fail-closed. |
+| [`ISSUE-86`](https://github.com/Xygen/EcoFlow-PowerPulse-2-for-Home-Assistant/issues/86) | Medium | Keep Start and Stop button availability stable across ordinary charging-state changes, moving the state check from entity availability into the existing command guard, which already refuses an invalid action before publish. The pending-action interlock from #11 must stay. **Undecided:** whether a stale Direct heartbeat also leaves availability — under the #19 finding a single missed heartbeat makes it stale for about thirty seconds, so keeping it there would reintroduce the churn this item removes. | Charge-state changes alone do not change button availability; an invalid Start or Stop is refused before publish with a message naming the state; tests prove no command is published; the pending interlock and genuine loss of control still make both buttons unavailable; release notes describe the change for automations that watch these entities. |
 
 ## Telemetry and protocol research
 
@@ -409,20 +409,14 @@ Kompatible Sicherheitskorrekturen sollen nicht bis zum Major-Release warten.
 
 | ID | Prio / Aufwand | Verbesserung und Grundlage | Abnahmekriterium |
 | --- | --- | --- | --- |
-| [V2-SAFE-01](https://github.com/Xygen/EcoFlow-PowerPulse-2-for-Home-Assistant/issues/14) | P1 / M | Ladezustand, Modus, Datenfrische und Transport unmittelbar vor Publish innerhalb der Befehlssperre erneut prüfen. Begleitwerte/Bitmasken erst dort aus qualifizierter Evidenz zusammenstellen. F01. | Wartender Befehl wird nach zwischenzeitlichem Ladebeginn, Moduswechsel oder Frischeverlust vor Publish abgelehnt; zwei parallele Display-/Flag-Änderungen überschreiben keine unabhängige Einstellung. Tests auf tatsächlichem Coordinator-Pfad. |
-| [V2-SAFE-02](https://github.com/Xygen/EcoFlow-PowerPulse-2-for-Home-Assistant/issues/15) | P1 / L | Allgemeine Bestätigung und Provider-No-op an Wert, exakte Quelle und Feldzeitpunkt koppeln; widersprechendes Direct-Readback berücksichtigen. F02. | Neuer Bericht ohne Zielfeld bestätigt keinen alten Wert; Provider im Ziel bei widersprechendem Direct verhindert keinen notwendigen SET und meldet keinen Scheinerfolg. Teilberichte, Konflikte und alle bestehenden Control-Familien getestet. |
-| [V2-DATA-01](https://github.com/Xygen/EcoFlow-PowerPulse-2-for-Home-Assistant/issues/13) | P1 / M | Eigene Frische und Serienzuordnung für PowerOcean-Leistung; einheitlicher Vertrag für flüchtige Telemetrie und Lade-Binary-Sensor. Auf vorhandener Feldbeobachtung aufbauen. F03. | Frisches Direct `charging` plus alte/fehlende PowerOcean-Leistung ergibt `unknown`; fremder Observer macht keine Quelle gültig. Status ohne Evidenz wird nicht als gesichert „aus“ ausgegeben. Zähler dürfen separat als letzter bekannter Stand behandelt werden, wenn ausdrücklich gekennzeichnet. |
-| [V2-QA-01](https://github.com/Xygen/EcoFlow-PowerPulse-2-for-Home-Assistant/issues/17) | P1 / S | Bestehende pytest- und Ruff-Prüfung in CI aufnehmen; Versions-, Übersetzungs- und lokale Linkkonsistenz ergänzen. F05/F08. | PR mit fehlschlagendem bestehenden Test, Lintfehler oder fehlendem Übersetzungsschlüssel scheitert im Workflow; Release-Gate referenziert genau diesen Commit. HACS/Hassfest bleiben erhalten. |
-| [V2-DOC-01](https://github.com/Xygen/EcoFlow-PowerPulse-2-for-Home-Assistant/issues/20) | P1 / S | README, Index und User Guide an 1.0.4, lokale Smart-Entwürfe und rohe/qualifizierte Leistung angleichen; DATA-03-Text und fehlenden `strings.json`-Schlüssel korrigieren. F08. | Alle aktuellen Einstiegspunkte beschreiben dieselbe veröffentlichte Basis und geben eine eindeutige Quellenwahl für Automationen an; historische Versionsangaben bleiben als solche erkennbar. |
+| `V2-DATA-01` | P2 / M | Einheitlicher Vertrag für flüchtige Telemetrie und den Lade-Binärsensor. Die PowerOcean-Leistung selbst ist mit #13 umgesetzt und live abgenommen: eigenes Alter, Zuordnung je Ladegerät und Observer, `unknown` bei alter oder fehlender Leistung während des Ladens. Offen ist der Rest. F03. | Status ohne Evidenz wird nicht als gesichert „aus“ ausgegeben. Zähler dürfen separat als letzter bekannter Stand behandelt werden, wenn ausdrücklich gekennzeichnet. |
 
-Bestehendes [ISSUE-13](https://github.com/Xygen/EcoFlow-PowerPulse-2-for-Home-Assistant/issues/13): Der qualifizierte Sensor ist bereits implementiert und
-installiert. In diesem Meilenstein stehen dessen reale Lade-/Idle-Übergänge
-und die Wirkung der zusätzlichen Quellenfrische aus `V2-DATA-01` zur Abnahme
-an; die Ursache des rohen Relay-Verhaltens kann separat offen bleiben.
-Bestehendes [ISSUE-12](https://github.com/Xygen/EcoFlow-PowerPulse-2-for-Home-Assistant/issues/12): aktuelle Deadlines beibehalten; nur ein neuer passend
-erfasster verzögerter Start rechtfertigt eine Änderung der Wartepolitik.
+`V2-SAFE-01` (#14), `V2-SAFE-02` (#15), `V2-QA-01` (#17) und `V2-DOC-01` (#20)
+sind umgesetzt, geschlossen und hier entfernt; ihre Nachweise stehen in
+[validation.md](validation.md), ihre Änderungen im `CHANGELOG.md` unter `1.0.5`.
 
-**Gate A:** reproduzierbare Code-Gegenfälle F01/F02 abgesichert; keine neue
+**Gate A:** reproduzierbare Code-Gegenfälle F01/F02 abgesichert — **erfüllt**:
+beide umgesetzt und am 2026-09-12 in einer Fahrzeugsitzung abgenommen. Keine neue
 Steuerfunktion vor diesen Korrekturen. Änderungen am Steuerpfad benötigen
 anschließend einen kontrollierten Fahrzeugtest. Fehlendes Fahrzeug ist eine
 offene Abnahmebedingung, kein durch Unit-Tests ersetzbarer Nachweis.
@@ -431,14 +425,20 @@ offene Abnahmebedingung, kein durch Unit-Tests ersetzbarer Nachweis.
 
 | ID | Prio / Aufwand | Verbesserung und Grundlage | Abnahmekriterium |
 | --- | --- | --- | --- |
-| [V2-AUTH-01](https://github.com/Xygen/EcoFlow-PowerPulse-2-for-Home-Assistant/issues/16) | P1 / L | Authfehler von Netzwerk-/Providerfehlern unterscheiden; begrenzte Token- und MQTT-Credential-Erneuerung sowie UI-Reauth/Reconfigure ergänzen. Bestehende Login-Nutzlast erhalten. F04. | Abgelaufene Credentials erholen sich begrenzt oder starten den richtigen Reauth-Flow; falsches Passwort erzeugt keine Endlosschleife, temporärer HTTP-Ausfall keine falsche Passwortmeldung. IDs und Entwürfe bleiben nach Neu-Anmeldung erhalten. |
 | `V2-LIFE-01` | P1 / M | Setupfehler, Unload, wartende Transaktionen, Reply-Waiter und verzögerte Aufgaben einheitlich aufräumen. F06. | Plattformfehler hinterlässt keine MQTT-Clients; Reload während Lock-Warten, Publish, ACK und Readback beendet Aufgaben kontrolliert; nach Unload entsteht kein neuer Publish. |
 | `V2-QA-02` | P1 / L | Echten HA-Testaufbau für Config Flow, Plattformen, Service-/Entity-Aufrufe, Registry, Store, Reload und Coordinator ergänzen; Coverage zunächst messen. F05. | Kritische Steuer- und Lebenszykluspfade laufen gegen HA-Fixtures; keine bloßen AST- oder Helper-Tests als Ersatz. Unterstützte Mindestversion und aktuelle HA-Version getestet; offene Coverage-Lücken bewertet, keine unbelegte Prozentzusage. |
-| [V2-STREAM-01](https://github.com/Xygen/EcoFlow-PowerPulse-2-for-Home-Assistant/issues/19) | P1 / M | Neun beobachtete `unknown`-Intervalle mit Heartbeat, Einstellungen, MQTT-Verbindung und Recovery-Timings korrelieren; einzelne/nie gestartete Streams gesondert behandeln. F06 und Live-Historie. | Ursache oder klar eingegrenzter Ausfalltyp je reproduziertem Fall; getrennte Tests für einen/beide fehlenden Streams, App geschlossen und MQTT verbunden ohne Daten. Recovery begrenzt, ohne automatische Gerätebefehle und ohne blinde Lockerung der Frische. |
 | `V2-HTTP-01` | P2 / M | Provider-Lesezeit und Fehler nach Quelle begrenzen; 401/403, 429, 5xx, ungültiges JSON und verzögerten Cache unterscheidbar machen. F04/F06. | Wiederholte Fehler haben Backoff und nachvollziehbaren Diagnosegrund; lange Provider-Abfragen blockieren keine unabhängigen frischen MQTT-Werte. HTTP-Empfangszeit wird nicht als garantierte Geräteaktualität interpretiert. |
 
-Abhängigkeiten: `V2-QA-01` vor `V2-QA-02`; `V2-SAFE-01/02` bleiben
-Regressionsvorgaben für alle Lebenszyklus- und Transportänderungen.
+Abhängigkeiten: `V2-QA-01` ist umgesetzt und keine offene Voraussetzung mehr
+für `V2-QA-02`; die umgesetzten `V2-SAFE-01/02` bleiben Regressionsvorgaben für
+alle Lebenszyklus- und Transportänderungen.
+
+`V2-AUTH-01` (#16) und `V2-STREAM-01` (#19) sind geschlossen und hier entfernt.
+Ein Kriterium aus `V2-STREAM-01` wurde dabei **nicht** umgesetzt: getrennte Tests
+für einen oder beide fehlenden Streams sowie für geschlossene App bei verbundenem
+MQTT ohne Daten. Die abschließenden Bedingungen von #19 verlangten stattdessen die
+Klassifikation eines vollständig erfassten langen Ausfalls. Wer diese Tests will,
+braucht einen eigenen Eintrag; sie gelten nicht stillschweigend als erledigt.
 **Gate B:** Netz-/Auth-/Reload-Fehlerszenarien im Testaufbau nachgewiesen;
 begrenzter Live-Erholungsnachweis bei einer gesondert autorisierten Testphase.
 
@@ -446,11 +446,13 @@ begrenzter Live-Erholungsnachweis bei einer gesondert autorisierten Testphase.
 
 | ID | Prio / Aufwand | Verbesserung und Grundlage | Abnahmekriterium |
 | --- | --- | --- | --- |
-| [V2-UX-01](https://github.com/Xygen/EcoFlow-PowerPulse-2-for-Home-Assistant/issues/11) | P2 / M | Sperrgründe und Befehlsfortschritt übersetzt anzeigen: kein Fahrzeug, falscher Modus, fehlende Quelle, alter Bericht, wartende Bestätigung. F07. | Anwender kann aus HA den konkreten Grund und nächsten sinnvollen Schritt erkennen; „ACK erhalten“ ist von physisch bestätigt getrennt. Diagnose erzeugt keine sekündlich wechselnden Altersattribute. |
-| [V2-SMART-01](https://github.com/Xygen/EcoFlow-PowerPulse-2-for-Home-Assistant/issues/18) | P1 / M | Entwurf, wirksame Gerätekonfiguration und Aktivierungsfähigkeit erklären; vergangene/ungültige Termine beim Aktivieren behandeln. F07. | Alten Entwurf speichern erlaubt, aber Aktivierung mit abgelaufenem Termin wird vor Publish verständlich abgelehnt oder ausdrücklich neu terminiert. Tests für Zeitzonen, Sommerzeit, Grenzwerte und Reload; echte Smart-Aktivierung separat bestätigt. |
+| `V2-UX-01` | P2 / M | Sperrgründe übersetzt anzeigen: kein Fahrzeug, falscher Modus, fehlende Quelle, alter Bericht. Die Anzeige der wartenden Bestätigung ist mit #11 umgesetzt: beide Knöpfe sind währenddessen gesperrt, eine zweite Aktion wird abgelehnt. Nächster Schritt ist [#86](https://github.com/Xygen/EcoFlow-PowerPulse-2-for-Home-Assistant/issues/86), das zustandsbedingte Sperren durch eine Ablehnung mit benanntem Zustand ersetzt. F07. | Anwender kann aus HA den konkreten Grund und nächsten sinnvollen Schritt erkennen; „ACK erhalten“ ist von physisch bestätigt getrennt. Diagnose erzeugt keine sekündlich wechselnden Altersattribute. |
 | `V2-ENERGY-01` | P2 / M | Statistik- und Resetvertrag für Gesamt- und Sitzungsenergie definieren; Quellenwahl für Energy Dashboard, Tageszähler und Historie dokumentieren. F10 und untersuchte Helfer. | Mehrere Sessions, Reset, verspätete Werte und Neustart erzeugen keine Doppelzählung/negative Artefakte. Direct und PowerOcean werden nicht unbemerkt kombiniert. Migration bestehender Helfer bleibt eine ausdrücklich ausgewählte Benutzeraktion. |
 | `V2-DOC-02` | P2 / M | Kompakte DE/EN-Anleitung mit Entity-/Quellenmatrix, Beispieldashboard, Automationsbeispielen, Troubleshooting, Diagnoseanleitung, Update-/Rollback-Ablauf. F07/F08. | Beispiele verwenden stabile tatsächlich vorhandene Entity-Rollen, behandeln `unknown`/`unavailable` und unterscheiden lokale Smart-Entwürfe von Writes. Protokolldetails sind verlinkt statt Voraussetzung für tägliche Bedienung. |
 | `V2-TOPO-01` | P2 / M | Unterstützte Topologien bei Einrichtung erkennbar prüfen; Gerätauswahl, Wiedererkennung und bestätigte Elternzuordnung gestalten. F10. | Ein unterstütztes Paar funktioniert unverändert; kein/mehre Elternsysteme führen zu verständlicher Begrenzung und keinem geratenen Write-Ziel. Multi-Pair-Support nur nach Zuordnungs- und Cross-Device-Tests. |
+
+`V2-SMART-01` (#18) ist umgesetzt, samt bestätigter echter Smart-Aktivierung, und
+hier entfernt.
 
 **Gate C:** überarbeitete Benutzerwege und Energiebeispiele nachvollziehbar;
 bestehende Automationen, IDs, explizit deaktivierte Entitäten und Smart-Entwürfe

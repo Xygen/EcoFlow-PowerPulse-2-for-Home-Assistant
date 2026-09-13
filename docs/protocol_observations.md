@@ -2110,3 +2110,58 @@ when Direct freshness is unavailable. Pure tests cover active charging, false
 non-zero idle reports, paused state, and stale Direct state. A real active
 transition still needs to verify that this qualification does not introduce a
 meaningful display delay.
+
+## Heartbeat `2/33` field 21: active phase (2026-09-12)
+
+Field 21 of the wallbox heartbeat, wire type 0, was reported upstream as the
+charger's active phase. It was present in every captured `2/33` frame, but the
+diagnostic capture redacts direct payloads length-preservingly, so its value could
+not be read from captures and was first published as a raw number rather than
+named on a guess.
+
+A vehicle session in `auto` mode supplied the readings. Four transitions of the
+raw value each agreed, within four to seven milliseconds, with the effective-phase
+entity of an unrelated second EcoFlow integration reading the same charger:
+
+| Local time | Field 21 | Second integration |
+| --- | --- | --- |
+| 13:50:00 | `1` | single phase |
+| 13:56:47 | `0` | three phase |
+| 14:00:32 | `1` | single phase |
+| 14:09:48 | `0` | three phase |
+
+A third line of evidence does not depend on that integration. The current limit
+was 16 A, which caps single-phase draw near 3.7 kW; while field 21 read `0` the
+charger drew 9695 W at 13.83 A per phase, which is only possible on three phases.
+
+**Mapping: `0` three phase, `1` single phase.** This is the inverse of what the
+phase-selection encodings would suggest — `2/34` field 11 uses `1` one phase,
+`2` three phase, `3` auto, and `1.4.8.7` uses `0` auto, `1` one phase, `2` three
+phase — so neither table may be reused for field 21. Throughout the four
+transitions the configured selection stayed `auto`: field 21 describes what the
+charger does, not what it was asked to do.
+
+Values outside `0`–`15` are withheld as a sign the field means something else on
+that firmware; values inside that range but outside the mapping publish the raw
+number without a name. The named sensor was observed on the instance on
+2026-09-13 on `1.0.5-beta.13` reporting single phase; its three-phase output rests
+on the raw observations above. See
+[validation](validation.md#unreleased-active-phase-mapping).
+
+## Issue #13 relay power age and live acceptance (2026-09-12)
+
+The 2026-09-07 entry above ended with an active transition still to verify. It was
+verified on `1.0.5-beta.12`, together with a change it motivated: the relay power
+value now carries an age of its own, separate from the Direct heartbeat, and reads
+`unknown` during charging when older than 120 seconds.
+
+With a vehicle connected, the session caught the relay reporting non-zero power
+while Direct reported the charger idle, twice: 707 W for 1.8 seconds after a Stop
+reached `charge_complete`, and 3664 W for 2.24 seconds after the charger reached
+`paused`. The qualified value reached `0 W` within three and one milliseconds of
+the respective Direct state change and stayed there. During genuine charging it
+published nine values in forty-six seconds with a largest gap near eleven seconds,
+so the qualification did not introduce a meaningful display delay.
+
+Why the relay reports these values is still unexplained. See
+[validation](validation.md#live-session-on-2026-09-12-on-105-beta12).
