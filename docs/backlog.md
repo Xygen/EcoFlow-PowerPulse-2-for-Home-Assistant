@@ -145,6 +145,18 @@ two mutations. The vehicle-backed validation of charging followed by
 cable-connected idle stays open. See
 [the validation record](validation.md#unreleased-relay-power-age).
 
+Work on 2026-09-13: Issue #12 closed on its stated criterion. Codex captured a
+Start rescued by the extension on beta.13 — confirmed by fresh Direct `paused`
+at 48.190 s after the normal deadline would have failed it — and Claude verified
+every Direct transition against the recorder within two milliseconds. The same
+capture contains a Solar-paused Start that timed out at 30.193 s with no Direct
+observation while PowerOcean briefly reported `charging`: a false negative the
+extension cannot reach. Its mechanism is certain rather than suspected — the
+thirty-second window fell entirely between two sixty-second periodic heartbeats,
+and a Start ending in its starting state fires no transition report. Tracked as
+Issue #81. See
+[the validation record](validation.md#the-start-rescue-case-accepted-on-2026-09-13-on-105-beta13).
+
 Work on 2026-09-13: Issue #19 closed. The long-outage scope reopened on
 2026-09-12 is resolved by one event captured end to end on beta.12, with zero
 dropped events. Both MQTT sessions died on keep-alive timeout, reason code 141,
