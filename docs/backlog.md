@@ -145,6 +145,14 @@ two mutations. The vehicle-backed validation of charging followed by
 cable-connected idle stays open. See
 [the validation record](validation.md#unreleased-relay-power-age).
 
+Work on 2026-09-13: Issue #81 step 2. A Start from `paused` that stays `paused`
+still fails, but now says the charger was already paused and showed no change,
+and records `unchanged_state` instead of `readback_timeout`, so a live capture can
+tell it from a genuine timeout. A genuine Start timeout keeps the original message.
+Two mutations; forcing the new branch on fails four tests including two existing
+extension tests. One pre-existing timing fragility in an extension test was seen
+once and did not recur in ten full runs; recorded rather than fixed in passing.
+
 Work on 2026-09-13: Issue #81 step 1. A Start or Stop now confirms only when the
 Direct state changed from where it was before the command, closing the latent
 false positive in which an ignored Start from `paused` passed whenever a

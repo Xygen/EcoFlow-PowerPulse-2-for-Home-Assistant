@@ -12,6 +12,11 @@ Current outstanding work is maintained only in
   happened to arrive in time — so the outcome depended on timing rather than on
   the command. Resuming a paused charge still confirms normally; Stop was never
   affected.
+- When a Start is sent to a charger that is already paused and it stays paused,
+  say so instead of reporting that readback "did not confirm the charging
+  state", which read like a malfunction. The charger's own reports cannot show
+  whether such a Start did anything — in Solar mode without surplus it usually
+  cannot — so it still fails, but with a message that names the situation.
 
 ## 1.0.5-beta.13 - 2026-09-13
 

@@ -1203,13 +1203,15 @@ async def test_a_start_from_paused_that_stays_paused_is_not_confirmed(
         harness.module, "charge_action_confirm_seconds", lambda action: 0.2
     )
 
-    with pytest.raises(HAError, match="did not confirm the charging state"):
+    with pytest.raises(HAError, match="already paused and showed no change"):
         await c.async_start_charging(SERIAL)
 
     assert harness.sent == [{"action": 100}]  # the command was still sent
+    # Distinct from a genuine timeout, so a live capture can tell them apart
+    # without cross-referencing the recorder.
     assert c._charge_action_diagnostics.snapshot()["recent_attempts"][-1][
         "outcome"
-    ] == "readback_timeout"
+    ] == "unchanged_state"
 
 
 @pytest.mark.asyncio
@@ -1225,3 +1227,28 @@ async def test_a_start_from_paused_that_resumes_charging_is_confirmed(harness):
     attempt = c._charge_action_diagnostics.snapshot()["recent_attempts"][-1]
     assert attempt["outcome"] == "confirmed"
     assert attempt["pre_direct_state"] == "paused"
+
+
+@pytest.mark.asyncio
+async def test_a_genuine_start_timeout_keeps_the_original_message(
+    harness, monkeypatch
+):
+    """Step 2 must not swallow ordinary timeouts into the honest message.
+
+    From `plugged_in`, which does not confirm a Start, a readback that stays
+    `plugged_in` is a real non-confirmation, not the unchanged-state case.
+    """
+    c = harness.coordinator
+    c.hass.loop = asyncio.get_running_loop()
+    harness.heartbeat("plugged_in")
+    harness.charge_readback_state = "plugged_in"
+    monkeypatch.setattr(
+        harness.module, "charge_action_confirm_seconds", lambda action: 0.2
+    )
+
+    with pytest.raises(HAError, match="did not confirm the charging state"):
+        await c.async_start_charging(SERIAL)
+
+    assert c._charge_action_diagnostics.snapshot()["recent_attempts"][-1][
+        "outcome"
+    ] == "readback_timeout"
