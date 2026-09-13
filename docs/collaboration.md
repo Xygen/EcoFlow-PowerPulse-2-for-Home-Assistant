@@ -140,6 +140,57 @@ A fresh worktree has no `.venv`, since that is ignored and lives in the primary
 checkout. Invoke that interpreter by absolute path with the worktree as the
 working directory rather than building a second environment per worktree.
 
+### Clean is not the same as current
+
+Nothing in this rule brings the primary checkout forward, so it goes stale while
+staying clean. On 2026-09-13 it was eight commits behind `origin/main`, and a
+merged branch could not be deleted from it because local `main` did not yet
+contain the merge.
+
+The exposure is in what new worktrees start from. `git worktree add <path> main`
+branches from local `main`, and an agent following this rule faithfully can
+begin an item a day behind without being told. So:
+
+- A new worktree is created only after a fetch, and branches explicitly from
+  `origin/main`, never implicitly from local `main`.
+- Administrative work in the primary checkout — removing a worktree, deleting a
+  merged branch — first fetches and fast-forwards `main` with `--ff-only`, and
+  stops if the tree is not clean or the fast-forward cannot be performed.
+  Administrative cleanup must not turn into a merge.
+
+### Removing a worktree on Windows
+
+`git worktree remove` has three times reported `Permission denied` after it had
+already deregistered the worktree and deleted its files, leaving an empty
+directory behind. Retrying then reports `is not a working tree`, which reads like
+breakage but only means the first command succeeded.
+
+A generic `Permission denied` is not treated as success. Before doing anything
+else, verify that the path is absent from `git worktree list` **and** that the
+remaining directory is empty; only then remove that empty directory, and do not
+retry `git worktree remove`. If either check fails, stop — it may be a different
+permission problem.
+
+The empty directory can itself stay busy while a shell's working directory is
+still inside it, and `rmdir` then fails with `Device or resource busy`. Move out
+first and remove it afterwards. Never silence that `rmdir`: on 2026-09-13 a
+`2>/dev/null` hid exactly this failure, and an empty `issue-12` shell sat
+unnoticed for several hours.
+
+### Work products stay inside the owning worktree
+
+Work products, reports and diagnostic exports stay inside the owning worktree.
+Temporary diagnostics that do not belong in version control stay outside the
+repository.
+
+On 2026-09-13 four report files, including a 388 KB diagnostic dump, were
+written into `reports/` at the primary checkout during live acceptance work.
+`reports/` is deliberately **not** added to `.gitignore`. Ignoring it was
+considered and rejected: it would hide future diagnostic dumps from
+`git status`, including files large or sensitive enough that their being left
+behind should stay visible. Keeping the primary checkout neutral depends on
+leftovers showing up, not on their being hidden.
+
 ## Releases have one owner
 
 A release names its owner in its issue before any version is raised. Only that

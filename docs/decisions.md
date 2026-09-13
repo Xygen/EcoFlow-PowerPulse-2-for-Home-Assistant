@@ -186,4 +186,14 @@ one, and the primary checkout stays on `main` with a clean tree. Agreed in
 issue #77, where Codex replaced a one-sided first draft with the symmetric
 rule.
 
+Working under that rule exposed three gaps within a day, amended by the same
+route. A clean primary checkout can be stale, so worktrees branch from
+`origin/main` after a fetch and administrative work fast-forwards with
+`--ff-only` or stops. On Windows `git worktree remove` can report failure after
+succeeding, and Codex tightened the proposed handling so that a generic
+`Permission denied` is never assumed to be success: the path must be gone from
+the worktree list and the directory empty first. And work products stay inside
+their worktree; ignoring a shared `reports/` directory was rejected because it
+would hide the very leftovers the rule needs to see.
+
 Home: [collaboration.md](collaboration.md).
