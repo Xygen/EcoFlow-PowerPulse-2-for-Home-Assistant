@@ -1238,6 +1238,74 @@ qualify. This is outside what Issue #12 set out to change and is tracked
 separately as [Issue #81](https://github.com/Xygen/EcoFlow-PowerPulse-2-for-Home-Assistant/issues/81), so that closing #12 on its stated criterion does not also close
 over a live false negative inside its own evidence.
 
+## Unreleased: a confirmation must show a change
+
+`fresh_direct_charge_action_confirmed` accepted a Start whenever a heartbeat
+newer than the command showed a state in `{"charging", "paused"}`, and never
+looked at where the charger started. For a Start issued from `paused`, a `paused`
+readback therefore proved nothing, and the result was decided by whether a
+periodic heartbeat happened to land inside the window — in both directions. A
+missed heartbeat produced the false negative observed at `10:41:05` on
+2026-09-13; a caught one would have confirmed a Start the charger ignored.
+Issue #81 records the evidence and the heartbeat arithmetic.
+
+**The rule now requires the state to have changed.** The pre-command state was
+already captured inside the control lock for the progress extension, and is now
+passed to confirmation as well.
+
+### A wrong rule was caught before it shipped
+
+The recommendation first written into Issue #81 generalised the fix as
+"confirm only when the pre-command state was not itself a confirmation state".
+Checked against every case before any code was written, that rule rejects
+`paused` to `charging` — the ordinary resume of a paused charge — which the same
+issue listed as a transition to preserve. The rule and its own criterion
+contradicted each other. The implemented rule compares the states instead.
+
+| Action | Before | After | Change rule | Rejected wording |
+| --- | --- | --- | --- | --- |
+| Start | `paused` | `paused` | no | no |
+| Start | `charge_complete` | `paused` | yes | yes |
+| Start | **`paused`** | **`charging`** | **yes** | **no — regression** |
+| Start | `plugged_in` | `paused` | yes | yes |
+| Start | `plugged_in` | `charging` | yes | yes |
+| Stop | `charging` | `charge_complete` | yes | yes |
+| Stop | `paused` | `plugged_in` | yes | yes |
+
+### Where the same-state case can occur
+
+It is reachable only where an action's allowed pre-states meet its confirmation
+states, checked against the module rather than reasoned about:
+
+```
+Start: _STARTABLE_STATUSES & _START_CONFIRMED_STATUSES = {"paused"}
+Stop : _STOPPABLE_STATUSES & _STOP_CONFIRMED_STATUSES  = empty
+```
+
+So the change rule narrows Start in exactly one state and never rejects
+anything for Stop. A test pins both intersections, so a future edit to either
+set that creates a new overlap fails when it is made rather than on a charger.
+
+| Rule | Covered by |
+| --- | --- |
+| An unchanged confirmation state does not confirm | the pure rule and the real coordinator transaction |
+| Every observed real transition still confirms | nine parametrised cases, including the resume |
+| The intersections are exactly `{"paused"}` and empty | a direct assertion on the module sets |
+| Freshness still applies independently of the change | a stale heartbeat never confirms, even after a change |
+
+Thirteen new tests, checked against two mutations. Removing the change condition
+fails the two tests for the ignored Start. Substituting the rejected wording
+fails the two resume tests — and the coordinator test takes thirty-eight seconds
+to do it, because the resume times out instead of confirming, which is exactly
+what a user would have seen.
+
+**Deliberately conservative, and not yet observed live.** A Start from `paused`
+that passes through another state and returns to `paused` now times out, since
+its final state matches where it began. The intermediate transition is arguably
+evidence the command had an effect; treating it as confirmation would be a
+further relaxation, and is left to the second step of Issue #81 rather than
+decided here. The change has not run on an instance.
+
 ## Test principles
 
 - A control is successful only after command acknowledgement **and** a newer

@@ -145,6 +145,17 @@ two mutations. The vehicle-backed validation of charging followed by
 cable-connected idle stays open. See
 [the validation record](validation.md#unreleased-relay-power-age).
 
+Work on 2026-09-13: Issue #81 step 1. A Start or Stop now confirms only when the
+Direct state changed from where it was before the command, closing the latent
+false positive in which an ignored Start from `paused` passed whenever a
+periodic heartbeat landed inside the window. The recommendation first written
+into #81 would have broken resuming a paused charge; it was caught by checking
+every case before coding, and a mutation substituting it fails the two resume
+tests. Start's allowed and confirming states meet only in `paused` and Stop's do
+not meet, and a test pins both. Thirteen tests against two mutations; not yet
+observed live. See
+[the validation record](validation.md#unreleased-a-confirmation-must-show-a-change).
+
 Work on 2026-09-13: Issue #12 closed on its stated criterion. Codex captured a
 Start rescued by the extension on beta.13 — confirmed by fresh Direct `paused`
 at 48.190 s after the normal deadline would have failed it — and Claude verified

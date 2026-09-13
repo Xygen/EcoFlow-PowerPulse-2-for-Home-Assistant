@@ -135,6 +135,7 @@ class Harness:
         self.connected = True
         self.reply = True
         self.readback = True
+        self.charge_readback_state = "charging"
         self.report_values = None
         self.report_source = "direct_fast_settings_241_44"
         self.coordinator = module.PowerPulse2Coordinator(
@@ -223,7 +224,7 @@ class Harness:
                     self.observe(source=self.report_source,
                                  **(values if self.report_values is None else self.report_values))
                 else:
-                    self.heartbeat("charging")
+                    self.heartbeat(self.charge_readback_state)
             if self.reply:
                 waiter = self.coordinator._reply_waiters.get((PARENT, 241, command, sequence))
                 if waiter is not None and not waiter.done():
@@ -1183,3 +1184,44 @@ def test_the_relay_budget_does_not_touch_the_control_gate(harness, monkeypatch):
     assert c.charge_action_available(SERIAL, "start")
     # Fresh Direct idle still reports zero without any relay evidence.
     assert c.qualified_powerocean_charging_power_value(SERIAL) == 0.0
+
+
+@pytest.mark.asyncio
+async def test_a_start_from_paused_that_stays_paused_is_not_confirmed(
+    harness, monkeypatch
+):
+    """The observed Issue #81 case, run through the real transaction.
+
+    Before the change, the fresh `paused` heartbeat below would have confirmed
+    this Start although nothing about the charger changed.
+    """
+    c = harness.coordinator
+    c.hass.loop = asyncio.get_running_loop()
+    harness.heartbeat("paused")
+    harness.charge_readback_state = "paused"
+    monkeypatch.setattr(
+        harness.module, "charge_action_confirm_seconds", lambda action: 0.2
+    )
+
+    with pytest.raises(HAError, match="did not confirm the charging state"):
+        await c.async_start_charging(SERIAL)
+
+    assert harness.sent == [{"action": 100}]  # the command was still sent
+    assert c._charge_action_diagnostics.snapshot()["recent_attempts"][-1][
+        "outcome"
+    ] == "readback_timeout"
+
+
+@pytest.mark.asyncio
+async def test_a_start_from_paused_that_resumes_charging_is_confirmed(harness):
+    """The normal resume must be untouched by the change rule."""
+    c = harness.coordinator
+    c.hass.loop = asyncio.get_running_loop()
+    harness.heartbeat("paused")
+    harness.charge_readback_state = "charging"
+
+    await c.async_start_charging(SERIAL)
+
+    attempt = c._charge_action_diagnostics.snapshot()["recent_attempts"][-1]
+    assert attempt["outcome"] == "confirmed"
+    assert attempt["pre_direct_state"] == "paused"

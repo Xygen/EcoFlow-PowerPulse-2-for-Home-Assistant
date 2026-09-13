@@ -4,6 +4,15 @@ This file records delivered changes and the state of each historical build.
 Current outstanding work is maintained only in
 [the project backlog](docs/backlog.md).
 
+## Unreleased
+
+- Confirm a Start or Stop only when the charger's state actually changed. A
+  Start sent while the charger was already paused, and ignored by it, would
+  read back `paused` and pass as confirmed whenever a routine status message
+  happened to arrive in time — so the outcome depended on timing rather than on
+  the command. Resuming a paused charge still confirms normally; Stop was never
+  affected.
+
 ## 1.0.5-beta.13 - 2026-09-13
 
 Build carrying the active-phase name, whose mapping was established from live
