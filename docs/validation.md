@@ -1157,6 +1157,87 @@ draw. A second long outage would settle that, and the ring now survives long
 enough to catch one; the question is worth answering before anyone changes
 timing, not after.
 
+## The Start rescue case, accepted on 2026-09-13 on `1.0.5-beta.13`
+
+Captured by Codex under the maintainer's authorization with the vehicle
+connected; reviewed and verified by Claude against the recorder before this
+item was closed.
+
+| Action | Issued (UTC) | Pre-state | Extension | Outcome | Elapsed |
+| --- | --- | --- | --- | --- | --- |
+| Stop | `10:57:14.615` | `paused` | no | confirmed | 1.661 s |
+| **Start** | `10:57:19.848` | `charge_complete` | **yes** | **confirmed** | **48.190 s** |
+
+That second row is the event this item was held open for: a Start that the
+normal thirty-second deadline would have reported as a failure, rescued by the
+extension and confirmed by fresh Direct evidence inside the fifty-second
+ceiling.
+
+Every Direct transition Codex reported was checked in the recorder and lands
+within two milliseconds of its stated offset:
+
+| Offset from dispatch | Direct state |
+| --- | --- |
+| +5.878 s | `plugged_in` — the qualified progress transition |
+| +20.712 s | `unplugged` |
+| +21.343 s | `plugged_in` |
+| +37.026 s | `unplugged` |
+| +37.838 s | `plugged_in` |
+| +48.135 s | `paused` — confirmation |
+
+The vehicle stayed physically connected throughout, so the two `unplugged`
+reports are the charger's own handshake rather than a cable being pulled. They
+did not revoke the extension, which is granted once at the first qualifying
+transition. That is a design choice worth naming rather than a defect: a real
+cable pull during a Start would hold `_control_lock` and the pending marker to
+fifty seconds before failing, where it could in principle fail sooner. It fails
+closed either way.
+
+The MCP request that issued the Start stopped waiting after about 33.6 seconds
+and returned a transport message; Home Assistant kept the operation running and
+completed it at 48.190 seconds. That is tooling latency, not integration
+behaviour, and no component error was logged.
+
+### A second failure in the same capture, which the extension cannot reach
+
+The exported diagnostics also hold a Start the summary did not tabulate:
+
+| Action | Issued (UTC) | Pre-state | First Direct observation | Outcome | Elapsed |
+| --- | --- | --- | --- | --- | --- |
+| Start | `10:41:05.786` | `paused` | **none** | `readback_timeout` | 30.193 s |
+
+The recorder shows Direct at `paused` for the whole minute, while PowerOcean
+reported `charging` from `12:41:31.379` local — 25.6 seconds after dispatch —
+and returned to `suspended_charger` 23 seconds later. The charger accepted the
+command and tried to charge; Solar mode then suspended it. Home Assistant
+reported a failure. By this item's own definition that is a false negative.
+
+It is a Solar-paused Start, which `docs/issue_12_charge_readback_analysis.md`
+already asked to include "if naturally reproducible". It reproduced, and it
+failed.
+
+**The mechanism is arithmetic, and it was certain.** `paused` already confirms a
+Start, and a repeated same-state heartbeat already counts as a new observation,
+so the mapping was never the problem: no heartbeat arrived at all. The ring
+sample at `10:40:13` gives a heartbeat age of 18.703 s, placing the last one at
+`10:39:54.8`. At the sixty-second cadence established under Issue #19, the
+following heartbeats fall near `10:40:54.8` and `10:41:54.8`. The confirmation
+window ran from `10:41:05.8` to `10:41:35.8` — eleven seconds after the first
+and nineteen before the second. A Start that ends in the state it began in
+fires no transition report, so it waits on the periodic heartbeat, and here the
+window sat entirely inside the gap.
+
+That puts the exposure well above rare. A thirty-second window against a
+sixty-second cadence leaves roughly half of all phases with no periodic
+heartbeat inside it, and every Solar-paused Start where the charger stays paused
+depends on one. It is the same shape as the #19 finding — a window shorter than
+the cadence it waits on — at a different boundary.
+
+The extension cannot help, because there is no transition into `plugged_in` to
+qualify. This is outside what Issue #12 set out to change and is tracked
+separately as [Issue #81](https://github.com/Xygen/EcoFlow-PowerPulse-2-for-Home-Assistant/issues/81), so that closing #12 on its stated criterion does not also close
+over a live false negative inside its own evidence.
+
 ## Test principles
 
 - A control is successful only after command acknowledgement **and** a newer
