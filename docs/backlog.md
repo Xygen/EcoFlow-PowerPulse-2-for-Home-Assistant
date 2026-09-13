@@ -145,6 +145,17 @@ two mutations. The vehicle-backed validation of charging followed by
 cable-connected idle stays open. See
 [the validation record](validation.md#unreleased-relay-power-age).
 
+Work on 2026-09-13: Issue #81 closed. On beta.14, a Start from `paused` received
+a fresh `paused` heartbeat 0.336 s after dispatch — which the pre-#83 rule would
+have reported as a successful Start while the charger charged nothing — and the
+change refused it, ending `unchanged_state` with the honest message. The latent
+false positive is now observed and suppressed. A Start ending in `paused` and a
+Stop from `charging` still confirmed. A Start from `paused` resuming to
+`charging` was not observed; the maintainer closed the item without it, since
+that transition is behaviourally unchanged and its tests fail under the rejected
+rule. See
+[the validation record](validation.md#the-unfounded-confirmation-observed-and-refused-on-105-beta14).
+
 Work on 2026-09-13: Issue #81 step 2. A Start from `paused` that stays `paused`
 still fails, but now says the charger was already paused and showed no change,
 and records `unchanged_state` instead of `readback_timeout`, so a live capture can
