@@ -875,18 +875,27 @@ async def test_the_marker_clears_after_a_readback_timeout(harness, monkeypatch):
 async def test_direct_start_progress_extends_once_to_the_absolute_deadline(
     harness, monkeypatch
 ):
+    """Charging arrives after the normal deadline, so only the extension rescues it.
+
+    The confirmation loop polls every 0.25 s, fixed in production code. The
+    progress heartbeat can land just after the first poll, so the extension is
+    granted on the second, near 0.27 s. The normal deadline therefore sits well
+    past two poll periods: at 0.3 s it left about thirty milliseconds, and a
+    40 ms late wake of that sleep — ordinary under a full suite — failed the
+    test deterministically.
+    """
     c = _ready_to_charge(harness)
     harness.heartbeat("charge_complete")
     harness.readback = False
     monkeypatch.setattr(
-        harness.module, "charge_action_confirm_seconds", lambda action: 0.3
+        harness.module, "charge_action_confirm_seconds", lambda action: 0.6
     )
     monkeypatch.setattr(
-        harness.module, "charge_action_progress_confirm_seconds", lambda action: 0.8
+        harness.module, "charge_action_progress_confirm_seconds", lambda action: 1.5
     )
     loop = asyncio.get_running_loop()
     loop.call_later(0.05, harness.heartbeat, "plugged_in")
-    loop.call_later(0.55, harness.heartbeat, "charging")
+    loop.call_later(0.9, harness.heartbeat, "charging")
 
     await c.async_start_charging(SERIAL)
 
@@ -924,14 +933,15 @@ async def test_repeated_pre_command_plugged_in_does_not_extend(
 async def test_direct_start_progress_still_fails_at_the_absolute_deadline(
     harness, monkeypatch
 ):
+    """Same timing reasoning as the rescue test: see its docstring."""
     c = _ready_to_charge(harness)
     harness.heartbeat("charge_complete")
     harness.readback = False
     monkeypatch.setattr(
-        harness.module, "charge_action_confirm_seconds", lambda action: 0.3
+        harness.module, "charge_action_confirm_seconds", lambda action: 0.6
     )
     monkeypatch.setattr(
-        harness.module, "charge_action_progress_confirm_seconds", lambda action: 0.6
+        harness.module, "charge_action_progress_confirm_seconds", lambda action: 1.2
     )
     asyncio.get_running_loop().call_later(
         0.05, harness.heartbeat, "plugged_in"
@@ -943,7 +953,9 @@ async def test_direct_start_progress_still_fails_at_the_absolute_deadline(
     attempt = c.charge_action_readback["recent_attempts"][-1]
     assert attempt["outcome"] == "readback_timeout"
     assert attempt["progress_extension_granted"] is True
-    assert 0.6 <= attempt["elapsed_seconds"] < 1
+    # The loop cannot exit before the absolute deadline, so the lower bound is
+    # exact; the upper bound is the one a slow loop pushes on.
+    assert 1.2 <= attempt["elapsed_seconds"] < 1.8
 
 
 @pytest.mark.asyncio
