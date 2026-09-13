@@ -1,6 +1,6 @@
 # PowerPulse 2 documentation
 
-Current stable release: `1.0.4`.
+Current stable release: `1.0.5`.
 
 Use this page as the entry point. It separates current product documentation
 from the evidence archives created during protocol research.

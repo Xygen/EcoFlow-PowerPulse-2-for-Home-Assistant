@@ -6,17 +6,21 @@ and raw chronology remain in the evidence archives linked from the
 
 ## Current baseline
 
-As verified on 2026-09-11, the installed test build is `1.0.5-beta.7`.
-It includes the consolidated safety, field-qualified readback, authentication
-and independent diagnostic sampling changes. Earlier beta.5 observations below
-predate that consolidation.
-Stable documentation remains at 1.0.4. Earlier installation records below
-are historical observations, not the current installed version.
+The current stable release is `1.0.5`, released on 2026-09-14; README, index and
+user guide describe that baseline. It ships exactly the code that ran as the test
+build `1.0.5-beta.14`, which was installed and exercised on the maintainer's
+instance before release. Earlier installation records below are historical
+observations, not the current installed version.
 
-The current stable release is `1.0.4`; README, index and user guide describe that
-baseline. Its scope and accepted limitations are recorded in the
-[release record](backlog.md#v100-release-record). PowerOcean idle qualification
-was added in `1.0.4`; its vehicle-backed transition validation remains pending.
+Every item carrying code in `1.0.5` has its acceptance evidence in this document.
+Two cases were not observed on a real charger and are not claimed: a Start from
+`paused` that resumes to `charging` (Issue #81, closed by maintainer decision), and
+the Active phase sensor reporting three-phase (Issue #25, whose underlying value was
+observed in both states). PowerOcean idle qualification, added in `1.0.4`, received
+its vehicle-backed transition validation on 2026-09-12 under Issue #13.
+
+The first stable release's scope and accepted limitations are recorded in the
+[release record](backlog.md#v100-release-record).
 
 Separately, on 2026-09-09, HACS and the runtime diagnostics confirmed the installed
 test build `1.0.5-beta.1` for [PR #22](https://github.com/Xygen/EcoFlow-PowerPulse-2-for-Home-Assistant/pull/22).

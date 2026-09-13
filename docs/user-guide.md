@@ -1,6 +1,6 @@
 # PowerPulse 2 user guide
 
-This guide describes stable version **1.0.4**. The current release declaration is
+This guide describes stable version **1.0.5**. The current release declaration is
 maintained in the [documentation index](index.md). Test builds and their actual
 validation status are recorded separately in [validation](validation.md#current-baseline).
 
@@ -42,6 +42,14 @@ manifest is at `custom_components/ecoflow_powerpulse2/manifest.json`. Restart
 Home Assistant, then add **EcoFlow PowerPulse 2** under **Settings > Devices &
 services**.
 
+### If your EcoFlow sign-in stops working
+
+If EcoFlow refuses the stored credentials — after a password change, for example —
+Home Assistant shows a re-authentication request for the integration. Enter the
+current credentials there. The existing integration entry is updated rather than
+replaced, so entity IDs, history, enabled controls and saved Smart drafts are kept.
+A temporary outage is retried automatically and does not ask for credentials.
+
 ## What Home Assistant shows
 
 The integration deliberately keeps two telemetry sources separate:
@@ -56,6 +64,14 @@ official EcoFlow app display is the intended reference for a session value, use
 the explicitly named PowerOcean entity rather than assuming it equals the
 Direct entity.
 
+### Active phase and phase setting
+
+**Active phase** reports whether the charger is currently charging on a single
+phase or on three. It is separate from **Phase setting**, which records what the
+charger was asked to do and can stay at *Auto* while the charger switches between
+one and three phases on its own. Use Active phase for what is happening, and Phase
+setting for what was requested.
+
 ### Choosing a power reading
 
 Use the entity's displayed role/name to identify its source. Entity IDs can differ
@@ -65,18 +81,18 @@ with language, earlier installations or user renaming.
 | --- | --- | --- |
 | Wallbox direct – Charging power | Power reported directly by the charger; updates can be slower than PowerOcean. | Compare against direct charging state and investigate actual charger reports. |
 | PowerOcean – Charging power | The inverter's raw report for the linked charger. It can remain non-zero while the charger reports idle. | Source comparison and diagnostics; do not use a positive value alone as proof that charging is active. |
-| Qualified PowerOcean – Charging power | PowerOcean power allowed through when a fresh Direct heartbeat reports charging; zero when a fresh Direct heartbeat reports an accepted idle state. | Prefer this over raw PowerOcean power when an automation needs the charging-state qualification, subject to the freshness limitation below. |
+| Qualified PowerOcean – Charging power | PowerOcean power allowed through when a fresh Direct heartbeat reports charging and the PowerOcean value is itself recent; zero when a fresh Direct heartbeat reports an accepted idle state. | Prefer this over raw PowerOcean power when an automation needs the charging-state qualification; see the freshness rules below. |
 
 For example, if PowerOcean reports 1,400 W while fresh Direct data reports
 `unplugged`, the qualified reading is 0 W. If Direct confirmation is missing,
 too old or unrecognized, the qualified reading is `unknown`, not a guessed zero.
 When Direct reports `charging`, a missing PowerOcean power value also remains unknown.
 
-In 1.0.4, this qualification checks the age of the Direct heartbeat, **not an
-independent timestamp for the PowerOcean power field**. A numeric reading is
-therefore not a guarantee that both sources were just updated. See the
-[validation boundaries](validation.md) and [central backlog](backlog.md) before
-using it for decisions that require fresh power measurements.
+The qualification checks two ages independently. The Direct heartbeat decides
+whether the charger is charging at all, and the PowerOcean power value has an age
+of its own: during charging, a value that has not arrived for two minutes reads
+`unknown` rather than holding its last figure. An idle charger reads 0 W from
+fresh Direct data alone, without needing any PowerOcean report.
 
 In automations, require a valid numeric reading before comparing power with a
 threshold. Treat `unknown` as insufficient information and `unavailable` as an
@@ -101,8 +117,15 @@ you need and treat every control as device operation.
   separate evidence-gated write path.
 - Settings writes require a matching acknowledgement plus a qualified fresh
   readback. An acknowledgement alone is not success.
-- Start and Stop require fresh device-state confirmation. Start is unavailable
+- Start and Stop require fresh device-state confirmation, and an action counts as
+  confirmed only when the charger's state actually changes. Start is unavailable
   when no vehicle is connected.
+- While a Start or Stop is waiting for confirmation, both buttons are unavailable —
+  up to 30 seconds for a Start, up to 50 when the charger is visibly progressing,
+  and up to 15 for a Stop — and a second press is refused.
+- A Start sent while the charger is already paused, which leaves it paused, fails
+  with a message saying so. In Solar mode without surplus this is expected: the
+  charger's own reports cannot show whether such a Start did anything.
 - Some settings are unavailable while charging because the official app locks
   them too. Plug-and-Play, battery-discharge blocking, screen, LED, and their
   brightness controls have different observed charging-time rules.
@@ -144,10 +167,11 @@ subject to the applicable safety checks. The energy and distance targets are
 alternatives; the selected target type determines which one is required. Distance
 mode does not require a locally stored vehicle-consumption estimate.
 
-Check the date before each activation. Stable 1.0.4 can retain an expired draft
-and does not yet enforce that its deadline is in the future. A saved plan is not
-automatically moved to the next day. Current limitations are tracked in the
-[backlog](backlog.md); local preparation does not validate real charging behavior.
+Activation is refused when the ready-by time has already passed or lies more than
+a year ahead, and the message names the refused time. The saved draft is kept and
+its deadline is never moved to the next day for you: enter a new time and select
+Smart again. Current limitations are tracked in the [backlog](backlog.md); local
+preparation does not validate real charging behavior.
 
 ## Known limits
 
