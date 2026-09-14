@@ -2165,3 +2165,72 @@ so the qualification did not introduce a meaningful display delay.
 
 Why the relay reports these values is still unexplained. See
 [validation](validation.md#live-session-on-2026-09-12-on-105-beta12).
+
+## PowerOcean network events and the charger stream (2026-09-14)
+
+Read-only recorder analysis, prompted by an 82-second freeze of the grid-power
+entity of a separate cloud-based EcoFlow integration. Nothing here comes from
+this integration's own diagnostics, and no command was sent.
+
+**The event.** All times are local on 2026-09-14.
+
+| Time | Observation |
+| --- | --- |
+| 15:27:19 – 15:27:33 | The PowerOcean reports its Ethernet link `disconnected` |
+| 15:27:58 – 15:28:17 | Again, for about twenty seconds |
+| 15:28:37 – 15:29:59 | The cloud integration's grid power and house load stop updating; their normal cadence is four to five seconds |
+| throughout | That integration's MQTT status entity stays `receiving` |
+| 15:28:37 – 15:29:43 | A local Modbus TCP integration keeps reading the same inverter every two seconds, with grid power moving between about −7500 and −3400 W |
+| 15:29:43 – 15:30:08 | The Modbus integration has a gap of its own and reports `read_failed` at 15:30:05 |
+| 15:28:22, 15:29:22 | This integration's charger heartbeat arrives on its sixty-second cadence |
+
+The Modbus readings rule out a value that merely held still: the device kept
+measuring while its cloud stream was silent. The same cloud integration's
+sixty-second PV report shows a 244-second gap from 15:26:29, which covers the
+report due just after the first disconnect.
+
+**Ten days of history.** The Ethernet status reported `disconnected` on five
+occasions: 2026-09-06 at 08:14 and 16:30, 2026-09-08 at 01:58, 2026-09-11 at
+03:39 for five minutes, and the event above. The brief `unavailable` entries in
+the same history last one to seventeen seconds, move straight back to
+`connected`, and are not counted as device events.
+Four of the five were followed by a Modbus `read_failed` six to ten seconds after
+the link returned; on 2026-09-14 it came six seconds after the cloud stream
+resumed instead. `read_failed` also occurred four times with no Ethernet event,
+so the association is not exclusive.
+
+On 2026-09-11 the link was down for five minutes, yet the cloud grid-power
+stream showed no gap longer than sixteen seconds; only Modbus lost about
+twenty-five seconds when the link came back. The inverter therefore reaches the
+cloud by another route while Ethernet is down. That a change of network
+interface interrupts whichever connection was using it — the cloud session on
+2026-09-14, the local Modbus session on 2026-09-11 — is a hypothesis consistent
+with both events, not an observation.
+
+**What it establishes for this integration.**
+
+- *Not a cause of the charger-side outages.* None of the five Ethernet events
+  coincides with an `unknown` interval of this integration's charging status,
+  whose history covers all ten days, or of the qualified PowerOcean charging
+  power, whose retrieved history covers 2026-09-07 to 2026-09-12. Conversely,
+  the long `unknown` intervals in the same history, such as 2026-09-09 01:48 or
+  2026-09-10 01:36, have no Ethernet event beside them, and the charger
+  heartbeat continued through the 2026-09-14 event. The limit: charging status
+  only turns `unknown` after ninety seconds without a heartbeat, so a shorter
+  charger-side gap would not appear in this comparison.
+- *A connection status is not data freshness.* The other integration reported
+  `receiving` for the whole silence. This integration gates control and the
+  qualified power on report age rather than connection state, and this is a
+  field example of why.
+- *A real silence against the relay limit.* The PowerOcean relay reaches this
+  integration over the cloud path that went silent. An 82-second silence is
+  inside `_POWEROCEAN_POWER_FRESH_SECONDS` of 120, so during charging the
+  qualified power would hold its last value for that long rather than read
+  `unknown`. That is the intended behaviour; the limit was set against a
+  24.5-second largest gap, and this is the first recorded silence of this
+  length. Whether this integration's relay was actually silent is **not
+  established**: the charger was idle, the relay values stayed at zero and so
+  wrote no recorder rows, and observer freshness is not sampled.
+
+No change follows from this. The charger-side long outage is classified in
+[validation](validation.md#the-long-outage-classified-on-2026-09-13-from-a-105-beta12-capture).
