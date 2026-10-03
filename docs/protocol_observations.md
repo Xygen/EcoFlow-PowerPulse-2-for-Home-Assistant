@@ -2165,3 +2165,12 @@ so the qualification did not introduce a meaningful display delay.
 
 Why the relay reports these values is still unexplained. See
 [validation](validation.md#live-session-on-2026-09-12-on-105-beta12).
+
+## PowerOcean relay direction evidence — Issue #98 (2026-10-03)
+
+Issue #98 records paired live MQTT/state transitions: `96 → 32 / 241/3`
+reported `available / 0 W`, while `32 → 96 / 241/3` repeatedly reported
+`charging / 1920 W` after unplugging. The parser previously accepted both.
+Session telemetry now accepts only the confirmed incoming direction. This
+evidence is from the issue report; no fresh device capture was made for this
+implementation. No direction restriction is inferred for `209/8`.

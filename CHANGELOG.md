@@ -4,6 +4,13 @@ This file records delivered changes and the state of each historical build.
 Current outstanding work is maintained only in
 [the project backlog](docs/backlog.md).
 
+## Unreleased
+
+- Fix #98: accept PowerOcean `241/3` session telemetry only in the confirmed
+  `96 → 32` direction. Reverse-direction reports cannot overwrite raw or
+  qualified charging values or refresh their telemetry age. `209/8` is unchanged.
+  Regression tests cover idle and charging updates; live acceptance is pending.
+
 ## 1.0.5 - 2026-09-14
 
 `1.0.5` collects fourteen test builds made since `1.0.4`. It is a large release,

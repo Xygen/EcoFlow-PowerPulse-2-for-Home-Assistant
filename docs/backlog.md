@@ -52,18 +52,18 @@ lesender MCP-Prüfung der verbundenen Home-Assistant-Instanz.
 
 | ID | Priority | Open work | Completion evidence |
 | --- | --- | --- | --- |
-_No open items. `ISSUE-13` was delivered and accepted live on 2026-09-12 and
-its row is removed from this table; see
-[the validation record](validation.md#live-session-on-2026-09-12-on-105-beta12)._
+| [`ISSUE-98`](https://github.com/Xygen/EcoFlow-PowerPulse-2-for-Home-Assistant/issues/98) | High | Direction filter implemented for `241/3`; live acceptance pending. | On a beta build, incoming `96 → 32` reports update idle and active sessions at the normal cadence; reverse `32 → 96` reports neither overwrite values nor refresh power age. Record raw and qualified sensor evidence during genuine charging. |
 
-**One loose end is deliberately untracked.** Why the PowerOcean relay reports
+**Historical unexplained relay values.** Why the PowerOcean relay reports
 non-zero values such as `1352` or `4380 W` while Direct and `allocatedPower`
 stay at zero is still unexplained. The 2026-09-12 session caught it twice, at
-707 W and 3664 W, so the behaviour is real and reproducible. Nothing
-user-facing depends on it any more: the qualified sensor refuses those values
-and the raw entities remain available to anyone who wants to investigate. It
-carries no issue, on purpose — raising one would imply work is planned. If that
-changes, this paragraph is where the decision was recorded.
+707 W and 3664 W, so the behaviour is real and reproducible. The qualified
+sensor suppresses those values while fresh Direct telemetry proves idle, but
+cannot distinguish conflicting relay values during genuine charging. The raw
+entities remain available for investigation. This was originally left untracked.
+Issue #98 now establishes reverse-direction
+`241/3` frames as one concrete cause; it does not prove the cause of every
+historical excursion.
 
 ## Deferred and release work
 

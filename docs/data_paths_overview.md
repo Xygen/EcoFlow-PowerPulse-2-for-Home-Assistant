@@ -110,7 +110,9 @@ new `direct_*` source aliases used by these entities.
 The linked PowerOcean's PowerPulse 2 accessory-relay report `241/3` is exposed
 as a second, consistently named `PowerOcean` group. Its nested
 `pileChargingParamReport` contains one coherent session snapshot rather than a
-lifetime meter. The parser also understands the equivalent `209/8`
+lifetime meter. Only envelopes with `cmd_src=96` and `cmd_dst=32` feed these
+entities; reverse or missing directions are ignored (Issue #98). The parser
+also understands the equivalent `209/8`
 `EVChargingParamReport` used by the other PowerPulse route:
 
 | PowerOcean entity | PowerPulse 2 `241/3` field | Compatible `209/8` field | Unit / mapping |

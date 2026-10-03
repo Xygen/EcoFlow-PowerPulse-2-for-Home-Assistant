@@ -1112,6 +1112,37 @@ def _observer_frame(harness, monkeypatch, reports):
     c._record_mqtt_frame(PARENT, "topic", b"observer frame")
 
 
+def test_reverse_relay_frame_cannot_overwrite_or_refresh_charging_power(harness, monkeypatch):
+    from custom_components.ecoflow_powerpulse2.ecoflow.proto_encoding import (
+        encode_field_bytes,
+        encode_field_varint,
+    )
+    from custom_components.ecoflow_powerpulse2.frame_capture import parse_powerocean_charging_reports
+
+    c = harness.coordinator
+    harness.heartbeat("charging")
+    _observer_frame(harness, monkeypatch, [])
+    monkeypatch.setattr(harness.module, "parse_powerocean_charging_reports", parse_powerocean_charging_reports)
+
+    def frame(src, dst, power):
+        report = encode_field_bytes(1, encode_field_bytes(2, SERIAL.encode("ascii")))
+        report += encode_field_bytes(4, encode_field_varint(4, 3) + encode_field_varint(6, power))
+        header = encode_field_bytes(1, report)
+        for field, value in [(2, src), (3, dst), (8, 241), (9, 3)]:
+            header += encode_field_varint(field, value)
+        return encode_field_bytes(1, header)
+
+    for power in (1312, 1280):
+        c._record_mqtt_frame(PARENT, "topic", frame(96, 32, power))
+        assert c.qualified_powerocean_charging_power_value(SERIAL) == power
+        before_data = dict(c.data[SERIAL])
+        before_age = c._last_powerocean_power_at[SERIAL]
+        c._record_mqtt_frame(PARENT, "topic", frame(32, 96, 1920))
+        assert c.data[SERIAL] == before_data
+        assert c._last_powerocean_power_at[SERIAL] == before_age
+        assert c.qualified_powerocean_charging_power_value(SERIAL) == power
+
+
 def test_a_relay_power_report_is_timed_per_charger(harness, monkeypatch):
     c = harness.coordinator
     assert not c.powerocean_power_fresh(SERIAL)

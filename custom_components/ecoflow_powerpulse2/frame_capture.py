@@ -432,6 +432,11 @@ def parse_powerocean_charging_reports(payload: bytes) -> list[dict[str, Any]]:
             command = (varints.get(8), varints.get(9))
             if command not in ((209, 8), (241, 3)):
                 continue
+            # Only device-originated relay reports are session telemetry.
+            # Reverse-direction 241/3 frames can carry conflicting session data.
+            # The direction of 209/8 has not been established independently.
+            if command == (241, 3) and (varints.get(2), varints.get(3)) != (96, 32):
+                continue
             for inner_field, inner_wire, inner_value in header_fields:
                 if (
                     inner_field != 1
