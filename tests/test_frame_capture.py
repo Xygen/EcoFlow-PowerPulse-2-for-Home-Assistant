@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from struct import pack
 
+import pytest
+
 from custom_components.ecoflow_powerpulse2.ecoflow.proto_encoding import (
     encode_field_bytes,
     encode_field_varint,
@@ -276,6 +278,8 @@ def test_powerocean_241_3_report_maps_powerpulse2_session() -> None:
             encode_field_bytes(1, report),
             encode_field_varint(8, 241),
             encode_field_varint(9, 3),
+            encode_field_varint(2, 96),
+            encode_field_varint(3, 32),
         )
     )
 
@@ -292,6 +296,44 @@ def test_powerocean_241_3_report_maps_powerpulse2_session() -> None:
     ]
     assert "vehicle-secret" not in repr(result)
     assert "unrelated-accessory" not in repr(result)
+
+
+def _relay_session_frame(src: int | None, dst: int | None, power: int, status: int) -> bytes:
+    device = encode_field_bytes(2, b"C376TEST")
+    order = encode_field_varint(5, 364) + encode_field_varint(6, 1080)
+    pile = (
+        encode_field_varint(4, status)
+        + encode_field_varint(6, power)
+        + encode_field_bytes(8, order)
+    )
+    report = encode_field_bytes(1, device) + encode_field_bytes(4, pile)
+    header = encode_field_bytes(1, report) + encode_field_varint(8, 241) + encode_field_varint(9, 3)
+    if src is not None:
+        header += encode_field_varint(2, src)
+    if dst is not None:
+        header += encode_field_varint(3, dst)
+    return encode_field_bytes(1, header)
+
+
+@pytest.mark.parametrize("src,dst", [(32, 96), (96, 96), (32, 32), (None, 32), (96, None), (None, None)])
+def test_powerocean_relay_rejects_unconfirmed_direction(src: int | None, dst: int | None) -> None:
+    assert parse_powerocean_charging_reports(_relay_session_frame(src, dst, 1920, 3)) == []
+
+
+def test_powerocean_relay_sequence_preserves_every_incoming_update() -> None:
+    snapshot = {}
+    accepted_powers = []
+    for power, status in [(0, 1), (1312, 3), (1280, 3), (0, 1)]:
+        incoming = _relay_session_frame(96, 32, power, status)
+        reverse = _relay_session_frame(32, 96, 1920, 3)
+        # A bundled reverse frame must neither overwrite nor discard the valid report.
+        reports = parse_powerocean_charging_reports(incoming + reverse)
+        assert len(reports) == 1
+        snapshot.update(reports[0])
+        accepted_powers.append(snapshot["powerocean_charging_power_w"])
+        assert parse_powerocean_charging_reports(reverse) == []
+        assert snapshot["powerocean_charging_status"] == ("charging" if status == 3 else "available")
+    assert accepted_powers == [0, 1312, 1280, 0]
 
 
 def test_small_observer_command_is_xor_decoded_without_raw_bytes() -> None:

@@ -1404,3 +1404,17 @@ is noted rather than raised.
 - A live observation documents only the condition actually exercised; it does
   not prove behavior in an untested solar, battery, vehicle, or transport
   condition.
+
+## Issue #98 direction-filter validation (2026-10-03)
+
+The parser now requires `96 → 32` for `241/3` session telemetry. Regression
+coverage includes reverse, incorrect and absent directions, plus bundled
+incoming/reverse frames across idle and genuine-charging-shaped sequences.
+These are synthetic protocol tests, not a physical vehicle test. Live raw and
+qualified sensor acceptance and update cadence remain pending in the backlog;
+release this vehicle-dependent fix beta-first.
+
+Automated checks: 511 pytest tests passed, including an actual-parser
+coordinator regression proving raw/qualified values and power timestamps are
+unchanged by reverse reports. Ruff and repository consistency checks passed.
+HACS/Hassfest CI and live Home Assistant acceptance were not run here.
