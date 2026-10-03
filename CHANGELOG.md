@@ -4,7 +4,10 @@ This file records delivered changes and the state of each historical build.
 Current outstanding work is maintained only in
 [the project backlog](docs/backlog.md).
 
-## Unreleased
+## 1.0.6-beta.1 - 2026-10-03
+
+Beta candidate for validating the Issue #98 direction filter. Live vehicle
+acceptance remains pending; the current stable release is still `1.0.5`.
 
 - Fix #98: accept PowerOcean `241/3` session telemetry only in the confirmed
   `96 → 32` direction. Reverse-direction reports cannot overwrite raw or
