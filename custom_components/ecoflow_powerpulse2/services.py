@@ -17,6 +17,7 @@ ACTIONS = (
     "protocol_test_solar_minimum_field_only",
     "protocol_test_custom_current_field_only",
     "protocol_test_phase_while_charging",
+    "protocol_test_continuous_field_only",
 )
 
 
@@ -77,6 +78,8 @@ def async_register_protocol_actions(hass: HomeAssistant) -> None:
         }
         if action == ACTIONS[2]:
             fields[vol.Required("phase")] = vol.In(("auto", "one_phase", "three_phase"))
+        elif action == ACTIONS[3]:
+            fields[vol.Required("enabled")] = _strict_bool
         else:
             fields[vol.Required("current")] = _current
             fields[vol.Required("expected_work_mode")] = vol.In(("solar", "fast"))
