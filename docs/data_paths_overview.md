@@ -1,8 +1,8 @@
 # PowerPulse 2 data-path overview
 
 > **2026-10-04 update:** Beta.2 hardware acceptance is complete. Candidate
-> `1.0.6-beta.3` removes the stored-current mode/Continuous prerequisites and
-> phase charging lock. Earlier guard descriptions below record the preceding
+> `1.0.6-beta.4` also permits mode and minimum/maximum/Custom current changes
+> during charging, with fresh known direct status and confirmed readback. Earlier guard descriptions below record the preceding
 > implementation. See [hardware findings](protocol_hardware_findings_beta2.md)
 > for the current production behavior and retained safety boundaries.
 
@@ -35,7 +35,8 @@ confirmation requires a matching SET reply and newer direct `241/44` target
 and required companion fields; provider readback cannot confirm these actions.
 Candidate `1.0.6-beta.3` also uses these partial-write shapes in normal controls.
 Stored Solar/Custom current edits no longer require a selected mode or Continuous
-enablement, but still require fresh stored-value evidence and an idle charger.
+enablement, and still require fresh stored-value evidence. Beta.4 additionally permits mode
+and all three current controls while charging with fresh known direct status.
 Phase selection permits fresh confirmed charging state; qualification and its
 dedicated readback fallback remain unchanged. See the completed
 [hardware findings](protocol_hardware_findings_beta2.md).

@@ -5,15 +5,15 @@ from __future__ import annotations
 CHARGING_LOCKED_SETTING_KEYS = frozenset(
     {
         "continuous_charging",
-        "output_current_max_raw",
         "ready_by_timestamp",
-        "solar_current_min_raw",
         "smart_charge_target_wh",
         "smart_target_distance_km",
         "smart_target_type",
-        "user_current_set_raw",
-        "work_mode",
     }
+)
+
+CHARGING_ALLOWED_SETTING_KEYS = frozenset(
+    {"phase_mode", "work_mode", "output_current_max_raw", "solar_current_min_raw", "user_current_set_raw"}
 )
 
 _KNOWN_NON_CHARGING_STATUSES = frozenset(
@@ -27,10 +27,15 @@ _KNOWN_NON_CHARGING_STATUSES = frozenset(
 )
 
 
+def idle_control_allowed(charging_status: object) -> bool:
+    """Return whether fresh status identifies a non-charging charger."""
+    return charging_status in _KNOWN_NON_CHARGING_STATUSES
+
+
 def control_allowed_for_status(setting_key: str, charging_status: object) -> bool:
     """Return whether a setting may be written for the observed charger state."""
-    if setting_key == "phase_mode":
-        return charging_status == "charging" or charging_status in _KNOWN_NON_CHARGING_STATUSES
+    if setting_key in CHARGING_ALLOWED_SETTING_KEYS:
+        return charging_status == "charging" or idle_control_allowed(charging_status)
     if setting_key not in CHARGING_LOCKED_SETTING_KEYS:
         return True
-    return charging_status in _KNOWN_NON_CHARGING_STATUSES
+    return idle_control_allowed(charging_status)

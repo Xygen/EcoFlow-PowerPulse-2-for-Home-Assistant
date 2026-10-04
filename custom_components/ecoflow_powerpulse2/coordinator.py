@@ -48,7 +48,11 @@ from .control_readback import (
     provider_bundle_matches,
     settings_bundle_values,
 )
-from .control_safety import CHARGING_LOCKED_SETTING_KEYS, control_allowed_for_status
+from .control_safety import (
+    CHARGING_ALLOWED_SETTING_KEYS,
+    CHARGING_LOCKED_SETTING_KEYS,
+    control_allowed_for_status,
+)
 from .data_merge import merge_snapshot_after_read
 from .diagnostic_support import redact_serial_shaped_bytes
 from .ecoflow.broker import broker_from_credentials
@@ -1157,7 +1161,7 @@ class PowerPulse2Coordinator(ProtocolResearchMixin, DataUpdateCoordinator[dict[s
         """Return whether transport and the live charging state allow a write."""
         if not self.settings_control_available(serial):
             return False
-        if setting_key not in CHARGING_LOCKED_SETTING_KEYS and setting_key != "phase_mode":
+        if setting_key not in CHARGING_LOCKED_SETTING_KEYS | CHARGING_ALLOWED_SETTING_KEYS:
             return True
         return (
             self.direct_stream_available(serial)

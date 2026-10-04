@@ -249,13 +249,13 @@ class Harness:
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("change", ["charging", "stale", "disconnect", "shutdown", "removed"])
+@pytest.mark.parametrize("change", ["unknown", "stale", "disconnect", "shutdown", "removed"])
 async def test_queued_current_write_rechecks_dispatch_prerequisites(harness, change):
     c = harness.coordinator
 
     def invalidate():
-        if change == "charging":
-            harness.heartbeat("charging")
+        if change == "unknown":
+            harness.heartbeat("unknown")
             c.data[SERIAL]["charging_status"] = "plugged_in"  # Provider cannot bypass Direct.
         elif change == "stale":
             harness.heartbeat("plugged_in", age=91)
@@ -322,8 +322,12 @@ async def test_queued_custom_current_does_not_restore_old_mode(harness):
 ])
 @pytest.mark.parametrize("mode", ["solar", "fast", "custom", "smart"])
 @pytest.mark.parametrize("continuous", [False, True])
-async def test_stored_current_partial_write_preserves_other_settings(harness, method, key, field, mode, continuous):
+@pytest.mark.parametrize("status", ["plugged_in", "charging"])
+async def test_stored_current_partial_write_preserves_other_settings(
+    harness, method, key, field, mode, continuous, status,
+):
     c = harness.coordinator
+    harness.heartbeat(status)
     harness.observe(work_mode=mode, continuous_charging=continuous, switch_bits_raw=18 if continuous else 2)
     before = dict(c.data[SERIAL])
     assert c.stored_current_control_available(SERIAL, key)
@@ -340,7 +344,7 @@ async def test_stored_current_partial_write_preserves_other_settings(harness, me
     ("async_set_custom_current", "user_current_set_raw"),
 ])
 @pytest.mark.parametrize("failure", [
-    "charging", "unknown", "stale_heartbeat", "stale_settings", "disconnected", "conflict",
+    "unknown", "stale_heartbeat", "stale_settings", "disconnected", "conflict",
 ])
 async def test_stored_current_retains_freshness_and_charging_guards(harness, method, key, failure):
     c = harness.coordinator
@@ -486,7 +490,8 @@ def test_sensitive_availability_uses_direct_not_merged_provider_status(harness):
     c = harness.coordinator
     harness.heartbeat("charging")
     c.data[SERIAL]["charging_status"] = "plugged_in"
-    assert not c.charging_sensitive_control_available(SERIAL, "output_current_max_raw")
+    assert c.charging_sensitive_control_available(SERIAL, "output_current_max_raw")
+    assert not c.charging_sensitive_control_available(SERIAL, "continuous_charging")
     assert c.charging_sensitive_control_available(SERIAL, "plug_and_play")
 
 
@@ -579,6 +584,37 @@ CONTROL_CASES = [
     ("screen_brightness", 75, "solar"),
     ("indicator_brightness", 75, "solar"),
 ]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("method,value,mode", [
+    case for case in CONTROL_CASES if case[0] in {
+        "work_mode", "maximum_output_current", "custom_current", "solar_minimum_current",
+    }
+])
+@pytest.mark.parametrize("readback", [True, False])
+async def test_charging_mode_and_current_dispatch_requires_confirmation(
+    harness, monkeypatch, method, value, mode, readback,
+):
+    c = harness.coordinator
+    c.hass.loop = asyncio.get_running_loop()
+    harness.heartbeat("charging")
+    harness.observe(work_mode=mode, ready_by_timestamp=2000000000,
+                    smart_target_type="energy", smart_charge_target_wh=10000)
+    if method == "work_mode" and value == "smart":
+        await c._async_update_smart_staging(SERIAL, {
+            "ready_by_timestamp": 2000000000, "smart_target_type": "energy", "smart_charge_target_wh": 10000,
+        })
+    if not readback:
+        harness.report_values = {"unrelated_field": 1}
+        monkeypatch.setattr(harness.module, "_CONTROL_DIRECT_WAIT_SECONDS", 0)
+        monkeypatch.setattr(harness.module, "_CONTROL_PROVIDER_RETRY_DELAYS", ())
+        with pytest.raises(HAError, match="neither direct nor provider"):
+            await getattr(c, "async_set_" + method)(SERIAL, value)
+    else:
+        await getattr(c, "async_set_" + method)(SERIAL, value)
+        assert c._control_readback_counts["direct"] == 1
+    assert len(harness.sent) == 1
 
 
 @pytest.mark.asyncio

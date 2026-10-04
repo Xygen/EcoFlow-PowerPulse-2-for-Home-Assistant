@@ -6,7 +6,14 @@ and raw chronology remain in the evidence archives linked from the
 
 ## Current baseline
 
-Candidate `1.0.6-beta.3` applies the completed beta.2 hardware tests from
+Candidate `1.0.6-beta.4` corrects the intended availability: mode selection
+and minimum, maximum and Custom current are permitted during charging. Beta.3
+retained these charging locks. Fresh direct status, route qualification and
+reply/readback confirmation remain; stale/unknown state is refused. Charging-time
+mode/current hardware acceptance remains open. No installation or device writes
+were performed during this correction.
+
+Released `1.0.6-beta.3` applies the completed beta.2 hardware tests from
 upstream #480/#481/#482 to normal controls: independent field-4/field-6 stored
 current writes and field-5 phase selection during charging. Evidence, precise
 timestamps, firmware pause/resume behavior and untested cases are documented in

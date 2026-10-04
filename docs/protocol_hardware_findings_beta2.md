@@ -21,7 +21,7 @@ The test was subsequently stopped and configured Auto restored.
 
 ## Implementation and retained boundaries
 
-Candidate `1.0.6-beta.3` applies these shapes to normal number/select entities.
+`1.0.6-beta.3` applied these shapes to normal number/select entities.
 Current values are stored independently of mode; editing them does not activate
 that mode or Continuous Charging. Neither current write includes field 1 or 2,
 so queued edits cannot restore old mode/flags. Normal current entities require
@@ -35,9 +35,13 @@ configured-setting confirmation remain necessary; the dedicated qualified
 provider fallback and its transition requirement remain unchanged. The integration
 does not automatically send Stop or Start when phase changes.
 
-Both current controls remain locked while charging. Continuous Charging retains
-its Solar prerequisite and charging lock, as do the other previously locked
-settings. Research actions remain available for explicitly scoped experiments,
+Beta.3 retained the charging locks for mode and all current controls. Candidate
+`1.0.6-beta.4` corrects the intended scope: mode selection and minimum, maximum
+and Custom current are available during charging, still requiring fresh known
+direct status, qualified routing and confirmed readback. This is an explicitly
+requested availability change, not additional hardware evidence. Continuous
+Charging retains its Solar prerequisite and charging lock; Smart target interlocks
+remain unchanged. Research actions remain available for explicitly scoped experiments,
 with their stricter direct-only confirmation and bounded diagnostics.
 
 ## Evidence limits
