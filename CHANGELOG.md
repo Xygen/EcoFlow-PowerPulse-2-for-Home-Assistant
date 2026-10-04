@@ -4,6 +4,21 @@ This file records delivered changes and the state of each historical build.
 Current outstanding work is maintained only in
 [the project backlog](docs/backlog.md).
 
+## 1.0.6-beta.3 - 2026-10-04
+
+- Apply the beta.2 hardware findings from upstream #480/#481/#482 to normal
+  controls: stored Solar minimum current uses field 4 only, stored Custom current
+  uses field 6 only. Neither edit switches mode or changes Continuous Charging.
+  Both controls are available independently of mode/Continuous while idle.
+- Allow configured phase selection during charging with field 5 only. Observed
+  firmware briefly pauses, changes physical phase and resumes automatically;
+  confirmation remains based on the configured setting, not physical phase.
+- Retain fresh charging/settings evidence, unambiguous routing, serialized writes,
+  SET reply/readback confirmation and the remaining charging interlocks. Current
+  edits during charging and Continuous outside Solar remain unvalidated.
+- Document the controlled C376 hardware evidence and its limits in
+  [protocol observations](docs/protocol_hardware_findings_beta2.md).
+
 ## 1.0.6-beta.2 - 2026-10-04
 
 - Add three explicitly confirmed Protocol Research actions for field-only solar

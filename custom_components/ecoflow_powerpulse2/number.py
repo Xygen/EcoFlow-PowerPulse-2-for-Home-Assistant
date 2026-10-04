@@ -118,6 +118,12 @@ class PowerPulse2CurrentNumber(PowerPulse2Entity, NumberEntity):
 
     @property
     def available(self) -> bool:
+        stored_current_key = {
+            "solar_minimum_current_control": "solar_current_min_raw",
+            "custom_current_control": "user_current_set_raw",
+        }.get(self.entity_description.key)
+        if stored_current_key:
+            return self.coordinator.stored_current_control_available(self.serial, stored_current_key)
         if self.entity_description.key == "smart_energy_target_control":
             return self.coordinator.smart_control_available(
                 self.serial, "smart_charge_target_wh"
@@ -140,12 +146,6 @@ class PowerPulse2CurrentNumber(PowerPulse2Entity, NumberEntity):
             self.serial, locked_key
         ):
             return False
-        if self.entity_description.key == "solar_minimum_current_control":
-            return values.get("work_mode") == "solar" and bool(
-                values.get("continuous_charging")
-            )
-        if self.entity_description.key == "custom_current_control":
-            return values.get("work_mode") == "custom"
         if self.entity_description.key == "screen_brightness_control":
             return values.get("screen_enabled") is True
         if self.entity_description.key == "indicator_brightness_control":

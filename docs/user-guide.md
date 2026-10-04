@@ -1,5 +1,11 @@
 # PowerPulse 2 user guide
 
+> **Beta.3 candidate:** Stored Solar minimum/Custom current can be edited while
+> idle independently of mode or Continuous Charging. Phase selection is permitted
+> during charging; firmware may briefly pause and resume automatically. These
+> changes follow the completed beta.2 hardware tests. See [findings and limits](protocol_hardware_findings_beta2.md).
+> The stable release described below remains `1.0.5`.
+
 This guide describes stable version **1.0.5**. The current release declaration is
 maintained in the [documentation index](index.md). Test builds and their actual
 validation status are recorded separately in [validation](validation.md#current-baseline).

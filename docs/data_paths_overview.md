@@ -1,5 +1,11 @@
 # PowerPulse 2 data-path overview
 
+> **2026-10-04 update:** Beta.2 hardware acceptance is complete. Candidate
+> `1.0.6-beta.3` removes the stored-current mode/Continuous prerequisites and
+> phase charging lock. Earlier guard descriptions below record the preceding
+> implementation. See [hardware findings](protocol_hardware_findings_beta2.md)
+> for the current production behavior and retained safety boundaries.
+
 This page provides a reader-friendly overview of the data paths observed for a
 PowerPulse 2 connected to a PowerOcean system. It complements the detailed,
 chronological evidence in [protocol_observations.md](protocol_observations.md).

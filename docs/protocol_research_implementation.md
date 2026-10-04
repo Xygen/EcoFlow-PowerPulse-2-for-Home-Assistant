@@ -1,5 +1,11 @@
 # Protocol research implementation report
 
+> **2026-10-04 update:** Beta.2 hardware acceptance is complete. Candidate
+> `1.0.6-beta.3` removes the stored-current mode/Continuous prerequisites and
+> phase charging lock. Earlier guard descriptions below record the preceding
+> implementation. See [hardware findings](protocol_hardware_findings_beta2.md)
+> for the current production behavior and retained safety boundaries.
+
 Date: 2026-10-04. Version: `1.0.6-beta.1` → `1.0.6-beta.2`.
 Code and portable verification are complete. Installation, live action visibility
 and hardware acceptance are tracked in the [canonical backlog](backlog.md#telemetry-and-protocol-research).

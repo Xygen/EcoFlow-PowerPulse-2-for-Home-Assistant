@@ -2279,3 +2279,13 @@ data:
   expected_continuous_charging: false
   confirm_protocol_test: true
 ```
+
+
+## Beta.2 hardware findings
+
+The controlled research actions were exercised on C376 hardware on 2026-10-04.
+The completed #480/#481/#482 captures supersede the pending experiments and
+production guards in the preceding beta.2 historical section. See
+[hardware findings and production changes](protocol_hardware_findings_beta2.md)
+for exact field-only writes, direct confirmation, phase pause/resume behavior,
+source links and limits. Candidate beta.3 uses these shapes in normal controls.

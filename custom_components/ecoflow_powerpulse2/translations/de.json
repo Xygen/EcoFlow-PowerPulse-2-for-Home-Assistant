@@ -167,7 +167,7 @@
   "services": {
     "protocol_test_solar_minimum_field_only": {
       "name": "Protokollforschung: Solar-Mindeststrom nur mit Feld 4",
-      "description": "Kontrollierter Hardware-/Protokolltest. Umgeht gezielt die Solar-/Continuous-Freigabe und das normale Begleitfeldbündel. Nicht für normale Automationen verwenden. Genau ein Schreibvorgang; frische direkte Bestätigung erforderlich.",
+      "description": "Kontrollierter Hardware-/Protokolltest mit zusätzlichen Vorbedingungen, direkter Bestätigung und Diagnosedaten. Nicht für normale Automationen verwenden. Genau ein Schreibvorgang; frische direkte Bestätigung erforderlich.",
       "fields": {
         "device_id": {
           "name": "PowerPulse-Gerät",
@@ -193,7 +193,7 @@
     },
     "protocol_test_custom_current_field_only": {
       "name": "Protokollforschung: Custom-Strom nur mit Feld 6",
-      "description": "Kontrollierter Hardware-/Protokolltest. Umgeht gezielt die Custom-Modus-Beschränkung und das normale Begleitfeldbündel. Nicht für normale Automationen verwenden. Genau ein Schreibvorgang; frische direkte Bestätigung erforderlich.",
+      "description": "Kontrollierter Hardware-/Protokolltest mit zusätzlichen Vorbedingungen, direkter Bestätigung und Diagnosedaten. Nicht für normale Automationen verwenden. Genau ein Schreibvorgang; frische direkte Bestätigung erforderlich.",
       "fields": {
         "device_id": {
           "name": "PowerPulse-Gerät",
@@ -215,7 +215,7 @@
     },
     "protocol_test_phase_while_charging": {
       "name": "Protokollforschung: Phase während des Ladens schreiben",
-      "description": "Kontrollierter Hardware-/Protokolltest. Umgeht gezielt die Ladesperre für Phaseneinstellungen. Nicht für normale Automationen verwenden. Genau ein Schreibvorgang; frische direkte Bestätigung erforderlich.",
+      "description": "Kontrollierter Hardware-/Protokolltest mit zusätzlichen Vorbedingungen, direkter Bestätigung und Diagnosedaten. Nicht für normale Automationen verwenden. Genau ein Schreibvorgang; frische direkte Bestätigung erforderlich.",
       "fields": {
         "device_id": {
           "name": "PowerPulse-Gerät",

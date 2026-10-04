@@ -1,5 +1,11 @@
 # EcoFlow PowerPulse 2 for Home Assistant
 
+> **Beta.3 candidate:** Stored Solar minimum/Custom current can be edited while
+> idle independently of mode or Continuous Charging. Phase selection is permitted
+> during charging; firmware may briefly pause and resume automatically. These
+> changes follow the completed beta.2 hardware tests. See [findings and limits](docs/protocol_hardware_findings_beta2.md).
+> The stable release described below remains `1.0.5`.
+
 Custom integration for EcoFlow PowerPulse 2 EV chargers.
 It follows the independent Home Assistant integration structure of
 [EcoFlow PowerGlow for Home Assistant](https://github.com/Xygen/EcoFlow-PowerGlow-for-Home-Assistant).

@@ -167,7 +167,7 @@
   "services": {
     "protocol_test_solar_minimum_field_only": {
       "name": "Protocol research: Solar minimum field-only write",
-      "description": "Controlled hardware/protocol experiment. Intentionally bypasses the Solar/Continuous enablement restriction and normal companion-field bundle. Do not use for normal automations. Exactly one write; fresh direct confirmation required.",
+      "description": "Controlled hardware/protocol experiment with explicit prerequisites, direct confirmation and diagnostic evidence. Do not use for normal automations. Exactly one write; fresh direct confirmation required.",
       "fields": {
         "device_id": {
           "name": "PowerPulse device",
@@ -193,7 +193,7 @@
     },
     "protocol_test_custom_current_field_only": {
       "name": "Protocol research: Custom current field-only write",
-      "description": "Controlled hardware/protocol experiment. Intentionally bypasses the Custom-mode restriction and normal companion-field bundle. Do not use for normal automations. Exactly one write; fresh direct confirmation required.",
+      "description": "Controlled hardware/protocol experiment with explicit prerequisites, direct confirmation and diagnostic evidence. Do not use for normal automations. Exactly one write; fresh direct confirmation required.",
       "fields": {
         "device_id": {
           "name": "PowerPulse device",
@@ -215,7 +215,7 @@
     },
     "protocol_test_phase_while_charging": {
       "name": "Protocol research: Phase write while charging",
-      "description": "Controlled hardware/protocol experiment. Intentionally bypasses the active-charging lock for phase settings. Do not use for normal automations. Exactly one write; fresh direct confirmation required.",
+      "description": "Controlled hardware/protocol experiment with explicit prerequisites, direct confirmation and diagnostic evidence. Do not use for normal automations. Exactly one write; fresh direct confirmation required.",
       "fields": {
         "device_id": {
           "name": "PowerPulse device",

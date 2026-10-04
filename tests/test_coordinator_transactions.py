@@ -284,7 +284,7 @@ async def test_queued_charge_action_rechecks_heartbeat_age(harness, action, stat
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("condition", ["mode", "disabled", "stale"])
-async def test_queued_solar_current_rechecks_mode_and_enablement(harness, condition):
+async def test_queued_solar_current_preserves_mode_and_enablement(harness, condition):
     c = harness.coordinator
 
     def invalidate():
@@ -295,17 +295,98 @@ async def test_queued_solar_current_rechecks_mode_and_enablement(harness, condit
         else:
             harness.expire_settings()
 
-    with pytest.raises(HAError):
+    if condition == "stale":
+        with pytest.raises(HAError):
+            await harness.queued(c.async_set_solar_minimum_current(SERIAL, 7), invalidate)
+        assert harness.sent == []
+    else:
         await harness.queued(c.async_set_solar_minimum_current(SERIAL, 7), invalidate)
-    assert harness.sent == []
+        assert harness.sent == [{4: 70}]
+        assert c.data[SERIAL]["work_mode"] == ("fast" if condition == "mode" else "solar")
+        assert c.data[SERIAL]["continuous_charging"] is (condition != "disabled")
 
 
 @pytest.mark.asyncio
 async def test_queued_custom_current_does_not_restore_old_mode(harness):
     c = harness.coordinator
     harness.observe(work_mode="custom")
+    await harness.queued(c.async_set_custom_current(SERIAL, 7), lambda: harness.observe(work_mode="solar"))
+    assert harness.sent == [{6: 70}]
+    assert c.data[SERIAL]["work_mode"] == "solar"
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("method,key,field", [
+    ("async_set_solar_minimum_current", "solar_current_min_raw", 4),
+    ("async_set_custom_current", "user_current_set_raw", 6),
+])
+@pytest.mark.parametrize("mode", ["solar", "fast", "custom", "smart"])
+@pytest.mark.parametrize("continuous", [False, True])
+async def test_stored_current_partial_write_preserves_other_settings(harness, method, key, field, mode, continuous):
+    c = harness.coordinator
+    harness.observe(work_mode=mode, continuous_charging=continuous, switch_bits_raw=18 if continuous else 2)
+    before = dict(c.data[SERIAL])
+    assert c.stored_current_control_available(SERIAL, key)
+    await harness.queued(getattr(c, method)(SERIAL, 7), lambda: None)
+    assert harness.sent == [{field: 70}]
+    assert c.data[SERIAL][key] == 70
+    for companion in ("work_mode", "continuous_charging", "switch_bits_raw"):
+        assert c.data[SERIAL][companion] == before[companion]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("method,key", [
+    ("async_set_solar_minimum_current", "solar_current_min_raw"),
+    ("async_set_custom_current", "user_current_set_raw"),
+])
+@pytest.mark.parametrize("failure", [
+    "charging", "unknown", "stale_heartbeat", "stale_settings", "disconnected", "conflict",
+])
+async def test_stored_current_retains_freshness_and_charging_guards(harness, method, key, failure):
+    c = harness.coordinator
+    def invalidate():
+        if failure in {"charging", "unknown"}:
+            harness.heartbeat(failure)
+        elif failure == "stale_heartbeat":
+            harness.heartbeat("plugged_in", age=91)
+        elif failure == "stale_settings":
+            harness.expire_settings()
+        elif failure == "disconnected":
+            harness.connected = False
+        else:
+            c._setting_observations.record_snapshot(
+                serial=SERIAL, source="provider_parent_accessory", values={key: 80}, keys={key},
+                observed_at="2026-10-04T10:00:00+00:00", observed_monotonic=harness.now() + 0.01,
+            )
     with pytest.raises(HAError):
-        await harness.queued(c.async_set_custom_current(SERIAL, 7), lambda: harness.observe(work_mode="solar"))
+        await harness.queued(getattr(c, method)(SERIAL, 7), invalidate)
+    assert not c.stored_current_control_available(SERIAL, key)
+    assert harness.sent == []
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("failure", [
+    "unknown", "updating", "stale_heartbeat", "missing_phase", "disconnected", "ambiguous_parent",
+])
+async def test_charging_phase_write_retains_qualified_route_and_state_guards(harness, failure):
+    c = harness.coordinator
+    harness.observe(phase_specified_raw=0, phase_mode="auto")
+    harness.heartbeat("charging")
+    assert c.phase_control_available(SERIAL)
+    def invalidate():
+        if failure in {"unknown", "updating"}:
+            harness.heartbeat(failure)
+        elif failure == "stale_heartbeat":
+            harness.heartbeat("charging", age=91)
+        elif failure == "missing_phase":
+            c._phase_readbacks = harness.module.PhaseReadbackTracker()
+        elif failure == "disconnected":
+            harness.connected = False
+        else:
+            c.observer_devices["other-parent"] = {}
+    with pytest.raises(HAError):
+        await harness.queued(c.async_set_phase_mode(SERIAL, "three_phase"), invalidate)
+    assert not c.phase_control_available(SERIAL)
     assert harness.sent == []
 
 
@@ -442,16 +523,15 @@ async def test_unlocked_flag_can_still_change_during_charging(harness):
 @pytest.mark.parametrize("source", ["direct_settings_2_34", "provider_parent_accessory"])
 @pytest.mark.parametrize("key,value", [("work_mode", "fast"), ("continuous_charging", False),
                                        ("switch_bits_raw", 17)])
-async def test_newer_conflicting_source_blocks_queued_solar_write(harness, source, key, value):
+async def test_unrelated_source_conflict_does_not_block_partial_solar_write(harness, source, key, value):
     c = harness.coordinator
     # Distinct timestamps avoid depending on the Windows clock resolution.
     c._setting_observations.record_snapshot(
         serial=SERIAL, source=source, values={key: value}, keys={key},
         observed_at="2026-09-09T20:00:00+00:00", observed_monotonic=harness.now() + 0.01,
     )
-    with pytest.raises(HAError):
-        await harness.queued(c.async_set_solar_minimum_current(SERIAL, 7), lambda: None)
-    assert harness.sent == []
+    await harness.queued(c.async_set_solar_minimum_current(SERIAL, 7), lambda: None)
+    assert harness.sent == [{4: 70}]
 
 
 def test_partial_direct_report_cannot_confirm_cached_target(harness):
