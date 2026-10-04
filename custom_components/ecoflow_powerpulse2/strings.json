@@ -177,5 +177,73 @@
     "smart_ready_by_too_far_ahead": {
       "message": "The Smart ready-by time ({ready_by}) is more than a year from now. Choose a ready-by time within the next year."
     }
+  },
+  "services": {
+    "protocol_test_solar_minimum_field_only": {
+      "name": "Protocol research: Solar minimum field-only write",
+      "description": "Controlled hardware/protocol experiment. Intentionally bypasses the Solar/Continuous enablement restriction and normal companion-field bundle. Do not use for normal automations. Exactly one write; fresh direct confirmation required.",
+      "fields": {
+        "device_id": {
+          "name": "PowerPulse device",
+          "description": "Select exactly one PowerPulse 2."
+        },
+        "confirm_protocol_test": {
+          "name": "Confirm protocol experiment",
+          "description": "Explicitly set true to permit this single experimental write."
+        },
+        "current": {
+          "name": "Current",
+          "description": "Whole amperes from 6 to 16 A."
+        },
+        "expected_work_mode": {
+          "name": "Expected operating mode",
+          "description": "Must match fresh direct readback; the action does not change mode."
+        },
+        "expected_continuous_charging": {
+          "name": "Expected Continuous charging",
+          "description": "Optional precondition checked immediately before publishing."
+        }
+      }
+    },
+    "protocol_test_custom_current_field_only": {
+      "name": "Protocol research: Custom current field-only write",
+      "description": "Controlled hardware/protocol experiment. Intentionally bypasses the Custom-mode restriction and normal companion-field bundle. Do not use for normal automations. Exactly one write; fresh direct confirmation required.",
+      "fields": {
+        "device_id": {
+          "name": "PowerPulse device",
+          "description": "Select exactly one PowerPulse 2."
+        },
+        "confirm_protocol_test": {
+          "name": "Confirm protocol experiment",
+          "description": "Explicitly set true to permit this single experimental write."
+        },
+        "current": {
+          "name": "Current",
+          "description": "Whole amperes from 6 to 16 A."
+        },
+        "expected_work_mode": {
+          "name": "Expected operating mode",
+          "description": "Must match fresh direct readback; the action does not change mode."
+        }
+      }
+    },
+    "protocol_test_phase_while_charging": {
+      "name": "Protocol research: Phase write while charging",
+      "description": "Controlled hardware/protocol experiment. Intentionally bypasses the active-charging lock for phase settings. Do not use for normal automations. Exactly one write; fresh direct confirmation required.",
+      "fields": {
+        "device_id": {
+          "name": "PowerPulse device",
+          "description": "Select exactly one PowerPulse 2."
+        },
+        "confirm_protocol_test": {
+          "name": "Confirm protocol experiment",
+          "description": "Explicitly set true to permit this single experimental write."
+        },
+        "phase": {
+          "name": "Phase setting",
+          "description": "Must differ from the freshly confirmed configured phase."
+        }
+      }
+    }
   }
 }

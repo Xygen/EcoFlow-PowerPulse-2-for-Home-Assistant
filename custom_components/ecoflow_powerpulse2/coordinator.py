@@ -71,6 +71,7 @@ from .frame_capture import (
 from .parser import extract_powerpulse_accessory_descriptor, parse_powerpulse2_payload
 from .passive_refresh import ConfirmedSettingsReplyGate, DelayedRefreshCoalescer
 from .phase_diagnostics import PhaseEvidence, PhaseReadbackTracker
+from .protocol_research import ProtocolResearchMixin
 from .setting_observation import (
     SettingObservationTracker,
     SettingSource,
@@ -165,8 +166,11 @@ _SETTING_OBSERVATION_KEYS = frozenset(
 )
 
 
-class PowerPulse2Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
+class PowerPulse2Coordinator(ProtocolResearchMixin, DataUpdateCoordinator[dict[str, dict[str, Any]]]):
     """Discover devices, poll snapshots, and merge listen-only MQTT pushes."""
+
+    _protocol_direct_phase_fresh_seconds = _DIRECT_SETTINGS_FRESH_SECONDS
+    _protocol_provider_phase_fresh_seconds = _PHASE_PROVIDER_FRESH_SECONDS
 
     def __init__(self, hass: HomeAssistant, entry: ConfigEntry) -> None:
         super().__init__(
@@ -223,6 +227,7 @@ class PowerPulse2Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
         self._accessory_descriptors: dict[str, bytes] = {}
         self._reply_waiters: dict[tuple[str, int, int, int], asyncio.Future[None]] = {}
         self._control_lock = asyncio.Lock()
+        self._protocol_research_transactions: deque[dict[str, Any]] = deque(maxlen=20)
         self._direct_stream_lock = asyncio.Lock()
         self._last_smart_settings: dict[str, dict[str, Any]] = {}
         self._smart_staging = SmartStaging()
@@ -2057,12 +2062,23 @@ class PowerPulse2Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
             raise HomeAssistantError(
                 "Phase control lost its qualified readback before publish"
             )
+        await self._async_execute_settings_transaction_locked(
+            serial, settings, expected_key=expected_key,
+            expected_value=expected_value, phase_specific=phase_specific,
+        )
+
+    async def _async_execute_settings_transaction_locked(
+        self, serial: str, settings: dict[int, int | bytes], *,
+        expected_key: str, expected_value: Any, phase_specific: bool = False,
+        research: dict[str, Any] | None = None,
+    ) -> None:
+        """Execute an approved transaction; callers validate under the control lock."""
         prewrite_provider: PhaseEvidence | None = None
         if phase_specific:
             prewrite_provider = self._phase_readbacks.source_evidence(
                 serial, "provider_parent_accessory"
             )
-        else:
+        elif research is None:
             now = time.monotonic()
             expected_bundle = settings_bundle_values(settings)
             if expected_bundle:
@@ -2084,17 +2100,32 @@ class PowerPulse2Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
         waiter_key = (observer_serial, 241, 102, sequence)
         self._reply_waiters[waiter_key] = waiter
         issued_at = time.monotonic()
-        published = await self.hass.async_add_executor_job(
-            client.send_explicit_control, payload
-        )
-        if not published:
-            self._reply_waiters.pop(waiter_key, None)
-            raise HomeAssistantError("EcoFlow rejected the MQTT publish request")
         try:
-            await asyncio.wait_for(waiter, timeout=5)
-        except TimeoutError as exc:
+            if research is not None:
+                research["result"] = "publish_failed"
+                research["sequence"] = sequence
+                research["issued_at"] = datetime.now(UTC).isoformat()
+            published = await self.hass.async_add_executor_job(
+                client.send_explicit_control, payload
+            )
+            if not published:
+                raise HomeAssistantError("EcoFlow rejected the MQTT publish request")
+            if research is not None:
+                research["published_fields"] = {str(key): value for key, value in settings.items()}
+                research["result"] = "set_reply_timeout"
+            try:
+                await asyncio.wait_for(waiter, timeout=5)
+            except TimeoutError as exc:
+                raise HomeAssistantError("No EcoFlow SET reply was received") from exc
+        finally:
             self._reply_waiters.pop(waiter_key, None)
-            raise HomeAssistantError("No EcoFlow SET reply was received") from exc
+            if not waiter.done():
+                waiter.cancel()
+
+        if research is not None:
+            research["set_reply_received"] = True
+            await self._async_confirm_protocol_research(serial, issued_at, research)
+            return
 
         if phase_specific:
             source = await self._async_wait_for_phase_direct_readback(

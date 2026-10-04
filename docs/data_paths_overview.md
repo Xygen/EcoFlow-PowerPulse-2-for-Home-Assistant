@@ -21,6 +21,14 @@ disabled for phase.
 Start/Stop uses its separate `241/100` route and requires a newer heartbeat with
 an allowed physical charging state after the matching reply.
 
+The three [Protocol research actions](protocol_observations.md#protocol-research-actions)
+added in `1.0.6-beta.2` are a separate manual diagnostic write path using the
+same lock and PowerOcean-routed `241/102` transport. Their exact field-only
+shapes are `{4: amps * 10}`, `{6: amps * 10}` and `{5: 0/1/2}`. Research
+confirmation requires a matching SET reply and newer direct `241/44` target
+and required companion fields; provider readback cannot confirm these actions.
+Production controls retain their existing gates and fallback semantics.
+
 `—` means that no value has been identified on that path. Values marked
 **raw** are intentionally not assigned a final unit or complete semantic
 mapping yet.

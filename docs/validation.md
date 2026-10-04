@@ -6,6 +6,22 @@ and raw chronology remain in the evidence archives linked from the
 
 ## Current baseline
 
+Beta candidate `1.0.6-beta.2` adds the three separately confirmed protocol
+research actions for upstream #480/#481/#482. The 2026-10-04 local portable
+suite passed all 595 tests, including 84 new research cases; Ruff and repository
+consistency checks passed. Details are in the
+[implementation report](protocol_research_implementation.md); live action visibility and all hardware
+experiments remain pending. No device command was sent during implementation.
+The [backlog](backlog.md#telemetry-and-protocol-research) tracks acceptance;
+the [experiment plan](protocol_observations.md#controlled-hardware-experiment-plan)
+describes the required raw and direct-device evidence. The preceding beta's
+Issue #98 vehicle acceptance also remains pending.
+
+The initial implementation revision passed all four CI jobs on
+[PR #101](https://github.com/Xygen/EcoFlow-PowerPulse-2-for-Home-Assistant/pull/101),
+including 27 real-HA tests under Linux/Python 3.14. Follow-up schema/component
+tests and the latest revision are tracked by that PR's current checks.
+
 The current stable release is `1.0.5`, released on 2026-09-14; README, index and
 user guide describe that baseline. It ships exactly the code that ran as the test
 build `1.0.5-beta.14`, which was installed and exercised on the maintainer's
