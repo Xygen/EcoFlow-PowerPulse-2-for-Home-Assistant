@@ -6,7 +6,6 @@ CHARGING_LOCKED_SETTING_KEYS = frozenset(
     {
         "continuous_charging",
         "output_current_max_raw",
-        "phase_mode",
         "ready_by_timestamp",
         "solar_current_min_raw",
         "smart_charge_target_wh",
@@ -30,6 +29,8 @@ _KNOWN_NON_CHARGING_STATUSES = frozenset(
 
 def control_allowed_for_status(setting_key: str, charging_status: object) -> bool:
     """Return whether a setting may be written for the observed charger state."""
+    if setting_key == "phase_mode":
+        return charging_status == "charging" or charging_status in _KNOWN_NON_CHARGING_STATUSES
     if setting_key not in CHARGING_LOCKED_SETTING_KEYS:
         return True
     return charging_status in _KNOWN_NON_CHARGING_STATUSES

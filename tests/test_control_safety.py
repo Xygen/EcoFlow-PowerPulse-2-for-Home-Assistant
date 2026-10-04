@@ -8,7 +8,6 @@ def test_live_confirmed_settings_are_locked_while_charging() -> None:
     assert CHARGING_LOCKED_SETTING_KEYS == {
         "continuous_charging",
         "output_current_max_raw",
-        "phase_mode",
         "ready_by_timestamp",
         "solar_current_min_raw",
         "smart_charge_target_wh",
@@ -24,6 +23,7 @@ def test_live_confirmed_settings_are_locked_while_charging() -> None:
 def test_charging_sensitive_settings_fail_closed_without_known_state() -> None:
     for status in (None, "unknown", "updating", 3):
         assert not control_allowed_for_status("work_mode", status)
+        assert not control_allowed_for_status("phase_mode", status)
 
 
 def test_charging_sensitive_settings_allow_known_non_charging_states() -> None:
@@ -43,6 +43,7 @@ def test_live_confirmed_allowed_settings_remain_available_while_charging() -> No
         "indicator_brightness_pct",
         "indicator_enabled",
         "plug_and_play",
+        "phase_mode",
         "screen_brightness_pct",
         "screen_enabled",
     ):

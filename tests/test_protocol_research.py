@@ -172,20 +172,21 @@ async def test_invalid_current_cannot_publish(harness, current):
 
 
 @pytest.mark.asyncio
-async def test_phase_research_and_normal_control_have_distinct_charging_gates(harness, monkeypatch):
+async def test_normal_phase_control_and_research_allow_charging(harness, monkeypatch):
     prepare(harness)
     harness.observe(phase_specified_raw=1, phase_mode="one_phase")
     harness.heartbeat("charging")
     import custom_components.ecoflow_powerpulse2.protocol_research as research
     monkeypatch.setattr(research, "PHASE_OBSERVATION_SECONDS", 0.05)
     c = harness.coordinator
-    assert not c.phase_control_available(SERIAL)
-    with pytest.raises(HAError):
-        await c.async_set_phase_mode(SERIAL, "three_phase")
+    assert c.phase_control_available(SERIAL)
+    await c.async_set_phase_mode(SERIAL, "three_phase")
+    assert harness.sent == [{5: 2}]
+    harness.observe(phase_specified_raw=1, phase_mode="one_phase")
     record = await c.async_protocol_test_phase_while_charging(
         SERIAL, "three_phase", confirm_protocol_test=True,
     )
-    assert harness.sent == [{5: 2}]
+    assert harness.sent == [{5: 2}, {5: 2}]
     assert record["after"]["phase_specified_raw"] == 2
     assert record["physical_phase_observation"]["result"] == "insufficient_fresh_telemetry"
 

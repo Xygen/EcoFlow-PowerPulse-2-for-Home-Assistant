@@ -1157,7 +1157,7 @@ class PowerPulse2Coordinator(ProtocolResearchMixin, DataUpdateCoordinator[dict[s
         """Return whether transport and the live charging state allow a write."""
         if not self.settings_control_available(serial):
             return False
-        if setting_key not in CHARGING_LOCKED_SETTING_KEYS:
+        if setting_key not in CHARGING_LOCKED_SETTING_KEYS and setting_key != "phase_mode":
             return True
         return (
             self.direct_stream_available(serial)
@@ -1165,6 +1165,14 @@ class PowerPulse2Coordinator(ProtocolResearchMixin, DataUpdateCoordinator[dict[s
             and control_allowed_for_status(
                 setting_key, direct_charging_status((self.data or {}).get(serial, {}))
             )
+        )
+
+    def stored_current_control_available(self, serial: str, setting_key: str) -> bool:
+        """Require fresh stored-current evidence without unrelated mode prerequisites."""
+        return (
+            setting_key in {"solar_current_min_raw", "user_current_set_raw"}
+            and self.charging_sensitive_control_available(serial, setting_key)
+            and type(self._control_setting_value(serial, setting_key)) is int
         )
 
     def charge_action_pending(self, serial: str) -> bool:
@@ -1695,12 +1703,10 @@ class PowerPulse2Coordinator(ProtocolResearchMixin, DataUpdateCoordinator[dict[s
 
     async def async_set_custom_current(self, serial: str, amps: float) -> None:
         """Set the whole-ampere current used in Custom mode."""
-        if (self.data or {}).get(serial, {}).get("work_mode") != "custom":
-            raise HomeAssistantError("Custom current requires Custom mode")
         raw = self._validated_whole_amp_setting(amps)
         await self._async_write_settings(
             serial,
-            {2: 3, 6: raw},
+            {6: raw},
             expected_key="user_current_set_raw",
             expected_value=raw,
         )
@@ -1905,15 +1911,10 @@ class PowerPulse2Coordinator(ProtocolResearchMixin, DataUpdateCoordinator[dict[s
 
     async def async_set_solar_minimum_current(self, serial: str, amps: float) -> None:
         """Set the no-sun current used by Solar continuous charging."""
-        values = (self.data or {}).get(serial, {})
-        if values.get("work_mode") != "solar" or not values.get("continuous_charging"):
-            raise HomeAssistantError(
-                "Solar minimum current requires Solar mode and Continuous charging"
-            )
         raw = self._validated_whole_amp_setting(amps)
         await self._async_write_settings(
             serial,
-            lambda: {1: self._required_int_setting(serial, "switch_bits_raw"), 2: 2, 4: raw},
+            {4: raw},
             expected_key="solar_current_min_raw",
             expected_value=raw,
         )
@@ -1999,18 +2000,19 @@ class PowerPulse2Coordinator(ProtocolResearchMixin, DataUpdateCoordinator[dict[s
 
     def _validate_setting_write(self, serial: str, key: str) -> None:
         """Recheck mutable prerequisites while holding the transaction lock."""
+        if key in {"solar_current_min_raw", "user_current_set_raw"} and not self.stored_current_control_available(
+            serial, key
+        ):
+            raise HomeAssistantError("Current setting requires fresh readback and a permitted charging state")
         if not self.charging_sensitive_control_available(serial, key):
             raise HomeAssistantError("Control requires a connected source and a fresh permitted charging state")
         required_mode = {
-            "user_current_set_raw": "custom",
             "continuous_charging": "solar",
-            "solar_current_min_raw": "solar",
             **dict.fromkeys(STAGED_SMART_KEYS, "smart"),
         }.get(key)
         if required_mode is not None and self._control_setting_value(serial, "work_mode") != required_mode:
             raise HomeAssistantError(f"This setting requires fresh {required_mode} mode readback")
         enabled_key = {
-            "solar_current_min_raw": "continuous_charging",
             "screen_brightness_pct": "screen_enabled",
             "indicator_brightness_pct": "indicator_enabled",
         }.get(key)

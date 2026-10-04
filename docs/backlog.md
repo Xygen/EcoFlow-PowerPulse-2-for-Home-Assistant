@@ -17,7 +17,7 @@ Any upstream proposal must follow the upstream maintainer's chosen architecture.
 This integration's direct C376 MQTT path with bounded PowerOcean HTTP fallback
 is project evidence, not a prescription for another repository.
 
-Current implementation baseline: `1.0.6-beta.2` (candidate; live acceptance pending).
+Current implementation baseline: `1.0.6-beta.3` (candidate; beta.2 hardware experiments complete).
 
 ## Merge and release gates
 
@@ -52,7 +52,7 @@ lesender MCP-Prüfung der verbundenen Home-Assistant-Instanz.
 
 | ID | Priority | Open work | Completion evidence |
 | --- | --- | --- | --- |
-| `PROTOCOL-480-482` | High | Three dedicated research actions implemented in `1.0.6-beta.2`; live action visibility and hardware acceptance pending. | Install the beta, verify all three actions in HA, then run the separately controlled field-4, field-6 and charging field-5 experiments documented in [protocol_observations.md](protocol_observations.md#protocol-research-actions). Retain direct readback, companion invariants and physical-phase evidence with raw captures; no firmware capability claim before this evidence exists. |
+| `PROTOCOL-480-482` | High | Beta.2 hardware experiments completed; findings applied to normal controls in candidate `1.0.6-beta.3`. | Verify the normal number/select entity paths after installation. Field-only writes, retained freshness/charging boundaries and queued changes have regression coverage; evidence and limits are in [hardware findings](protocol_hardware_findings_beta2.md). Do not repeat the already completed research acceptance or claim untested charging-current/Continuous behavior. |
 | [`ISSUE-98`](https://github.com/Xygen/EcoFlow-PowerPulse-2-for-Home-Assistant/issues/98) | High | Direction filter implemented for `241/3`; live acceptance pending. | On a beta build, incoming `96 → 32` reports update idle and active sessions at the normal cadence; reverse `32 → 96` reports neither overwrite values nor refresh power age. Record raw and qualified sensor evidence during genuine charging. |
 
 **Historical unexplained relay values.** Why the PowerOcean relay reports
