@@ -70,3 +70,20 @@ protocol_test_phase_while_charging:
       selector:
         select:
           options: ["auto", "one_phase", "three_phase"]
+
+
+protocol_test_continuous_field_only:
+  fields:
+    device_id:
+      required: true
+      selector:
+        device:
+          integration: "ecoflow_powerpulse2"
+    confirm_protocol_test:
+      required: true
+      selector:
+        boolean: {}
+    enabled:
+      required: true
+      selector:
+        boolean: {}
