@@ -17,7 +17,7 @@ SERIAL = "C376-test"
 
 
 @pytest.fixture
-def coordinator(hass):
+async def coordinator(hass):
     entry = MockConfigEntry(domain=DOMAIN, data={"email": "test@example.invalid", "password": "test"})
     with patch("custom_components.ecoflow_powerpulse2.coordinator.PowerPulse2ApiClient"):
         c = PowerPulse2Coordinator(hass, entry)
