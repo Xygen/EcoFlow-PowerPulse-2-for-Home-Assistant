@@ -17,6 +17,11 @@ the [experiment plan](protocol_observations.md#controlled-hardware-experiment-pl
 describes the required raw and direct-device evidence. The preceding beta's
 Issue #98 vehicle acceptance also remains pending.
 
+The initial implementation revision passed all four CI jobs on
+[PR #101](https://github.com/Xygen/EcoFlow-PowerPulse-2-for-Home-Assistant/pull/101),
+including 27 real-HA tests under Linux/Python 3.14. Follow-up schema/component
+tests and the latest revision are tracked by that PR's current checks.
+
 The current stable release is `1.0.5`, released on 2026-09-14; README, index and
 user guide describe that baseline. It ships exactly the code that ran as the test
 build `1.0.5-beta.14`, which was installed and exercised on the maintainer's

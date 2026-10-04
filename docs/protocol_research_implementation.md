@@ -40,7 +40,7 @@ with prefixes instead of full serials, and optional HA response data is supporte
 
 Paths are relative to the repository root. New files are marked **new**.
 
-- `custom_components/ecoflow_powerpulse2/__init__.py`: global registration from `async_setup()`.
+- `custom_components/ecoflow_powerpulse2/__init__.py`: global registration from `async_setup()` and explicit config-entry-only HA schema.
 - `custom_components/ecoflow_powerpulse2/services.py` **new**: strict schemas, registry/loaded-entry resolution, handlers and optional responses.
 - `custom_components/ecoflow_powerpulse2/services.yaml` **new**: restricted device selector, values and explicit confirmation.
 - `custom_components/ecoflow_powerpulse2/protocol_research.py` **new**: narrow guards, direct confirmation, invariants, physical observation and bounded history.
@@ -52,7 +52,7 @@ Paths are relative to the repository root. New files are marked **new**.
 - `custom_components/ecoflow_powerpulse2/translations/de.json`: matching German descriptions.
 - `tests/test_protocol_research.py` **new**: 84 portable cases using real coordinator locks, trackers, payload encoder and real voluptuous schemas.
 - `tests/test_coordinator_transactions.py`: additional HA validation-exception boundary stub; existing assertions unchanged.
-- `ha_tests/test_protocol_research_services.py` **new**: six real-HA cases for global registration, validation errors and translation loading.
+- `ha_tests/test_protocol_research_services.py` **new**: eight real-HA cases for component/global registration, config-entry-only setup, validation errors and translation loading.
 - `requirements_test.txt`: voluptuous for actual action-schema validation.
 - `CHANGELOG.md`: beta changes and pending hardware acceptance.
 - `docs/backlog.md`: current candidate and canonical acceptance item.
@@ -90,9 +90,15 @@ temporary directory; no production safety test was skipped or rewritten.
 
 The isolated real-HA suite requires Linux/Python 3.14 and was not executable in
 this local Windows/Python 3.12 environment (no WSL distribution is available).
-Its six new cases and existing `ha_tests` remain for the configured CI job.
-Hassfest/HACS checks also remain CI checks. There is no separate type-checker
-command configured in the repository workflow.
+[Draft PR #101](https://github.com/Xygen/EcoFlow-PowerPulse-2-for-Home-Assistant/pull/101)
+provides the configured CI jobs. The first implementation revision passed 595
+portable tests, all 27 then-present real-HA cases, HACS and Hassfest in
+[run 37189204892](https://github.com/Xygen/EcoFlow-PowerPulse-2-for-Home-Assistant/actions/runs/37189204892).
+A Hassfest schema warning was addressed with the standard HA config-entry-only
+helper, loaded lazily to preserve portable protocol imports, and two additional
+real-HA tests cover the schema and actual component setup. Consult the latest PR
+checks for the final revision. There is no separate type-checker command
+configured in the repository workflow.
 
 ## Interpretation limits
 

@@ -20,6 +20,18 @@ PLATFORMS = [
 _CANONICAL_SENSOR_DEFAULTS = ("smart_charge_target_wh",)
 
 
+def _config_entry_only_schema(config: dict[str, Any]) -> dict[str, Any]:
+    """Use HA's standard schema while keeping pure protocol imports independent."""
+    from homeassistant.helpers import config_validation as cv
+
+    from .const import DOMAIN
+
+    return cv.config_entry_only_config_schema(DOMAIN)(config)
+
+
+CONFIG_SCHEMA = _config_entry_only_schema
+
+
 async def async_setup(hass: HomeAssistant, config: dict[str, Any]) -> bool:
     """Register research actions independently of loaded config entries."""
     from .services import async_register_protocol_actions

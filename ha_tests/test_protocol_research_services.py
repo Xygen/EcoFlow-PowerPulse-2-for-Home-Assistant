@@ -3,8 +3,9 @@
 import pytest
 from homeassistant.exceptions import ServiceValidationError
 from homeassistant.helpers import translation
+from homeassistant.setup import async_setup_component
 
-from custom_components.ecoflow_powerpulse2 import async_setup
+from custom_components.ecoflow_powerpulse2 import CONFIG_SCHEMA, async_setup
 from custom_components.ecoflow_powerpulse2.const import DOMAIN
 from custom_components.ecoflow_powerpulse2.services import ACTIONS
 
@@ -14,6 +15,18 @@ async def test_research_actions_register_without_loaded_entries(hass):
     assert not hass.config_entries.async_entries(DOMAIN)
     for action in ACTIONS:
         assert hass.services.has_service(DOMAIN, action)
+
+
+async def test_ha_component_setup_registers_actions_without_entries(hass):
+    assert await async_setup_component(hass, DOMAIN, {})
+    for action in ACTIONS:
+        assert hass.services.has_service(DOMAIN, action)
+
+
+def test_config_schema_keeps_yaml_setup_unsupported(hass, caplog):
+    config = {DOMAIN: {}}
+    assert CONFIG_SCHEMA(config) is config
+    assert "does not support YAML setup" in caplog.text
 
 
 @pytest.mark.parametrize("confirmation", [None, False])
