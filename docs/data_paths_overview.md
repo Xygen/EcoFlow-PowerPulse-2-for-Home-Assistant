@@ -33,7 +33,12 @@ same lock and PowerOcean-routed `241/102` transport. Their exact field-only
 shapes are `{4: amps * 10}`, `{6: amps * 10}` and `{5: 0/1/2}`. Research
 confirmation requires a matching SET reply and newer direct `241/44` target
 and required companion fields; provider readback cannot confirm these actions.
-Production controls retain their existing gates and fallback semantics.
+Candidate `1.0.6-beta.3` also uses these partial-write shapes in normal controls.
+Stored Solar/Custom current edits no longer require a selected mode or Continuous
+enablement, but still require fresh stored-value evidence and an idle charger.
+Phase selection permits fresh confirmed charging state; qualification and its
+dedicated readback fallback remain unchanged. See the completed
+[hardware findings](protocol_hardware_findings_beta2.md).
 
 `—` means that no value has been identified on that path. Values marked
 **raw** are intentionally not assigned a final unit or complete semantic

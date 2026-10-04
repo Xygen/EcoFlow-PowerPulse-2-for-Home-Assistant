@@ -22,6 +22,13 @@ historical; the subsequent maintainer hardware captures supersede its pending
 experiment status. No hardware writes or installation were performed while
 implementing beta.3.
 
+Beta.3 portable validation passed all 629 tests, including mode-independent
+partial-current writes, queued companion changes, retained stale/conflict/charging
+guards and qualified charging-time phase writes. Ruff, version/translation/local
+Markdown consistency and diff checks passed. Real-HA entity availability/dispatch
+coverage and all CI checks are tracked by
+[PR #102](https://github.com/Xygen/EcoFlow-PowerPulse-2-for-Home-Assistant/pull/102).
+
 The current stable release is `1.0.5`, released on 2026-09-14; README, index and
 user guide describe that baseline. It ships exactly the code that ran as the test
 build `1.0.5-beta.14`, which was installed and exercised on the maintainer's
