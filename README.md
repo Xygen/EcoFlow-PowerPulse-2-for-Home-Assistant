@@ -1,9 +1,10 @@
 # EcoFlow PowerPulse 2 for Home Assistant
 
-> **Beta.3 candidate:** Stored Solar minimum/Custom current can be edited while
-> idle independently of mode or Continuous Charging. Phase selection is permitted
-> during charging; firmware may briefly pause and resume automatically. These
-> changes follow the completed beta.2 hardware tests. See [findings and limits](docs/protocol_hardware_findings_beta2.md).
+> **Beta.4 candidate:** Mode selection and minimum, maximum and Custom current
+> are available during charging when direct charging state is fresh and known.
+> Current edits preserve mode/flags; phase selection also remains available.
+> Charging-time mode/current behavior still needs hardware acceptance; beta.2
+> tested the stored currents while idle. See [findings and limits](docs/protocol_hardware_findings_beta2.md).
 > The stable release described below remains `1.0.5`.
 
 Custom integration for EcoFlow PowerPulse 2 EV chargers.

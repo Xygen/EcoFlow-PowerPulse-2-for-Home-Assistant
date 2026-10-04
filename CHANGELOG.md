@@ -4,6 +4,17 @@ This file records delivered changes and the state of each historical build.
 Current outstanding work is maintained only in
 [the project backlog](docs/backlog.md).
 
+## 1.0.6-beta.4 - 2026-10-04
+
+- Correct the intended charging-time availability: mode selection and minimum,
+  maximum and Custom current controls are now available while charging.
+  Beta.3 only removed the phase lock; its current/mode locks remained.
+- Retain fresh direct charging status, source/route qualification, partial
+  current writes, serialized transactions and reply/readback confirmation.
+  Unknown/stale states remain unavailable. Continuous and Smart target interlocks
+  are unchanged. Charging-time mode/current hardware acceptance is still pending;
+  beta.2 tested the stored currents while idle and phase selection while charging.
+
 ## 1.0.6-beta.3 - 2026-10-04
 
 - Apply the beta.2 hardware findings from upstream #480/#481/#482 to normal

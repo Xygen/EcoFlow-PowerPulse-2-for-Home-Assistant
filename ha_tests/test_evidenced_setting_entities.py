@@ -11,7 +11,7 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry
 from custom_components.ecoflow_powerpulse2.const import DOMAIN
 from custom_components.ecoflow_powerpulse2.coordinator import PowerPulse2Coordinator
 from custom_components.ecoflow_powerpulse2.number import PowerPulse2CurrentNumber
-from custom_components.ecoflow_powerpulse2.select import PowerPulse2PhaseSelect
+from custom_components.ecoflow_powerpulse2.select import PowerPulse2ModeSelect, PowerPulse2PhaseSelect
 
 SERIAL = "C376-test"
 
@@ -54,6 +54,8 @@ async def test_idle_current_entity_uses_independent_storage(coordinator, mode, e
         await entity.async_set_native_value(7)
         setter.assert_awaited_once_with(SERIAL, 7)
     coordinator.data[SERIAL]["direct_charging_status"] = "charging"
+    assert entity.available
+    coordinator.data[SERIAL]["direct_charging_status"] = "unknown"
     assert not entity.available
 
 
@@ -64,6 +66,26 @@ async def test_current_entity_requires_fresh_stored_field(coordinator):
     assert entity.available
     coordinator._setting_observations = type(coordinator._setting_observations)({})
     assert not entity.available
+
+
+async def test_mode_and_maximum_current_entities_allow_charging(coordinator):
+    coordinator.data[SERIAL]["direct_charging_status"] = "charging"
+    coordinator.data[SERIAL]["output_current_max_raw"] = 160
+    mode = PowerPulse2ModeSelect(coordinator, SERIAL)
+    maximum = PowerPulse2CurrentNumber(
+        coordinator, SERIAL, NumberEntityDescription(key="maximum_output_current_control")
+    )
+    assert mode.available
+    assert maximum.available
+    with patch.object(coordinator, "async_set_work_mode", new_callable=AsyncMock) as setter:
+        await mode.async_select_option("fast")
+        setter.assert_awaited_once_with(SERIAL, "fast")
+    with patch.object(coordinator, "async_set_maximum_output_current", new_callable=AsyncMock) as setter:
+        await maximum.async_set_native_value(12)
+        setter.assert_awaited_once_with(SERIAL, 12)
+    coordinator._last_heartbeat_at[SERIAL] = time.monotonic() - 91
+    assert not mode.available
+    assert not maximum.available
 
 
 async def test_phase_entity_allows_charging_but_requires_fresh_state(coordinator):

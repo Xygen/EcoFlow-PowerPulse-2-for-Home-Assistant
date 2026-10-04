@@ -11,7 +11,7 @@ from typing import Any
 from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
 
 from .charge_control import direct_charging_status
-from .control_safety import control_allowed_for_status
+from .control_safety import idle_control_allowed
 
 DIRECT_SOURCE = "direct_fast_settings_241_44"
 READBACK_SECONDS = 15
@@ -126,7 +126,7 @@ class ProtocolResearchMixin:
                             > self._protocol_direct_phase_fresh_seconds
                             or phase.mode != direct.mode):
                         raise ServiceValidationError("No fresh qualified direct phase-setting evidence is available")
-                elif not control_allowed_for_status(key, status):
+                elif not idle_control_allowed(status):
                     raise ServiceValidationError("Protocol test requires an idle PowerPulse 2")
                 before = {item: self._research_direct(serial, item) for item in keys}
                 if any(item is None for item in before.values()):

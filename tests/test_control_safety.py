@@ -7,14 +7,10 @@ from custom_components.ecoflow_powerpulse2.control_safety import (
 def test_live_confirmed_settings_are_locked_while_charging() -> None:
     assert CHARGING_LOCKED_SETTING_KEYS == {
         "continuous_charging",
-        "output_current_max_raw",
         "ready_by_timestamp",
-        "solar_current_min_raw",
         "smart_charge_target_wh",
         "smart_target_distance_km",
         "smart_target_type",
-        "user_current_set_raw",
-        "work_mode",
     }
     for key in CHARGING_LOCKED_SETTING_KEYS:
         assert not control_allowed_for_status(key, "charging")
@@ -44,6 +40,10 @@ def test_live_confirmed_allowed_settings_remain_available_while_charging() -> No
         "indicator_enabled",
         "plug_and_play",
         "phase_mode",
+        "work_mode",
+        "output_current_max_raw",
+        "solar_current_min_raw",
+        "user_current_set_raw",
         "screen_brightness_pct",
         "screen_enabled",
     ):
