@@ -4,6 +4,14 @@ This file records delivered changes and the state of each historical build.
 Current outstanding work is maintained only in
 [the project backlog](docs/backlog.md).
 
+## 1.0.6-beta.2 - 2026-10-04
+
+- Add three explicitly confirmed Protocol Research actions for field-only solar
+  minimum/custom current writes while idle and phase writes during charging.
+  Production entity guards and bundled writes remain unchanged. Research success
+  requires a matching SET reply and newer direct device settings evidence;
+  bounded diagnostics record outcomes. Hardware acceptance remains pending.
+
 ## 1.0.6-beta.1 - 2026-10-03
 
 Beta candidate for validating the Issue #98 direction filter. Live vehicle

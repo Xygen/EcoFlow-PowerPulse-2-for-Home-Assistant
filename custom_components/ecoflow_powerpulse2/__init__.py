@@ -20,6 +20,14 @@ PLATFORMS = [
 _CANONICAL_SENSOR_DEFAULTS = ("smart_charge_target_wh",)
 
 
+async def async_setup(hass: HomeAssistant, config: dict[str, Any]) -> bool:
+    """Register research actions independently of loaded config entries."""
+    from .services import async_register_protocol_actions
+
+    async_register_protocol_actions(hass)
+    return True
+
+
 def _enable_new_canonical_sensor_defaults(
     hass: HomeAssistant, serials: list[str], domain: str
 ) -> None:

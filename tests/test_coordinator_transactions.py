@@ -97,6 +97,7 @@ def harness(monkeypatch):
         "homeassistant.exceptions",
         ConfigEntryAuthFailed=AuthFailed,
         HomeAssistantError=HAError,
+        ServiceValidationError=HAError,
     )
     module("homeassistant.helpers")
     # Returns the unsubscribe callable; these tests never run the timer.

@@ -4,3 +4,4 @@ pytest-mock
 paho-mqtt==2.1.0
 ruff
 markdown-it-py==3.0.0
+voluptuous>=0.15,<1

@@ -2174,3 +2174,108 @@ reported `available / 0 W`, while `32 → 96 / 241/3` repeatedly reported
 Session telemetry now accepts only the confirmed incoming direction. This
 evidence is from the issue report; no fresh device capture was made for this
 implementation. No direction restriction is inferred for `209/8`.
+## Protocol research actions
+
+Added in `1.0.6-beta.2` to test whether upstream `shuette42/ecoflow-energy-ha`
+issues #480, #481 and #482 can be resolved using narrowly scoped hardware
+experiments. Adding these actions does **not** prove firmware support. Results
+require subsequent real hardware captures. These actions are diagnostic
+experiments and must not be used as normal automation controls.
+
+Each action takes exactly one integration `device_id`, requires
+`confirm_protocol_test: true`, and sends exactly one PowerOcean-routed `241/102`
+`EDevParamSet`. No arbitrary fields, bytes, command IDs or serial-number input
+are exposed. There is no automatic rollback, mode switch or Stop/Start sequence.
+
+| Action under `ecoflow_powerpulse2` | Exact `EDevPileParamSet` fields | Research-only exception |
+| --- | --- | --- |
+| `protocol_test_solar_minimum_field_only` | `{4: current * 10}` | Permits idle Solar with Continuous OFF, or idle Fast; omits normal fields 1 and 2. |
+| `protocol_test_custom_current_field_only` | `{6: current * 10}` | Permits idle Solar or Fast without entering Custom; omits normal field 2. |
+| `protocol_test_phase_while_charging` | `{5: phase}` | Permits a phase setting transition only during fresh confirmed `charging`; bypasses the production charging lock for this action only. |
+
+Both current actions accept whole amperes from 6 through 16 and require an
+explicit `expected_work_mode` of `solar` or `fast`. The Solar action optionally
+accepts `expected_continuous_charging` as a checked precondition. Phase values
+are `auto` = 0, `one_phase` = 1, `three_phase` = 2. An already configured target
+is rejected without publishing; provider no-op optimization never suppresses
+a research write.
+
+The production methods, entity availability, charging-lock keys and validation
+rules remain unchanged: normal Solar minimum requires Solar and Continuous ON
+and retains its bundled write; normal Custom current requires Custom and retains
+its bundle; normal Phase requires qualified evidence, stays blocked while
+charging and writes only field 5.
+
+All experiments require a loaded PowerPulse in its coordinator, no shutdown,
+an accessory descriptor, exactly one existing qualified linked PowerOcean
+observer with connected control MQTT, connected direct PowerPulse transport,
+fresh direct settings fields and a fresh direct heartbeat. The current tests
+retain the accepted idle-status gate. The phase test requires the tracker’s
+qualified phase evidence plus direct phase evidence within the normal direct
+phase freshness budget. All mutable prerequisites are checked **after** acquiring
+the existing shared control lock.
+
+A matching same-sequence SET reply proves delivery only. Success requires
+newer field evidence from `241/44` (`direct_fast_settings_241_44`) after command
+issue. Research never accepts provider echoes, remembered merged values or
+optimistic entity updates as confirmation. The readback wait is bounded to
+15 seconds and requires newer companion evidence too. Solar verifies unchanged
+work mode, switch bits and Continuous state. Custom verifies unchanged work mode
+and records the other two invariants. Missing evidence fails confirmation;
+unexpected enforced companion changes raise an error with result
+`unexpected_companion_change`. No speculative rollback is attempted.
+
+After stored phase confirmation, the action observes existing direct heartbeat
+telemetry for a bounded 15-second window. Results distinguish `changed`,
+`unchanged` and `insufficient_fresh_telemetry`. Available direct active-phase
+raw/named values and the existing aggregate direct phase-current value are
+recorded; separate positional currents are not invented. A session ending during
+the window is recorded separately and is not treated as a charging-phase switch.
+An unchanged physical
+phase is a valid observation, not proof that a restart is required. The shared
+lock remains held during this window to prevent another command contaminating
+the observation. No extra MQTT connection, faster polling, provider refresh,
+periodic task, recorder entity or persistent storage is added.
+
+The latest 20 manually invoked transactions appear in downloaded diagnostics
+under `protocol_research_transactions`, including UTC timing, sequence,
+requested/published fields, reply status, direct confirmation source, before/
+after snapshots, invariants and outcome. Only a four-character device prefix
+is retained. Actions also support optional response data; confirmation semantics
+are identical when no response is requested. Failed calls still raise HA errors.
+
+### Controlled hardware experiment plan
+
+Run these manually after installing the beta and checking action visibility.
+Keep external raw capture running, allow roughly 60–90 seconds between separate
+writes, and download diagnostics immediately after each experiment.
+
+1. **#480, Solar / Continuous OFF:** idle Solar, Continuous OFF, minimum 6 A.
+   Invoke Solar field-only 7 A with `expected_work_mode: solar` and
+   `expected_continuous_charging: false`; after 60–90 seconds invoke 6 A.
+   Verify Solar, switch bits and Continuous OFF remain unchanged.
+2. **#480, Fast:** idle Fast, minimum 6 A. Invoke Solar field-only 7 A with
+   `expected_work_mode: fast`, then separately restore 6 A after 60–90 seconds.
+   Verify Fast and the recorded companion invariants remain unchanged.
+3. **#481:** idle Solar, stored Custom current 6 A. Invoke Custom field-only
+   10 A with `expected_work_mode: solar`, then separately restore 6 A after
+   60–90 seconds. Verify work mode remains Solar throughout. The same action
+   also permits a separately controlled Fast-mode experiment.
+4. **#482:** start a real EV session normally. Record configured/physical phase
+   and available currents; invoke one phase action with a different configured
+   target. Correlate the reply, newer stored setting and physical observation.
+   If the setting is stored without an observed physical change, perform normal
+   Stop/Start separately and inspect the next session. Restore the original
+   phase setting through an appropriate normal or explicitly confirmed action.
+
+Example field-4 experiment (each call is a separate manual operation):
+
+```yaml
+action: ecoflow_powerpulse2.protocol_test_solar_minimum_field_only
+data:
+  device_id: <Home Assistant PowerPulse device ID>
+  current: 7
+  expected_work_mode: solar
+  expected_continuous_charging: false
+  confirm_protocol_test: true
+```

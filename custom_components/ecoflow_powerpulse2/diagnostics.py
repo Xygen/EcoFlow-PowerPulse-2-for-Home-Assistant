@@ -133,6 +133,7 @@ async def async_get_config_entry_diagnostics(
         "passive_settings_refresh": passive_refresh,
         "charge_action_readback": coordinator.charge_action_readback,
         "phase_readback_sources": coordinator.phase_readback_sources,
+        "protocol_research_transactions": coordinator.protocol_research_transactions,
         "mqtt_frames": list(coordinator.mqtt_frames),
         "mqtt_command_frames": list(coordinator.mqtt_command_frames),
         "mqtt_request_frames": list(coordinator.mqtt_request_frames),

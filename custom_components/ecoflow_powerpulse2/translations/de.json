@@ -163,5 +163,73 @@
     "smart_ready_by_too_far_ahead": {
       "message": "Die Smart-Zielzeit ({ready_by}) liegt mehr als ein Jahr in der Zukunft. Wähle eine Zielzeit innerhalb des nächsten Jahres."
     }
+  },
+  "services": {
+    "protocol_test_solar_minimum_field_only": {
+      "name": "Protokollforschung: Solar-Mindeststrom nur mit Feld 4",
+      "description": "Kontrollierter Hardware-/Protokolltest. Umgeht gezielt die Solar-/Continuous-Freigabe und das normale Begleitfeldbündel. Nicht für normale Automationen verwenden. Genau ein Schreibvorgang; frische direkte Bestätigung erforderlich.",
+      "fields": {
+        "device_id": {
+          "name": "PowerPulse-Gerät",
+          "description": "Genau einen PowerPulse 2 auswählen."
+        },
+        "confirm_protocol_test": {
+          "name": "Protokollexperiment bestätigen",
+          "description": "Explizit auf true setzen, um diesen einzelnen experimentellen Schreibvorgang zu erlauben."
+        },
+        "current": {
+          "name": "Strom",
+          "description": "Ganze Ampere von 6 bis 16 A."
+        },
+        "expected_work_mode": {
+          "name": "Erwarteter Betriebsmodus",
+          "description": "Muss mit frischer direkter Rückmeldung übereinstimmen; die Aktion ändert den Modus nicht."
+        },
+        "expected_continuous_charging": {
+          "name": "Erwartetes kontinuierliches Laden",
+          "description": "Optionale Vorbedingung, unmittelbar vor dem Senden geprüft."
+        }
+      }
+    },
+    "protocol_test_custom_current_field_only": {
+      "name": "Protokollforschung: Custom-Strom nur mit Feld 6",
+      "description": "Kontrollierter Hardware-/Protokolltest. Umgeht gezielt die Custom-Modus-Beschränkung und das normale Begleitfeldbündel. Nicht für normale Automationen verwenden. Genau ein Schreibvorgang; frische direkte Bestätigung erforderlich.",
+      "fields": {
+        "device_id": {
+          "name": "PowerPulse-Gerät",
+          "description": "Genau einen PowerPulse 2 auswählen."
+        },
+        "confirm_protocol_test": {
+          "name": "Protokollexperiment bestätigen",
+          "description": "Explizit auf true setzen, um diesen einzelnen experimentellen Schreibvorgang zu erlauben."
+        },
+        "current": {
+          "name": "Strom",
+          "description": "Ganze Ampere von 6 bis 16 A."
+        },
+        "expected_work_mode": {
+          "name": "Erwarteter Betriebsmodus",
+          "description": "Muss mit frischer direkter Rückmeldung übereinstimmen; die Aktion ändert den Modus nicht."
+        }
+      }
+    },
+    "protocol_test_phase_while_charging": {
+      "name": "Protokollforschung: Phase während des Ladens schreiben",
+      "description": "Kontrollierter Hardware-/Protokolltest. Umgeht gezielt die Ladesperre für Phaseneinstellungen. Nicht für normale Automationen verwenden. Genau ein Schreibvorgang; frische direkte Bestätigung erforderlich.",
+      "fields": {
+        "device_id": {
+          "name": "PowerPulse-Gerät",
+          "description": "Genau einen PowerPulse 2 auswählen."
+        },
+        "confirm_protocol_test": {
+          "name": "Protokollexperiment bestätigen",
+          "description": "Explizit auf true setzen, um diesen einzelnen experimentellen Schreibvorgang zu erlauben."
+        },
+        "phase": {
+          "name": "Phaseneinstellung",
+          "description": "Muss von der frisch bestätigten konfigurierten Phase abweichen."
+        }
+      }
+    }
   }
 }
