@@ -53,6 +53,13 @@ class ProtocolResearchMixin:
             serial, "phase_while_charging", phase, None, confirm_protocol_test,
         )
 
+    async def async_protocol_test_continuous_field_only(
+        self, serial: str, enabled: bool, *, confirm_protocol_test: bool = False,
+    ) -> dict[str, Any]:
+        return await self._async_protocol_test(
+            serial, "continuous_field_only", enabled, "solar", confirm_protocol_test,
+        )
+
     def _research_direct(self, serial: str, key: str, *, after: float = -1) -> Any:
         observations = self._setting_observations.fresh_observations(
             serial=serial, key=key, now=time.monotonic(),
@@ -82,12 +89,22 @@ class ProtocolResearchMixin:
             if confirmed is not True:
                 raise ServiceValidationError("Protocol test requires confirm_protocol_test=true")
             phase_test = action == "phase_while_charging"
+            continuous_test = action == "continuous_field_only"
             if phase_test:
                 if target not in PHASE_VALUES:
                     raise ServiceValidationError("Phase must be auto, one_phase or three_phase")
                 field, key, value = 5, "phase_mode", target
                 raw = PHASE_VALUES[target]
                 keys = ("phase_mode",)
+            elif continuous_test:
+                if type(target) is not bool:
+                    raise ServiceValidationError("Continuous charging target must be boolean")
+                field, key, value = 1, "continuous_charging", target
+                current_flags = self._research_direct(serial, "switch_bits_raw")
+                if type(current_flags) is not int:
+                    raise ServiceValidationError("No fresh direct switchBits readback is available")
+                raw = current_flags | 0x10 if target else current_flags & ~0x10
+                keys = ("continuous_charging", "work_mode", "switch_bits_raw", "solar_current_min_raw")
             else:
                 if type(target) not in (int, float):
                     raise ServiceValidationError("Current must be a whole number from 6 to 16 A")
@@ -131,7 +148,14 @@ class ProtocolResearchMixin:
                 before = {item: self._research_direct(serial, item) for item in keys}
                 if any(item is None for item in before.values()):
                     raise ServiceValidationError("No fresh direct PowerPulse settings report is available")
-                if not phase_test:
+                if continuous_test:
+                    if before["work_mode"] != "solar":
+                        raise ServiceValidationError(
+                            f"Expected solar mode but fresh device readback reports {before['work_mode']}"
+                        )
+                    if self._control_setting_value(serial, "work_mode") != "solar":
+                        raise ServiceValidationError("Expected Solar mode conflicts with fresh settings evidence")
+                elif not phase_test:
                     if before["work_mode"] != expected_mode:
                         raise ServiceValidationError(
                             f"Expected {expected_mode} mode but fresh device readback reports {before['work_mode']}"
@@ -147,6 +171,11 @@ class ProtocolResearchMixin:
                     raise ServiceValidationError(
                         "Target value already equals current value; no protocol write was sent"
                     )
+                if continuous_test:
+                    expected_flags = before["switch_bits_raw"] | 0x10 if value else before["switch_bits_raw"] & ~0x10
+                    raw = expected_flags
+                    record["expected_switch_bits_raw"] = expected_flags
+                    record["requested_fields"] = {"1": expected_flags}
                 before["charging_status"] = status
                 if phase_test:
                     before["phase_specified_raw"] = PHASE_VALUES[direct.mode]
@@ -178,13 +207,26 @@ class ProtocolResearchMixin:
         record["result"] = "direct_readback_timeout"
         key, expected = record["expected_key"], record["expected_value"]
         phase_test = record["action"] == "phase_while_charging"
-        invariant_keys = (() if phase_test else ("work_mode", "switch_bits_raw", "continuous_charging"))
-        required = (key, *invariant_keys)
+        continuous_test = record["action"] == "continuous_field_only"
+        if phase_test:
+            invariant_keys = ()
+            required = (key,)
+        elif continuous_test:
+            invariant_keys = ("work_mode", "solar_current_min_raw")
+            required = (key, "switch_bits_raw", *invariant_keys)
+        else:
+            invariant_keys = ("work_mode", "switch_bits_raw", "continuous_charging")
+            required = (key, *invariant_keys)
         deadline = time.monotonic() + READBACK_SECONDS
         while True:
             after = {item: self._research_direct(serial, item, after=issued_at) for item in required}
             record["after"] = after
             target_matches = after[key] == expected
+            if continuous_test:
+                target_matches = (
+                    target_matches
+                    and after["switch_bits_raw"] == record["expected_switch_bits_raw"]
+                )
             if phase_test:
                 phase = self._phase_readbacks.source_evidence(serial, "direct_241_44")
                 target_matches = (target_matches and phase is not None
@@ -206,8 +248,20 @@ class ProtocolResearchMixin:
         )
         invariants = {f"{item}_unchanged": after[item] == record["before"][item] for item in invariant_keys}
         record["invariants"] = invariants
-        enforced = invariant_keys if record["action"] == "solar_minimum_field_only" else ("work_mode",)
-        if not phase_test and any(not invariants[f"{item}_unchanged"] for item in enforced):
+        if continuous_test:
+            before_flags = record["before"]["switch_bits_raw"]
+            after_flags = record["after"]["switch_bits_raw"]
+            record["invariants"]["unrelated_switch_bits_unchanged"] = (
+                (before_flags & ~0x10) == (after_flags & ~0x10)
+            )
+            enforced = (*invariant_keys, "unrelated_switch_bits")
+        else:
+            enforced = invariant_keys if record["action"] == "solar_minimum_field_only" else ("work_mode",)
+        if not phase_test and any(
+            (not invariants[f"{item}_unchanged"] if item != "unrelated_switch_bits"
+             else not record["invariants"]["unrelated_switch_bits_unchanged"])
+            for item in enforced
+        ):
             record["result"] = "unexpected_companion_change"
             raise HomeAssistantError("The target value changed but companion settings changed unexpectedly")
         if phase_test:
